@@ -1,0 +1,1 @@
+These SVG icons are from [Simple Icons 16.37.0](https://github.com/simple-icons/simple-icons), distributed under CC0-1.0. Brand names and trademarks belong to their respective owners; the icons do not imply endorsement.

@@ -30,6 +30,7 @@ import { SidebarPopoverMenu } from "./SidebarPopoverMenu";
 import { appCategoryLabel, CATEGORY_SECTION_SIZE, catalogSections, connectorDescription, inCategory, rankCategories } from "@/lib/app-catalog";
 import { McpServersPanel } from "./McpServersPanel";
 import { McpAppSummary } from "./McpAppSummary";
+import { LocalAppDirectory } from "./LocalAppDirectory";
 import { HOSTED_MCP_APPS, type HostedApp, type HostedConnections } from "@/lib/hosted-mcp-apps";
 import { EmailCard } from "./EmailCard";
 import { PostizCard } from "./PostizCard";
@@ -593,6 +594,7 @@ export function PluginsPanel() {
             </div>
           )}
           {filter === "all" && category === null && <McpAppSummary search={search} onManage={() => chooseFilter("mcp")} />}
+          {filter === "all" && <LocalAppDirectory search={search} externalCategory={category} onManage={() => chooseFilter("mcp")} />}
           {setupNotice && filter !== "mcp" && (
             <div
               className={cn(

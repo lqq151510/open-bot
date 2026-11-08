@@ -54,6 +54,11 @@ const APP_CATEGORY_COPY: Record<string, string> = {
   "sales and crm": "salesCrm",
   design: "design",
   marketing: "marketing",
+  finance: "finance",
+  research: "research",
+  support: "support",
+  "password managers": "passwordManagers",
+  creative: "creative",
   analytics: "analytics",
   social: "social",
 };
