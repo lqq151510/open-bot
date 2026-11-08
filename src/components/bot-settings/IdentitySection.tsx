@@ -43,7 +43,7 @@ export function IdentitySection({
       {shows("avatar") && <BotProfileAvatarCard bot={bot} activeState={activeState} mascotMotion={mascotMotion} onPatch={patch} />}
       {shows("provenance") && <PackageProvenance bot={bot} />}
 
-      {shows("name") && <div>
+      {shows("name") && <div className={draft ? "order-first" : undefined}>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <label htmlFor={`bot-name-${bot.id}`} className="text-[13px] text-ink-secondary">{t("botSettings.identity.name")}</label>
           {draft && <div className="flex flex-wrap gap-1">

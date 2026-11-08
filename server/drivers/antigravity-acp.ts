@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
@@ -196,7 +196,6 @@ export async function antigravityProfileAuthenticated(profile: AntigravityProfil
   try {
     const info = await stat(profile.tokenPath);
     if (!info.isFile() || info.size <= 0 || info.size > 1024 * 1024) return false;
-    await readFile(profile.tokenPath, { encoding: "utf8" });
     return true;
   } catch {
     return false;
