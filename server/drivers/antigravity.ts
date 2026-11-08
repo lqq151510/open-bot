@@ -1,7 +1,6 @@
 // Google Antigravity through its official ACP server: managed runtime, isolated Google profile,
 // model/mode configuration and OAuth.
 import type { ApprovalMode } from "../../shared/approval-mode.ts";
-import { antigravityAccount } from "./antigravity-account.ts";
 import type {
   DriverCreateInput,
   ModelCatalog,
@@ -133,7 +132,6 @@ const support: AcpSupport = {
         state: "available",
         version: runtime.version,
         authenticated: await antigravityProfileAuthenticated(profile),
-        account: await antigravityAccount(profile.tokenPath),
       };
     } catch (error) {
       return { state: "unavailable", reason: error instanceof Error ? error.message : String(error) };

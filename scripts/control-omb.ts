@@ -310,6 +310,7 @@ export async function launchVerificationServer(
     ...(imageGen ? { imageGen } : {}),
     // A setup card's answers would be one more engine call at every new bot, taking replies a test scripts for its turns.
     features: { smartSetupChoices: false },
+    ...(extraProviders.length === 0 ? { defaultModelSelection: { instanceId: "claude", model: "claude-sonnet-5" } } : {}),
     instances: {
       ...(extraProviders.includes("codex") ? { codex: {
         driver: "codex", displayName: "Verification Codex", config: { cli: fileURLToPath(new URL("../server/testing/fake-codex-app-server.ts", import.meta.url)) },

@@ -167,8 +167,7 @@ export function startUpdater(signals = null) {
   // Broadcast the install flavour before the first check so the banner never offers a restart it cannot deliver.
   const packageType = linuxPackageType({ readMarker: (file) => (existsSync(file) ? readFileSync(file, "utf8") : null) });
   const handOff = HAND_OFF_TYPES.has(packageType);
-  // On macOS this also starts Squirrel.Mac's native staging at once; a system package is never installed on quit.
-  autoUpdater.autoInstallOnAppQuit = !handOff;
+  autoUpdater.autoInstallOnAppQuit = false;
   const elevated = packageType === "deb" && canInstallElevated();
   setState({ installMode: handOff && !elevated ? "handoff" : "restart" });
   updaterCoordinator = createUpdaterCoordinator(autoUpdater, setState, {

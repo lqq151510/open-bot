@@ -215,16 +215,16 @@ it("another Cloud of the person's own gets the update bridge as My Cloud's page 
   expect(has(OWN, "own")).toBe(false);
 });
 
-it("a downloaded update installs when the app quits, except a system package, which is the person's to install", async () => {
+it("a downloaded update waits for the person to choose installation", async () => {
   const platform = Object.getOwnPropertyDescriptor(process, "platform");
   const resourcesPath = process.resourcesPath;
   const appImage = process.env.APPIMAGE;
   const resources = mkdtempSync(join(tmpdir(), "omb-updater-package-"));
   try {
     for (const [os, marker, image, installsOnQuit] of [
-      ["darwin", null, null, true],
-      ["win32", null, null, true],
-      ["linux", null, "/home/a/OpenBot.AppImage", true],
+      ["darwin", null, null, false],
+      ["win32", null, null, false],
+      ["linux", null, "/home/a/OpenBot.AppImage", false],
       ["linux", "deb", null, false],
       ["linux", "rpm", null, false],
     ]) {
