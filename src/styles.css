@@ -3,6 +3,30 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
+.openbot-empty-avatar {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+  border-radius: 28px;
+  background: var(--color-card);
+}
+.openbot-empty-state > :last-child {
+  line-height: 1.65;
+}
+.openbot-composer {
+  transition: box-shadow 180ms ease;
+}
+.openbot-composer:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 42%, transparent), 0 8px 28px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .openbot-composer { transition: none; }
+}
+
+
 /* Phones and tablets have no hover, and Tailwind only applies `hover:` and
    `group-hover:` under `@media (hover: hover)`. A control revealed on hover
    (`opacity-0 group-hover:opacity-100`) is therefore invisible there. Pair

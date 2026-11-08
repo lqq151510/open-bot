@@ -1,31 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
-  <title id="title">OpenBot</title>
-  <desc id="desc">A friendly white robot head with cyan antenna on a deep blue app tile.</desc>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0A1020"/>
-      <stop offset="0.55" stop-color="#102A4C"/>
-      <stop offset="1" stop-color="#0B4C7A"/>
-    </linearGradient>
-    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#D6E4F5"/>
-    </linearGradient>
-    <clipPath id="tile"><rect width="1024" height="1024" rx="230.4"/></clipPath>
-  </defs>
-  <g transform="translate(100 100) scale(0.8046875)">
-    <g clip-path="url(#tile)">
-      <rect width="1024" height="1024" fill="url(#bg)"/>
-      <circle cx="512" cy="540" r="360" fill="#2FA8FF" opacity="0.10"/>
-      <circle cx="512" cy="540" r="250" fill="#2FA8FF" opacity="0.08"/>
-      <g transform="translate(512 520)">
-        <rect x="-7" y="-268" width="14" height="86" rx="7" fill="#EAF2FF"/>
-        <circle cx="0" cy="-280" r="21" fill="#4FC3FF"/>
-        <rect x="-232" y="-196" width="464" height="392" rx="116" fill="url(#face)"/>
-        <rect x="-122" y="-72" width="62" height="124" rx="31" fill="#0A1220"/>
-        <rect x="60" y="-72" width="62" height="124" rx="31" fill="#0A1220"/>
-        <path d="M -46 100 Q 0 136 46 100" stroke="#0A1220" stroke-width="20" stroke-linecap="round" fill="none"/>
-      </g>
-    </g>
-  </g>
+<title id="title">OpenBot</title><desc id="desc">An open orbit around a friendly bot, on a dark rounded square.</desc>
+<defs><linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1b3137"/><stop offset="1" stop-color="#0b1117"/></linearGradient><linearGradient id="ring" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#5aa89d"/><stop offset="1" stop-color="#9be7d3"/></linearGradient></defs>
+<rect x="80" y="80" width="864" height="864" rx="220" fill="url(#tile)"/>
+<path d="M 716 330 A 258 258 0 1 0 755 583" fill="none" stroke="url(#ring)" stroke-width="48" stroke-linecap="round"/>
+<circle cx="750" cy="354" r="37" fill="#b9f6df"/>
+<rect x="356" y="402" width="312" height="238" rx="94" fill="#eff6ec"/>
+<rect x="423" y="481" width="34" height="73" rx="17" fill="#183638"/>
+<rect x="567" y="481" width="34" height="73" rx="17" fill="#183638"/>
+<path d="M 482 581 Q 512 598 542 581" fill="none" stroke="#49897f" stroke-width="14" stroke-linecap="round"/>
 </svg>
