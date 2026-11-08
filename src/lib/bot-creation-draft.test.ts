@@ -3,6 +3,13 @@ import { BotCreationDraft, EMPTY_BOT_DEFAULTS } from "./bot-creation-draft";
 import { api } from "@/state/store";
 
 describe("isolated creation draft", () => {
+  it("keeps a new bot's name, color and body together in the exported profile", () => {
+    const draft = new BotCreationDraft(EMPTY_BOT_DEFAULTS, vi.fn());
+    draft.patch({ name: "小星", color: "blue", mascotBody: "star" });
+    expect(draft.bot).toMatchObject({ name: "小星", color: "blue", mascotBody: "star" });
+    expect(draft.export().profile).toMatchObject({ name: "小星", color: "blue", mascotBody: "star" });
+    draft.dispose();
+  });
   it("clears a selection without exposing a malformed null bot status", async () => {
     const draft = new BotCreationDraft({ ...EMPTY_BOT_DEFAULTS, profile: { toolScope: { allow: [] } } }, vi.fn());
     expect(draft.bot).toHaveProperty("toolScope", { allow: [] });

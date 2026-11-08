@@ -40,7 +40,7 @@ export function IdentitySection({
 
   return (
     <div className="flex flex-col gap-4">
-      {shows("avatar") && <BotProfileAvatarCard bot={bot} activeState={activeState} mascotMotion={mascotMotion} onPatch={patch} />}
+      {!draft && shows("avatar") && <BotProfileAvatarCard bot={bot} activeState={activeState} mascotMotion={mascotMotion} onPatch={patch} />}
       {shows("provenance") && <PackageProvenance bot={bot} />}
 
       {shows("name") && <div className={draft ? "order-first" : undefined}>
@@ -65,6 +65,7 @@ export function IdentitySection({
           onChange={(e) => patch({ name: e.target.value })}
         />
       </div>}
+      {draft && shows("avatar") && <BotProfileAvatarCard bot={bot} activeState={activeState} mascotMotion={mascotMotion} onPatch={patch} />}
       {shows("title") && <Field label={t("botSettings.identity.title")}>
         <ProposalStatus bot={bot} kind="chief" />
         <input

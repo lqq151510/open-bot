@@ -63,6 +63,8 @@ export function BotProfileAvatarCard({
           </div>
         )}
 
+        {crop === "mascot" && <MascotAppearancePickers bot={bot} busy={busy} onPatch={onPatch} />}
+
         <div className="mt-2 flex gap-2">
           <input
             ref={fileRef}
@@ -144,36 +146,6 @@ export function BotProfileAvatarCard({
             </div>
 
             <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
-              {t("botIdentity.color")}
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {MAUS_COLOR_NAMES.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  disabled={busy}
-                  aria-pressed={bot.color === color}
-                  onClick={() => onPatch({ color })}
-                  className={cn(
-                    "size-10 rounded-full border-2 border-transparent transition-transform hover:scale-110 disabled:opacity-50",
-                    bot.color === color && "ring-2 ring-accent-border ring-offset-2 ring-offset-card",
-                  )}
-                  style={{ background: colorSwatch(color) }}
-                  title={t(MAUS_COLOR_LABEL[color])}
-                  aria-label={t("mascot.useColor", { color: colorName(color) })}
-                />
-              ))}
-            </div>
-
-            <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
-              {t("botIdentity.body")}
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {MASCOT_BODY_IDS.map((id) => (
-                <BodyButton key={id} id={id} name={bodyName(id)} bot={bot} busy={busy} onPatch={onPatch} />
-              ))}
-            </div>
-            <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
               {t("botPanel.avatar.halloween")}
             </div>
             <div className="grid grid-cols-5 gap-1.5" data-halloween-bodies>
@@ -220,4 +192,24 @@ function BodyButton({ id, name, bot, busy, onPatch }: {
       <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={id} size={34} animated={false} trackPointer={false} />
     </button>
   );
+}
+
+
+function MascotAppearancePickers({ bot, busy, onPatch }: { bot: Bot; busy: boolean; onPatch: (patch: AvatarPatch) => void }) {
+  return <>
+    <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("botIdentity.color")}</div>
+    <div className="flex flex-wrap gap-2.5">
+      {MAUS_COLOR_NAMES.map(color => <button
+        key={color} type="button" disabled={busy} aria-pressed={bot.color === color}
+        onClick={() => onPatch({ color })}
+        className={cn("size-10 rounded-full border-2 border-transparent transition-transform hover:scale-110 disabled:opacity-50", bot.color === color && "ring-2 ring-accent-border ring-offset-2 ring-offset-card")}
+        style={{ background: colorSwatch(color) }} title={t(MAUS_COLOR_LABEL[color])}
+        aria-label={t("mascot.useColor", { color: colorName(color) })}
+      />)}
+    </div>
+    <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("botIdentity.body")}</div>
+    <div className="grid grid-cols-5 gap-1.5">
+      {MASCOT_BODY_IDS.map(id => <BodyButton key={id} id={id} name={bodyName(id)} bot={bot} busy={busy} onPatch={onPatch} />)}
+    </div>
+  </>;
 }
