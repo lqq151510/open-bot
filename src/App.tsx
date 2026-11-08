@@ -308,7 +308,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
 
   const framed = windowFramed(capabilities);
   const strips = <>
-    <UpdateBanner sidebarIndicator={framed || (!calendarFocus && (sidebarInline || drawerOpen))} />
+    {!state.bots.some(bot => bot.busy || bot.tasks?.some(task => task.busy)) && !state.groups.some(group => group.working || group.busyBotId) && !(state.liveCall && state.liveCall.status !== "ended") && <UpdateBanner sidebarIndicator={framed || (!calendarFocus && (sidebarInline || drawerOpen))} />}
     <CloudAsleepStrip />
     <LiveConnectionStrip connected={state.connected} hydrated={state.hydrated === true} />
     <CloudSendStrip cloudHome={state.config?.cloudHome === true} />
