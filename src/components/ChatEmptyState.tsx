@@ -9,8 +9,8 @@ export function EmptyChat({ bot }: { bot: Bot }) {
   const { dispatch } = useStore();
   const advanced = useAdvancedMode();
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-center">
-      <BotAvatar bot={bot} state="idle" size={64} motion="none" motionKey={0} />
+    <div className="openbot-empty-state flex flex-1 flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+      <div className="openbot-empty-avatar"><BotAvatar bot={bot} state="idle" size={64} motion="none" motionKey={0} /></div>
       {!advanced ? <div className="text-[17px] font-semibold text-ink">{bot.name}</div> : <RenameTitle
         value={bot.name}
         onCommit={(name) => {

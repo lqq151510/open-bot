@@ -7,7 +7,7 @@ import { BOT_BUTTON, botButtonStyle, botButtonTone, type BotButton } from "@/lib
 export const SIMPLE_COMPOSER = "bg-composer p-2 ring-[0.5px] ring-ink/10 hover:ring-ink/[0.22] focus-within:ring-ink/[0.22] shadow-[0_2px_8px_-1px_rgb(0_0_0/0.05),0_1px_2px_rgb(0_0_0/0.03),0_0_0_1px_rgb(228_228_228/0.04)] [transition:border-radius_300ms,box-shadow_150ms]";
 
 /** Simple mode's small round controls in the composer: the +, the mic and Stop beside the round button. */
-export const SIMPLE_CONTROL = "size-7 rounded-full bg-ink/[0.05] ring-[0.5px] ring-inset ring-ink/[0.07] text-ink-tertiary hover:bg-ink/[0.09] hover:text-ink";
+export const SIMPLE_CONTROL = "size-7 rounded-full bg-ink/[0.05] ring-[0.5px] ring-inset ring-ink/[0.07] text-ink-tertiary transition-colors hover:bg-ink/[0.09] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
 const ROOM_FILL = { fill: "var(--color-accent)", ink: "var(--color-accent-ink)" };
 
