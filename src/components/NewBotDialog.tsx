@@ -85,6 +85,11 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
       }).catch(cause => { if (!cancelled) setError(String(cause)); });
     return () => { cancelled = true; };
   }, [defaultsMode, readyBotId]);
+  useEffect(() => {
+    if (!ready || defaultsMode || document.activeElement !== dialog.current) return;
+    const name = document.getElementById(`bot-name-${draft.id}`);
+    if (name instanceof HTMLInputElement && dialog.current?.contains(name)) name.focus();
+  }, [ready, defaultsMode, draft]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => () => draft.dispose(), [draft]);
   // Disabling the focused Create button drops focus to the page in Chromium.
