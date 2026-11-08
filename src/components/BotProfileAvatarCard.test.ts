@@ -39,6 +39,15 @@ function renderCard(bot: Bot) {
 }
 
 describe("BotProfileAvatarCard body picker", () => {
+  it("shows color and body choices before optional image upload", () => {
+    const markup = renderCard(makeBot());
+    const color = markup.indexOf(">Color<");
+    const body = markup.indexOf(">Body<");
+    const upload = markup.indexOf("Upload image");
+    expect(color).toBeGreaterThanOrEqual(0);
+    expect(body).toBeGreaterThan(color);
+    expect(upload).toBeGreaterThan(body);
+  });
   it("renders one option per body catalog entry, labeled by name", () => {
     const markup = renderCard(makeBot());
 
