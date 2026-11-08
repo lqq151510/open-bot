@@ -5382,7 +5382,7 @@
   "connectors.tab.marketplace": "应用市场",
   "connectors.tab.connected": "已连接",
   "connectors.searchPlaceholder": "搜索应用",
-  "connectors.notConfigured": "已连接的应用暂时不可用。请重启主机后重试，或在那里配置连接服务。",
+  "connectors.notConfigured": "应用商店连接服务暂时不可用。你可以在 MCP 服务器中查看自定义连接的状态。",
   "connectors.setupNeeded": "尚未设置已连接的应用。如需连接 Gmail、Slack 等应用，请在「设置 → API 密钥」的「自托管已连接的应用」下添加项目密钥。",
   "connectors.setupNeededRemote": "主机上尚未设置已连接的应用。请在主机设置的「自托管已连接的应用」下添加项目密钥。",
   "connectors.openSettings": "打开设置",

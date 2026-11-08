@@ -29,6 +29,7 @@ import { BotAvatar } from "./Avatar";
 import { SidebarPopoverMenu } from "./SidebarPopoverMenu";
 import { appCategoryLabel, CATEGORY_SECTION_SIZE, catalogSections, connectorDescription, inCategory, rankCategories } from "@/lib/app-catalog";
 import { McpServersPanel } from "./McpServersPanel";
+import { McpAppSummary } from "./McpAppSummary";
 import { HOSTED_MCP_APPS, type HostedApp, type HostedConnections } from "@/lib/hosted-mcp-apps";
 import { EmailCard } from "./EmailCard";
 import { PostizCard } from "./PostizCard";
@@ -591,6 +592,7 @@ export function PluginsPanel() {
               </span>
             </div>
           )}
+          {filter === "all" && category === null && <McpAppSummary search={search} onManage={() => chooseFilter("mcp")} />}
           {setupNotice && filter !== "mcp" && (
             <div
               className={cn(
@@ -610,6 +612,9 @@ export function PluginsPanel() {
                 onClick={() => { close(); dispatch(openKeySettings("composio")); }}
               >
                 {t("connectors.openSettings")}
+              </button>{" "}
+              <button type="button" className="font-medium underline underline-offset-2" onClick={() => chooseFilter("mcp")}>
+                {t("apps.filter.mcp")}
               </button>
             </div>
           )}
