@@ -1,4 +1,4 @@
-// mausbot-connector: `run` (the service), `enroll` (the code on stdin), `status`, `probe`, `job` (one job from root on this
+// openbot-connector: `run` (the service), `enroll` (the code on stdin), `status`, `probe`, `job` (one job from root on this
 // server), `audit` (the audit log, checked), `version`.
 import { existsSync, readFileSync, statfsSync } from "node:fs";
 import { join } from "node:path";
@@ -43,7 +43,7 @@ const reader: HostReader = {
 };
 
 const auditLog = () => new AuditLog(join(PATHS.audit, AUDIT_FILE));
-const identity = (): ConnectorIdentity => ({ version: CONNECTOR_VERSION, protocol: PROTOCOL_VERSION, image: process.env.MAUSBOT_CONNECTOR_IMAGE || null });
+const identity = (): ConnectorIdentity => ({ version: CONNECTOR_VERSION, protocol: PROTOCOL_VERSION, image: process.env.OPENBOT_CONNECTOR_IMAGE || null });
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function seccomp(): string {
@@ -62,7 +62,7 @@ function hostReporter(docker: SocketDocker, admin: () => string | null) {
     return info.value;
   };
   const probe = async (fresh: boolean) => {
-    const image = process.env.MAUSBOT_CONNECTOR_IMAGE;
+    const image = process.env.OPENBOT_CONNECTOR_IMAGE;
     if (!image) return null;
     if (fresh || !box || Date.now() - box.at > 6 * 60 * 60_000) {
       let value: BoxProbeResult | null;
@@ -100,8 +100,8 @@ function hostReporter(docker: SocketDocker, admin: () => string | null) {
 async function run(): Promise<void> {
   const state = new StateStore(PATHS.state);
   const docker = new SocketDocker(PATHS.docker);
-  const instance = process.env.MAUSBOT_INSTANCE || "unknown";
-  log(`MausBot connector ${CONNECTOR_VERSION} starting`);
+  const instance = process.env.OPENBOT_INSTANCE || "unknown";
+  log(`OpenBot connector ${CONNECTOR_VERSION} starting`);
   const audit = auditLog();
   const note = (event: Parameters<AuditLog["append"]>[0]) => {
     try { audit.append(event); } catch (error) { log(`could not write the audit log ${audit.file}: ${errorText(error)}`); }
@@ -115,7 +115,7 @@ async function run(): Promise<void> {
     await sleep(10 * 60_000);
   }
   let record: AgentRecord | null = state.agent();
-  if (!record) log("waiting for this server to be connected: run the install command with the code MausBot shows");
+  if (!record) log("waiting for this server to be connected: run the install command with the code OpenBot shows");
   const enrolledNow = !record;
   while (!record) {
     await sleep(2_000);
@@ -125,12 +125,12 @@ async function run(): Promise<void> {
   let current: AgentRecord = record;
   if (enrolledNow) note({ event: "connector", what: "enrolled", version: CONNECTOR_VERSION, image: identity().image, boxId: record.boxId });
   const kept = savedConfig(state.adminConfig(), current);
-  if (kept) log(`going by MausBot's schedule and policy kept on this server (version ${kept.version}) until MausBot answers`);
+  if (kept) log(`going by OpenBot's schedule and policy kept on this server (version ${kept.version}) until OpenBot answers`);
   const host = hostReporter(docker, () => current.admin);
   const home = new Home({
     docker, state, log, readHealth, seccomp, transfer: httpTransfer,
     diskFree: () => reader.disk().free,
-    updateWindowMs: envSeconds("MAUSBOT_UPDATE_WAIT_S", 600, 60, 3600) * 1000,
+    updateWindowMs: envSeconds("OPENBOT_UPDATE_WAIT_S", 600, 60, 3600) * 1000,
     onStep: ({ id, type, step, detail }) => note({ event: "step", id, type, step, ...(detail ? { detail } : {}) }),
   });
   const updater = new SelfUpdater({ docker, state, log, instance, identity });
@@ -158,10 +158,10 @@ async function run(): Promise<void> {
     saveAdminKeys: (keys) => {
       current = { ...current, adminKeys: keys };
       state.saveAgent(current);
-      log(`MausBot's signing keys are now ${Object.keys(keys).join(", ")}`);
+      log(`OpenBot's signing keys are now ${Object.keys(keys).join(", ")}`);
     },
     config: { saved: () => state.adminConfig(), save: (config) => state.saveAdminConfig(config) },
-    onConfig: (config) => log(`MausBot's schedule and policy (version ${config.version}) are kept on this server`),
+    onConfig: (config) => log(`OpenBot's schedule and policy (version ${config.version}) are kept on this server`),
     stream: (stream, accept) => serveRequest(stream, accept, { connectHome, record: note }),
     refused: (refusal) => note({ event: "refused", by: "admin", code: refusal.code, why: refusal.message, ...(refusal.id ? { id: refusal.id } : {}), ...(refusal.type ? { type: refusal.type } : {}) }),
   });
@@ -227,7 +227,7 @@ async function readStdin(): Promise<string> {
 }
 
 async function enrollCommand(): Promise<void> {
-  const admin = adminOrigin(process.env.MAUSBOT_ADMIN_URL);
+  const admin = adminOrigin(process.env.OPENBOT_ADMIN_URL);
   const code = (await readStdin()).trim();
   const state = new StateStore(PATHS.state);
   const docker = new SocketDocker(PATHS.docker);
@@ -235,7 +235,7 @@ async function enrollCommand(): Promise<void> {
   state.saveAgent(record);
   // Connected again only once the service has connected with this token.
   state.saveStatus({ connected: false, unauthorized: false, lastError: null });
-  console.log(`This server is connected to MausBot (server ${record.boxId}).`);
+  console.log(`This server is connected to OpenBot (server ${record.boxId}).`);
 }
 
 function statusCommand(): void {
@@ -253,7 +253,7 @@ function statusCommand(): void {
 
 /**
  * One line per check for install.sh: `ok <id>`, `warn <id> <fix>` or `fail <id> <fix>`. With --json, one object
- * `{ok, checks}` for `openmausbot doctor --host`, which asks the connector on a server that runs one. Exits 1 when any
+ * `{ok, checks}` for `openbot doctor --host`, which asks the connector on a server that runs one. Exits 1 when any
  * check fails.
  */
 async function probeCommand(): Promise<void> {
@@ -264,7 +264,7 @@ async function probeCommand(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const image = process.env.MAUSBOT_CONNECTOR_IMAGE;
+  const image = process.env.OPENBOT_CONNECTOR_IMAGE;
   let box: BoxProbeResult | null = null;
   try { box = image ? await probeBox(docker, image, seccomp()) : null; } catch (error) { box = { ok: false, fix: errorText(error) }; }
   const checks = hostChecks(await docker.info(), reader, { clockSkewS: null, box });
@@ -277,7 +277,7 @@ async function probeCommand(): Promise<void> {
 /** `job <type> [args as JSON]`: one job, run by the running connector; prints its reply, exits 1 when it failed. */
 async function jobCommand(): Promise<void> {
   const [type, args] = process.argv.slice(3);
-  if (!type) throw new Error("usage: mausbot-connector job <type> [args as JSON], e.g. job update '{\"image\":\"ghcr.io/…@sha256:…\"}'");
+  if (!type) throw new Error("usage: openbot-connector job <type> [args as JSON], e.g. job update '{\"image\":\"ghcr.io/…@sha256:…\"}'");
   let parsed: unknown = {};
   if (args) {
     try { parsed = JSON.parse(args); } catch { throw new Error("the job's arguments are not JSON"); }
@@ -314,7 +314,7 @@ const commands: Record<string, () => Promise<void> | void> = {
 
 const command = commands[process.argv[2] ?? "run"];
 if (!command) {
-  console.error("usage: mausbot-connector run | enroll | status | probe [--json] | job <type> [args] | audit [--tail N | --verify] | version");
+  console.error("usage: openbot-connector run | enroll | status | probe [--json] | job <type> [args] | audit [--tail N | --verify] | version");
   process.exitCode = 2;
 } else {
   Promise.resolve().then(command).catch((error) => {

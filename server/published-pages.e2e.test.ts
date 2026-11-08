@@ -37,7 +37,7 @@ async function serveStub() {
 
 beforeAll(async () => {
   stub = await serveStub();
-  globalThis.fetch = (input, init = {}) => realFetch(input, { ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), "x-openmausbot-desktop-owner": owner } });
+  globalThis.fetch = (input, init = {}) => realFetch(input, { ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), "x-openbot-desktop-owner": owner } });
   fixture = await launchVerificationServer({ ...process.env, OMB_TEST_DESKTOP_OWNER_TOKEN: owner,
     OMB_TEST_DESKTOP_PAGES_ACCESS: JSON.stringify({ url: `${stub.url}/api/cloud/pages/token`, token: FAKE_DESKTOP_TOKEN }) }, undefined, undefined, undefined, undefined, { scripted: true });
 }, 90_000);
@@ -48,7 +48,7 @@ afterAll(async () => {
 });
 
 it("publishes a bot's page to a link shown inline, keeps the link and the card on a republish, and unpublishes it from the card", async () => {
-  const cli = (...args: string[]) => runControlOmb(args, { env: { OPENMAUSBOT_URL: fixture.info.url } }) as Promise<any>;
+  const cli = (...args: string[]) => runControlOmb(args, { env: { OPENOPENBOT_URL: fixture.info.url } }) as Promise<any>;
   const api = async (path: string, init: RequestInit = {}) => (await fetch(`${fixture.info.url}${path}`, { ...init, headers: { "content-type": "application/json" } })).json() as Promise<any>;
   const planPath = join(fixture.info.dataDir, "room-plan.json");
   const bot = (await cli("new-bot", "--name", "Publisher")).bot;
@@ -68,7 +68,7 @@ it("publishes a bot's page to a link shown inline, keeps the link and the card o
   const first = await turn([{ tool: "publish_page", arguments: { path: "site", title: "Bake sale" } }]);
   expect(first.tools).toEqual(expect.arrayContaining(["publish_page", "unpublish_page"]));
   const [pageId] = [...stub.service.pages.keys()];
-  const url = `https://${pageId}.mausbot.page/`;
+  const url = `https://${pageId}.openbot.page/`;
   expect(first.results[0]).toContain(`Published “Bake sale” at ${url}`);
   expect(stub.service.minted).toEqual([{ action: "create", caller: "desktop" }]);
 

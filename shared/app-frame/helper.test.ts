@@ -108,7 +108,7 @@ function boot(engaged = true, options: { scene?: Scene; start?: number; loaded?:
     bridge, seen, frame, root,
     load: () => { options.loaded = true; for (const listener of loads) listener(); },
     reflow: () => { for (const observed of observers) setTimeout(observed, 0); },
-    mausbot: () => frame.mausbot as {
+    openbot: () => frame.openbot as {
       send(text: string): Promise<void>; open(url: string): Promise<void>; setContext(text: string): Promise<void>; theme: string; room: boolean;
     },
   };
@@ -130,33 +130,33 @@ describe("the bot-page helper", () => {
   it("initializes, applies the theme and variables, and reports its size", async () => {
     const page = boot();
     await expect.poll(() => page.bridge.initialized).toBe(true);
-    expect(page.mausbot().theme).toBe("dark");
+    expect(page.openbot().theme).toBe("dark");
     expect(page.root.getAttribute("data-theme")).toBe("dark");
     expect(page.root.style.getPropertyValue("--color-text-primary")).toBe("#fafafa");
     expect(page.root.style.getPropertyValue("not-a-variable")).toBe("");
     await expect.poll(() => page.seen.heights.length).toBeGreaterThan(0);
     page.bridge.contextChanged({ theme: "light" });
-    await expect.poll(() => page.mausbot().theme).toBe("light");
+    await expect.poll(() => page.openbot().theme).toBe("light");
     expect(page.root.style.colorScheme).toBe("light");
   });
 
   it("sends, opens and sets context through the bridge", async () => {
     const page = boot();
-    await page.mausbot().send("Book the 3pm slot");
+    await page.openbot().send("Book the 3pm slot");
     expect(page.seen.messages).toEqual(["Book the 3pm slot"]);
-    await page.mausbot().open("https://example.com/docs");
+    await page.openbot().open("https://example.com/docs");
     expect(page.seen.links).toEqual(["https://example.com/docs"]);
-    await page.mausbot().setContext("Looking at March");
+    await page.openbot().setContext("Looking at March");
     await expect.poll(() => page.seen.contexts.length).toBe(1);
     expect(page.seen.contexts[0]).toEqual({ content: [{ type: "text", text: "Looking at March" }] });
   });
 
   it("in a room, says so, and its send and setContext resolve without asking the host; a page that asks anyway is refused", async () => {
     const page = boot(true, { room: true });
-    expect(page.mausbot().room).toBe(true);
-    await page.mausbot().send("Book the 3pm slot");
-    await page.mausbot().setContext("Looking at March");
-    await page.mausbot().open("https://example.com/docs");
+    expect(page.openbot().room).toBe(true);
+    await page.openbot().send("Book the 3pm slot");
+    await page.openbot().setContext("Looking at March");
+    await page.openbot().open("https://example.com/docs");
     expect(page.seen.links).toEqual(["https://example.com/docs"]);
     const answers: unknown[] = [];
     (page.frame.addEventListener as (type: string, listener: Listener) => void)("message", (event) => {
@@ -173,13 +173,13 @@ describe("the bot-page helper", () => {
     await new Promise((resolve) => setTimeout(resolve, 1_100));
     expect(page.seen.messages).toEqual([]);
     expect(page.seen.contexts).toEqual([]);
-    expect(boot().mausbot().room).toBe(false);
+    expect(boot().openbot().room).toBe(false);
   });
 
   it("rejects when the host refuses, as it does without a click in the page", async () => {
     const page = boot(false);
-    await expect(page.mausbot().send("hi")).rejects.toThrow(/click/);
-    await expect(page.mausbot().open("https://example.com")).rejects.toThrow(/click/);
+    await expect(page.openbot().send("hi")).rejects.toThrow(/click/);
+    await expect(page.openbot().open("https://example.com")).rejects.toThrow(/click/);
     expect(page.seen.messages).toEqual([]);
   });
 
@@ -189,9 +189,9 @@ describe("the bot-page helper", () => {
     const started = Date.now();
     await page.bridge.teardown();
     expect(Date.now() - started).toBeLessThan(900);
-    const original = page.mausbot();
-    expect(() => { "use strict"; (page.frame as { mausbot: unknown }).mausbot = {}; }).toThrow();
-    expect(page.mausbot()).toBe(original);
+    const original = page.openbot();
+    expect(() => { "use strict"; (page.frame as { openbot: unknown }).openbot = {}; }).toThrow();
+    expect(page.openbot()).toBe(original);
   });
 });
 

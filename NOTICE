@@ -100,3 +100,10 @@ Teams' display-name rule. Copyright 2025-2026 Vexa.ai Inc. and the Vexa
 contributors, used under the Apache License, Version 2.0
 (third_party/vexa/LICENSE). The adapted parts were rewritten in our own code;
 no Vexa file is included unmodified.
+
+
+---
+
+This repository is a modified fork of OpenMausBot, rebranded as OpenBot.
+The upstream copyright notice above is preserved as required by the Apache License 2.0.
+Modifications: branding, package identity and application icon.
