@@ -6362,6 +6362,7 @@
   "newBot.sections": "Bot settings",
   "newBot.saveDefaults": "Save defaults",
   "newBot.create": "Create bot",
+  "newBot.createTitle": "Create a new Bot",
   "newBot.startingRole": "Starting role",
   "newBot.presetsFromOrganization": "From {name}",
   "newBot.presetsImported": "Imported presets",

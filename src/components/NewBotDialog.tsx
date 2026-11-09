@@ -163,11 +163,11 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
       else parent.dispatch(action);
     },
   };
-  const title = defaultsMode ? t("newBot.defaults") : t("sidebar.newBot");
+  const title = defaultsMode ? t("newBot.defaults") : t("newBot.createTitle");
   return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-5" hidden={!defaultsMode && parent.state.appSettingsOpen}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={title} aria-busy={saving} tabIndex={-1}
-      className={cn("flex w-full flex-col overflow-hidden rounded-2xl border border-hairline/50 bg-panel shadow-2xl outline-none", quick ? "h-[min(580px,94dvh)] max-w-[440px]" : "h-[min(760px,94dvh)] max-w-[900px]")}>
-      <div className="flex shrink-0 items-center justify-between border-b border-hairline/40 px-5 py-4">
+      className={cn("flex w-full flex-col overflow-hidden rounded-2xl border border-hairline/50 bg-panel shadow-2xl outline-none", quick ? "h-[min(620px,94dvh)] max-w-[440px]" : "h-[min(760px,94dvh)] max-w-[900px]")}>
+      <div className="flex shrink-0 items-center justify-between border-b border-hairline/40 px-6 py-4">
         <h2 className="text-[17px] font-semibold text-ink">{title}</h2>
         <button type="button" onClick={() => closeRef.current()} aria-label={t("common.close")}
           className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-40"><X size={18} className="pointer-events-none" /></button>
@@ -220,10 +220,10 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
         </div>
       </div>}
       {error && <p role="alert" className="max-h-24 overflow-y-auto border-t border-hairline/40 px-5 py-3 text-[13px] text-danger">{error}</p>}
-      <div className="flex shrink-0 justify-end gap-2 border-t border-hairline/40 px-5 py-3">
-        <button type="button" onClick={() => closeRef.current()} className="rounded-lg px-4 py-2 text-[13px] text-ink-secondary hover:bg-control">{t("common.cancel")}</button>
+      <div className="flex shrink-0 justify-end gap-2.5 border-t border-hairline/40 px-6 py-3.5">
+        <button type="button" onClick={() => closeRef.current()} className="rounded-xl bg-ink/[0.06] px-4 py-2 text-[14px] text-ink-secondary transition-colors hover:bg-ink/[0.10] hover:text-ink">{t("common.cancel")}</button>
         <button type="button" disabled={!ready || saving || (!defaultsMode && !bot.name.trim())} onClick={() => void save()}
-          className="ui-button-primary flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-40">
+          className="ui-button-primary flex items-center gap-2 rounded-xl bg-accent px-5 py-2 text-[14px] font-medium text-white hover:brightness-110 disabled:bg-ink/[0.08] disabled:text-ink-tertiary disabled:opacity-60 transition-all">
           {saving && <Loader2 size={15} className="animate-spin" />}{t(defaultsMode ? "newBot.saveDefaults" : "newBot.create")}
         </button>
       </div>

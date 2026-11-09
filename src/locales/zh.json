@@ -6188,6 +6188,7 @@
   "newBot.sections": "机器人设置",
   "newBot.saveDefaults": "保存默认值",
   "newBot.create": "创建机器人",
+  "newBot.createTitle": "创建新 Bot",
   "newBot.startingRole": "初始角色",
   "newBot.presetsFromOrganization": "来自 {name}",
   "newBot.presetsImported": "导入的预设",

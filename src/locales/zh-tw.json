@@ -6325,6 +6325,7 @@
   "newBot.sections": "機器人設定",
   "newBot.saveDefaults": "儲存預設值",
   "newBot.create": "建立機器人",
+  "newBot.createTitle": "建立新 Bot",
   "newBot.startingRole": "起始角色",
   "newBot.presetsFromOrganization": "來自 {name}",
   "newBot.presetsImported": "已匯入的預設組態",
