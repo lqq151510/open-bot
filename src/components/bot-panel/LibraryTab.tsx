@@ -1,6 +1,7 @@
 import { AppWindow, Brain, FileText, Folder, Globe, Image, Zap } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { usePageOpener } from "@/lib/page-open";
 import { shortPath } from "@/lib/short-path";
@@ -72,12 +73,11 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const skills = useManagedSkills(bot);
   const memory = useMemoryDoc(bot);
   const { pages, apps, images, mediaFiles, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
-  const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "images" | "files" }>({ botId: bot.id, category: "all" });
+  const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "images" | "files" }>({ botId: bot.id, category: "all" });
   const categories = [
-    { id: "pages", label: t("botPanel.library.pages"), count: pages.length },
-    ...(apps.length ? [{ id: "apps" as const, label: t("botPanel.library.apps"), count: apps.length }] : []),
-    { id: "images", label: t("botPanel.library.media"), count: images.length + mediaFiles.length },
-    { id: "files", label: t("botPanel.library.files"), count: shared.length + unshared.length },
+    { id: "pages" as const, label: t("botPanel.library.pages"), count: pages.length + apps.length },
+    { id: "images" as const, label: t("botPanel.library.media"), count: images.length + mediaFiles.length },
+    { id: "files" as const, label: t("botPanel.library.files"), count: shared.length + unshared.length },
   ] as const;
   const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category)) ? selection.category : "all";
   const total = pages.length + apps.length + images.length + mediaFiles.length + shared.length + unshared.length;
@@ -87,9 +87,9 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
     if (phone) dispatch({ type: "toggleSettings", open: false });
   };
   const messageTimes = new Map(visibleMessages(bot).map((message) => [message.id, message.at]));
-  const entries: Array<{ key: string; category: "pages" | "apps" | "images" | "files"; at?: number; node: ReactNode }> = [
+  const entries: Array<{ key: string; category: "pages" | "images" | "files"; at?: number; node: ReactNode }> = [
     ...pages.map((page) => ({ key: `page:${page.url}`, category: "pages" as const, at: messageTimes.get(page.messageId), node: <NavRow data-panel-row="page" icon={Globe} drill={false} title={<span className="block truncate">{page.title}</span>} onClick={() => openPage(page.url)} /> })),
-    ...apps.map((app) => ({ key: `app:${app.messageId}`, category: "apps" as const, at: messageTimes.get(app.messageId), node: <NavRow data-panel-row="app" icon={AppWindow} drill={false} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} /> })),
+    ...apps.map((app) => ({ key: `app:${app.messageId}`, category: "pages" as const, at: messageTimes.get(app.messageId), node: <NavRow data-panel-row="app" icon={AppWindow} drill={false} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} /> })),
     ...images.map((image) => ({ key: `image:${image.path}`, category: "images" as const, at: messageTimes.get(image.messageId), node: <button type="button" data-panel-row="image" onClick={() => showInChat(image.messageId)} className="flex min-h-[46px] w-full items-center gap-2.5 px-3.5 py-[11px] text-left hover:bg-ink/[0.03]"><span className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink/[0.05] text-ink-secondary"><Image size={15} aria-hidden="true" />{attachmentImageUrl(image.path) && <img src={attachmentImageUrl(image.path)!} alt="" className="absolute inset-0 size-full object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />}</span><span className="min-w-0 truncate text-[14px] font-medium text-ink">{image.title}</span></button> })),
     ...mediaFiles.map((reference) => ({ key: `media:${reference.file.path}`, category: "images" as const, at: messageTimes.get(reference.message.messageId), node: <div data-panel-row="media-file"><AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none rounded-none border-0 bg-transparent text-[14px]" /></div> })),
     ...shared.map((reference) => ({ key: `file:${reference.file.path}`, category: "files" as const, at: messageTimes.get(reference.message.messageId), node: <AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none rounded-none border-0 bg-transparent text-[14px]" /> })),
@@ -130,10 +130,20 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
 
   return (
     <div data-panel-tabpanel="library">
-      <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3 flex flex-wrap gap-1.5">
+      <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3.5 flex flex-wrap gap-1.5">
         {[{ id: "all" as const, label: t("apps.filter.all") }, ...categories].map((category) => (
-          <button key={category.id} type="button" aria-pressed={selected === category.id} onClick={() => setSelection({ botId: bot.id, category: category.id })}
-            className="rounded-full bg-ink/[0.06] px-3 py-1.5 text-[12px] font-medium text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:bg-ink aria-pressed:text-app">
+          <button
+            key={category.id}
+            type="button"
+            aria-pressed={selected === category.id}
+            onClick={() => setSelection({ botId: bot.id, category: category.id })}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+              selected === category.id
+                ? "bg-ink text-app"
+                : "bg-ink/[0.06] text-ink-secondary hover:bg-ink/[0.09] hover:text-ink",
+            )}
+          >
             {category.label}
           </button>
         ))}
@@ -144,9 +154,11 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
         </p>
       )}
       {groups.filter((group) => group.entries.length > 0).map((group) => (
-        <section key={group.id} data-library-period={group.id}>
+        <section key={group.id} data-library-period={group.id} className="mt-3.5 first-of-type:mt-0">
           <CardLabel>{group.label}</CardLabel>
-          <div className="overflow-hidden rounded-xl bg-composer ring-1 ring-inset ring-ink/[0.06]">{group.entries.map((entry) => <div key={entry.key}>{entry.node}</div>)}</div>
+          <div className="divide-y divide-ink/[0.05] overflow-hidden rounded-xl bg-composer ring-1 ring-inset ring-ink/[0.06]">
+            {group.entries.map((entry) => <div key={entry.key}>{entry.node}</div>)}
+          </div>
         </section>
       ))}
       {selectedCount > 0 && <p className="mt-3 text-center text-[12px] text-ink-tertiary">{t("botPanel.library.scope")}</p>}
