@@ -4,6 +4,7 @@
 import {
   spawn,
   execFile,
+  execFileSync,
   type ChildProcess,
   type ChildProcessByStdio,
   type ExecFileOptions,
@@ -70,8 +71,58 @@ function linuxProcess(pid: number): LinuxProcess | null {
   return { pid, parent, start, state };
 }
 
-/** Linux sandbox helpers can leave the CLI's process group and reparent during a protocol interrupt. */
+const darwinTrees = new WeakMap<ChildProcess, Set<number>>();
+
+function captureDarwinTree(child: ChildProcess): void {
+  if (process.platform !== "darwin" || !child.pid) return;
+  try {
+    const stdout = execFileSync("/usr/bin/pgrep", ["-P", String(child.pid)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    let set = darwinTrees.get(child);
+    if (!set) { set = new Set(); darwinTrees.set(child, set); }
+    for (const line of stdout.split("\n")) {
+      const p = Number(line.trim());
+      if (p > 1 && p !== process.pid && !set.has(p)) {
+        set.add(p);
+        try {
+          const gstdout = execFileSync("/usr/bin/pgrep", ["-P", String(p)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+          for (const gline of gstdout.split("\n")) {
+            const gp = Number(gline.trim());
+            if (gp > 1 && gp !== process.pid) set.add(gp);
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
+function darwinDescendantsStopped(child: ChildProcess): boolean {
+  if (process.platform !== "darwin") return true;
+  for (const pid of darwinTrees.get(child) ?? []) {
+    if (pid === child.pid || pid <= 1 || pid === process.pid) continue;
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ESRCH") return false;
+    }
+  }
+  return true;
+}
+
+function signalDarwinDescendants(child: ChildProcess, value: NodeJS.Signals): void {
+  if (process.platform !== "darwin") return;
+  for (const pid of darwinTrees.get(child) ?? []) {
+    if (pid === child.pid || pid <= 1 || pid === process.pid) continue;
+    try { process.kill(pid, value); } catch {}
+  }
+}
+
+/** Linux and Darwin process tree capture for CLI descendants and orphaned subprocesses. */
 export function captureCliTree(child: ChildProcess): void {
+  if (process.platform === "darwin") {
+    captureDarwinTree(child);
+    return;
+  }
   if (process.platform !== "linux" || !cliGroups.has(child) || !child.pid) return;
   let tree = linuxTrees.get(child);
   if (!tree) {
@@ -351,7 +402,7 @@ async function stopCliTree(child: ChildProcess, pid: number, timeoutMs: number):
   if (process.platform !== "win32") {
     const group = cliGroups.has(child);
     const settled = () => {
-      if (!exited() || !linuxDescendantsStopped(child)) return false;
+      if (!exited() || !linuxDescendantsStopped(child) || !darwinDescendantsStopped(child)) return false;
       if (!group || linuxRootIdentityMatches(child) === false) return true;
       if (linuxRootIdentityMatches(child) === undefined) return false;
       try {
@@ -365,6 +416,7 @@ async function stopCliTree(child: ChildProcess, pid: number, timeoutMs: number):
     const signal = (value: NodeJS.Signals) => {
       captureCliTree(child);
       signalLinuxDescendants(child, value);
+      signalDarwinDescendants(child, value);
       try {
         if (group && (!exited() || linuxRootIdentityMatches(child) === true)) process.kill(-pid, value);
         else if (!group && !exited()) child.kill(value);

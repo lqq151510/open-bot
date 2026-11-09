@@ -525,8 +525,8 @@ export function ApprovalCard({
     <div
       data-tour={settled || expired ? undefined : "approval"}
       className={cn(
-        "w-full max-w-[840px] rounded-2xl border bg-card p-4",
-        settled || expired ? "border-hairline/30 opacity-70" : "border-accent/40",
+        "w-full max-w-[840px] rounded-2xl border bg-card p-4 transition-all duration-300",
+        settled || expired ? "border-hairline/30 opacity-70" : "border-accent/40 openbot-approval-waiting",
       )}
     >
       <div className="flex items-baseline justify-between gap-3">

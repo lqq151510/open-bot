@@ -330,6 +330,11 @@ async function handle(message: Json): Promise<void> {
     if (message.method === "initialize") initialized = true;
     send({ jsonrpc: "2.0", id: message.id, result: message.method === "tools/list" ? capToolListResult(fitToolListResult(result, SCHEMA_PROFILE, logFit), TOOL_LIMIT, logFit) : result });
   } catch (failure) {
+    if (message.method === "tools/list" && failure instanceof McpHttpError && failure.kind === "network" && !signal.aborted) {
+      process.stderr.write(`mcp-remote-proxy: tools/list failed: ${failure.message}; degrading to empty catalog\n`);
+      send({ jsonrpc: "2.0", id: message.id, result: { tools: [] } });
+      return;
+    }
     // Transport failures may carry URLs or header values: never relayed.
     if (failure instanceof Refusal) error(message.id, failure.code, failure.message);
     else if (failure instanceof McpRpcError) error(message.id, failure.code ?? -32603, remoteErrorText(failure.detail));

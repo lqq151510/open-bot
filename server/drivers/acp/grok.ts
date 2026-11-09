@@ -381,6 +381,8 @@ const support: AcpSupport = {
   effortLevels: ["low", "medium", "high"],
   defaultCli: "grok",
   nativeSource: "grok.acp",
+  orphanProcessCleanup: true,
+  restartOnMcpChange: true,
   loginNote: "Grok is not signed in to your grok.com account — choose Sign in to Grok in engine setup",
 
   // No Windows one-liner: the installer is a POSIX shell script.
@@ -433,9 +435,20 @@ const support: AcpSupport = {
       ].filter((name) => canUseMcpServer(turn.toolScope, name)));
       const deadline = Date.now() + 10_000;
       for (;;) {
-        const reply = await request("_x.ai/mcp/list", { sessionId, cache: true }, 10_000);
+        let reply: any;
+        try {
+          reply = await request("_x.ai/mcp/list", { sessionId, cache: true }, 10_000);
+        } catch (e) {
+          if (Date.now() >= deadline) throw e;
+          await delay(100);
+          continue;
+        }
         const catalog = reply?.result;
-        if (!Array.isArray(catalog?.servers)) throw new Error("Grok could not confirm its MCP catalog. No prompt was sent.");
+        if (!Array.isArray(catalog?.servers)) {
+          if (Date.now() >= deadline) throw new Error("Grok could not confirm its MCP catalog. No prompt was sent.");
+          await delay(100);
+          continue;
+        }
         for (const server of catalog.servers) {
           if (server?.session?.enabled === false) continue;
           if (!available.has(server?.name)) throw new Error("Grok has an MCP connection outside the bot's selection. Disable native MCP connections before using tool selection. No prompt was sent.");
@@ -445,7 +458,9 @@ const support: AcpSupport = {
         }
         if (catalog.sessionMcpResolved === true) {
           if ([...available].some((name) => !catalog.servers.some((server: { name?: string; session?: { enabled?: boolean; status?: string } }) => server.name === name && server.session?.enabled === true && server.session.status === "ready"))) {
-            throw new Error("Grok could not connect a selected MCP server. No prompt was sent.");
+            if (Date.now() >= deadline) throw new Error("Grok could not connect a selected MCP server. No prompt was sent.");
+            await delay(100);
+            continue;
           }
           break;
         }

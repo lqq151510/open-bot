@@ -22,8 +22,58 @@
 .openbot-composer:focus-within {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 42%, transparent), 0 8px 28px color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
+
+/* Grok-style Multi-Agent Presence & Visual Glow */
+.openbot-pinned-working {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 40%, transparent), 0 0 16px color-mix(in srgb, var(--color-success) 22%, transparent);
+  transition: box-shadow 300ms ease;
+}
+.openbot-pinned-selected {
+  box-shadow: 0 0 0 2px var(--color-accent), 0 0 20px color-mix(in srgb, var(--color-accent) 28%, transparent);
+  transition: box-shadow 300ms ease;
+}
+
+.openbot-status-pill {
+  background: color-mix(in srgb, var(--color-card) 85%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 20%, var(--color-hairline));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-ink) 4%, transparent);
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.openbot-status-pill:hover {
+  background: color-mix(in srgb, var(--color-card) 95%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-hairline));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+/* Grok 3 Thinking Bubble & DeepSearch style */
+.grok-thinking-card {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid color-mix(in srgb, var(--color-hairline) 50%, transparent);
+}
+.grok-thinking-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-hairline));
+}
+
+@keyframes openbot-approval-pulse {
+  0%, 100% {
+    border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent), 0 8px 24px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--color-accent) 85%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 45%, transparent), 0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+}
+.openbot-approval-waiting {
+  animation: openbot-approval-pulse 2.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .openbot-composer { transition: none; }
+  .openbot-approval-waiting { animation: none; }
 }
 
 
@@ -2084,7 +2134,8 @@ html[data-cloud-intent-morph] [data-tour="composer"] { view-transition-name: clo
   transition: transform 160ms ease-out;
 }
 @keyframes turn-now-in {
-  from { opacity: 0; transform: translateY(-2px); }
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .turn-now-card {
   margin-top: 8px;
@@ -2094,9 +2145,44 @@ html[data-cloud-intent-morph] [data-tour="composer"] { view-transition-name: clo
   background: var(--color-composer);
   box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--color-ink) 10%, transparent);
   padding: 10px 12px;
-  animation: turn-now-in 160ms ease-out both;
+  animation: turn-now-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: max-height 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+}
+/* Tool execution card animations and smooth folding transitions */
+@keyframes tool-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tool-activity-card {
+  animation: tool-card-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms ease, border-color 200ms ease;
+}
+.tool-live-glow {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 20%, transparent), 0 2px 8px -2px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.tool-details-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+  opacity: 0;
+}
+details[open] > .tool-details-content {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.tool-details-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 @media (prefers-reduced-motion: reduce) {
+  .tool-activity-card, .tool-details-content { animation: none; transition: none; }
   .turn-now-card { animation: none; }
   .turn-now-chevron { transition: none; }
   .animate-caret, .animate-msg-in, .animate-pop-in, .animate-pop-out { animation: none; }

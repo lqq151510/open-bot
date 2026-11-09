@@ -8,7 +8,7 @@ const electronDirectory = fileURLToPath(new URL("../electron/", import.meta.url)
 const require = createRequire(import.meta.url);
 const electronExecutable = require("electron");
 const modules = readdirSync(electronDirectory, { withFileTypes: true })
-  .filter((entry) => entry.isFile() && /\.(?:cjs|mjs)$/.test(entry.name))
+  .filter((entry) => entry.isFile() && !entry.name.startsWith("._") && /\.(?:cjs|mjs)$/.test(entry.name))
   .map((entry) => path.join(electronDirectory, entry.name))
   .sort();
 

@@ -223,7 +223,7 @@ export function TurnPresence({
             aria-label={cardLabel}
             aria-describedby={statusId}
             onClick={() => setOpen((shown) => !shown)}
-            className="turn-now-toggle"
+            className="turn-now-toggle openbot-status-pill"
           >
             {status}
             <ChevronDown aria-hidden="true" size={12} strokeWidth={2} className={cn("turn-now-chevron", open && "rotate-180")} />

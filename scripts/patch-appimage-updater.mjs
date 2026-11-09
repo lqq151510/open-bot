@@ -29,11 +29,11 @@ const ATOMIC_MOVE = [
 // BaseUpdater starts doInstall before it asks Electron to quit, so an immediate
 // spawn can reach the data-directory lease while the old desktop is still
 // cleaning up. Electron's relauncher waits for this process to exit instead.
-const IMMEDIATE_RELAUNCH = /this\.spawnLog\(destination, \[\], env\);/g;
+const IMMEDIATE_RELAUNCH = /this\.spawnLog\(destination, \[\], (env\d*)\);/g;
 const QUEUED_RELAUNCH = [
   'const previousSilentInstall = process.env.APPIMAGE_SILENT_INSTALL;',
   'try {',
-  '  process.env.APPIMAGE_SILENT_INSTALL = env.APPIMAGE_SILENT_INSTALL;',
+  '  process.env.APPIMAGE_SILENT_INSTALL = $1.APPIMAGE_SILENT_INSTALL;',
   '  if (require("electron").app.relaunch({ execPath: destination, args: [] }) === false) {',
   '    throw new Error("Could not schedule the updated AppImage to restart");',
   '  }',

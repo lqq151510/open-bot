@@ -401,6 +401,33 @@ describe("composeReport", () => {
     expect(header.indexOf("]")).toBe(header.length - 1);
     expect(marks(text)).toBe(1);
   });
+
+  it("extracts structured Handoff Payload from section markers", () => {
+    const raw = "Here is my work.\n\n场景: 修复多Agent交接时的上下文膨胀问题\n结论: 实现了Handoff Payload结构化压缩，仅回注有效差量\n产出物: server/runtime/envelope.ts, server/drivers/agents-call.ts";
+    const report = composeReport(assignment({ status: "completed", outcome: "done", result: raw, brief: "优化协同" }), names);
+    expect(report).toContain("[Scenario] 修复多Agent交接时的上下文膨胀问题");
+    expect(report).toContain("[Conclusion] 实现了Handoff Payload结构化压缩，仅回注有效差量");
+    expect(report).toContain("[Artifacts] server/runtime/envelope.ts, server/drivers/agents-call.ts");
+  });
+
+  it("extracts structured JSON Handoff Payload", () => {
+    const jsonResult = JSON.stringify({
+      scenario: "Grok JSON-RPC cleaning",
+      conclusion: "Tolerates logging prefixes and repaired malformed arguments",
+      artifacts: ["server/drivers/acp/host.ts", "server/drivers/acp/core.ts"],
+    });
+    const report = composeReport(assignment({ status: "completed", outcome: "done", result: jsonResult }), names);
+    expect(report).toContain("[Scenario] Grok JSON-RPC cleaning");
+    expect(report).toContain("[Conclusion] Tolerates logging prefixes and repaired malformed arguments");
+    expect(report).toContain("[Artifacts] server/drivers/acp/host.ts, server/drivers/acp/core.ts");
+  });
+
+  it("compacts overly long unstructured results to protect main bot context window", () => {
+    const longRaw = "Long analysis...\n\n" + "x".repeat(1000) + "\n\nFinally, the bug was fixed and tests passed.";
+    const report = composeReport(assignment({ status: "completed", outcome: "done", result: longRaw, brief: "Debug issue" }), names);
+    expect(report).toContain("[Conclusion] Finally, the bug was fixed and tests passed.");
+    expect(report.length).toBeLessThan(longRaw.length);
+  });
 });
 
 describe("a teammate's question for the requester", () => {

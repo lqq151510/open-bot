@@ -280,6 +280,23 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
         isError: true,
       };
     }
+    if (ids.includes(BOT_ID)) {
+      return {
+        text: `Cannot coordinate teammates: self-coordination detected (@${peerName(BOT_ID)} requested itself). Finish your task directly or end your turn with your findings instead of delegating to yourself.`,
+        isError: true,
+      };
+    }
+    const MAX_CALL_DEPTH = 4;
+    if (DEPTH >= MAX_CALL_DEPTH) {
+      return {
+        text: `Call depth limit reached (depth: ${DEPTH}/${MAX_CALL_DEPTH}). Further nested coordination is prohibited to prevent deadlocks and cascading latency. Please summarize and resolve this step directly.`,
+        isError: true,
+      };
+    }
+    if (DEPTH > 0) {
+      const backoffMs = Math.min(Math.pow(2, DEPTH) * 50 + Math.floor(Math.random() * 40), 800);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
     const r = await api("/api/internal/coordinate-bots", { method: "POST", body: JSON.stringify({
       groupId: canonical.group_id, botIds: ids, message: canonical.message,
       reason: typeof canonical.reason === "string" && canonical.reason.trim() ? canonical.reason.trim() : undefined,
@@ -409,6 +426,13 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     const message = String(args.message ?? "").trim();
     if (!title || !message) return { text: "start_thread needs title (one short line) and message (the complete first message).", isError: true };
     const toBotId = typeof args.bot_id === "string" ? args.bot_id.trim() : "";
+    if (toBotId && toBotId !== BOT_ID && DEPTH >= 4) {
+      return { text: `Call depth limit reached (depth: ${DEPTH}/4). Further nested thread delegation is prohibited to prevent deadlocks.`, isError: true };
+    }
+    if (toBotId && toBotId !== BOT_ID && DEPTH > 0) {
+      const backoffMs = Math.min(Math.pow(2, DEPTH) * 50 + Math.floor(Math.random() * 40), 800);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
     const folder = typeof args.folder === "string" ? args.folder.trim() : "";
     const body: Record<string, unknown> = { fromBotId: BOT_ID, fromThreadId: THREAD_ID, title, message, depth: DEPTH };
     if (toBotId) body.toBotId = toBotId;

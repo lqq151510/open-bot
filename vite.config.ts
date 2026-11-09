@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -15,7 +16,9 @@ const { version } = JSON.parse(
 ) as { version: string };
 
 const root = fileURLToPath(new URL(".", import.meta.url));
-const workers = Number(process.env.OMB_VITEST_WORKERS) || 1;
+const cpuCount = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
+const defaultWorkers = Math.max(2, Math.min(Math.floor(cpuCount / 2), 4));
+const workers = Number(process.env.OMB_VITEST_WORKERS) || defaultWorkers;
 const page = (file: string) => fileURLToPath(new URL(file, import.meta.url));
 
 /** The window's rail of places loads /rail: rail.html, its own small page, in development as from the server. */
@@ -84,7 +87,7 @@ export default defineConfig({
     // packager output lands inside the repo — its HTML files must never
     // trigger dev full-page reloads
     watch: {
-      ignored: ["**/release/**", "**/build/**", "**/dist/**", "**/electron/resources/**"],
+      ignored: ["**/release/**", "**/build/**", "**/dist/**", "**/electron/resources/**", "**/._*"],
     },
     // the harness server owns every provider process; the app only ever
     // talks to /api — clients hold no transports

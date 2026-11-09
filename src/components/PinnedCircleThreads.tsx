@@ -217,8 +217,8 @@ export const PinnedBotCircle = memo(function PinnedBotCircle({
         <span className="relative">
           <span
             className={cn(
-              "flex size-16 items-center justify-center overflow-hidden",
-              selected && "ring-2 ring-accent ring-offset-2 ring-offset-panel",
+              "flex size-16 items-center justify-center overflow-hidden transition-all duration-300",
+              selected ? "openbot-pinned-selected ring-2 ring-accent ring-offset-2 ring-offset-panel" : working ? "openbot-pinned-working" : "",
             )}
             style={{ borderRadius: radius }}
           >
@@ -235,10 +235,16 @@ export const PinnedBotCircle = memo(function PinnedBotCircle({
             <span className="absolute top-0.5 right-0.5 size-2.5 rounded-full border-2 border-panel bg-accent" aria-label={t("task.unreadMany")} />
           )}
           {working && (
-            <span
-              data-testid="working-dot"
-              className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-panel bg-success"
-            />
+            <>
+              <span
+                className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-success opacity-75 animate-ping"
+                aria-hidden="true"
+              />
+              <span
+                data-testid="working-dot"
+                className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-panel bg-success"
+              />
+            </>
           )}
           {waiting && (
             <span

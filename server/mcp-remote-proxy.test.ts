@@ -97,10 +97,10 @@ describe("scoped remote MCP subprocess", () => {
   let waiter: ((line: string) => void) | undefined;
   let stderr: string;
 
-  function start(descriptor: NonNullable<ReturnType<typeof gateServer>>) {
+  function start(descriptor: NonNullable<ReturnType<typeof gateServer> | ReturnType<typeof mcpStdioServer>>) {
     lines = [];
     stderr = "";
-    child = spawn(descriptor.command, ["--experimental-strip-types", "--no-warnings", ...descriptor.args], {
+    child = spawn(descriptor.command, ["--experimental-strip-types", "--no-warnings", ...(descriptor.args ?? [])], {
       stdio: "pipe", env: { ...process.env, ...descriptor.env },
     });
     child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
@@ -210,6 +210,17 @@ describe("scoped remote MCP subprocess", () => {
     const reply = await answer();
     expect(reply.error).toEqual({ code: -32603, message: "Could not reach this MCP server. Check its URL and that it is online." });
     expect(JSON.stringify(reply)).not.toContain(fixture.spec.url);
+  });
+
+  it("degrades gracefully to empty tools when the remote server cannot be reached on tools/list", async () => {
+    fixture = await remoteFixture("http");
+    start(mcpStdioServer(fixture.spec)!);
+    await initialize();
+    await fixture.close();
+    send({ id: 2, method: "tools/list" });
+    const reply = await answer();
+    expect(reply.result).toEqual({ tools: [] });
+    expect(reply.error).toBeUndefined();
   });
 
   it("runs the shipped helpers without a TypeScript source tree", async () => {
@@ -499,7 +510,7 @@ describe("remote MCP tool directory", () => {
   it("reads its settings from a private record when mounts share one environment", async () => {
     fake = await startFakeHttpMcp({ tools: catalog });
     const record = `OMB_REMOTE_MCP_CONFIG_${"a".repeat(64)}`;
-    const descriptor = mcpStdioServer(spec(fake.url), { directory: { name: "whop" }, configEnvName: record })!;
+    const descriptor = mcpStdioServer(spec(fake.url), { directory: { name: "whop" }, configEnvName: record, sourceEnv: {} })!;
     expect(descriptor.args!.slice(1)).toEqual(["--config-env", record]);
     expect(Object.keys(descriptor.env!)).toEqual([record]);
     expect(descriptor.args!.join(" ")).not.toContain("directory-fixture-token");

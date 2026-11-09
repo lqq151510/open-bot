@@ -10,7 +10,10 @@ const MODELS = {
     { id: "grok-4.7", label: "Grok 4.7", contextWindow: 500_000 },
     { id: "grok-4", label: "Grok 4" },
     { id: "grok-4-fast", label: "Grok 4 Fast" },
-    { id: "grok-3-mini", label: "Grok 3 Mini" },
+    { id: "grok-3", label: "Grok 3", contextWindow: 131_072 },
+    { id: "grok-3-mini", label: "Grok 3 Mini", contextWindow: 131_072 },
+    { id: "grok-2-1212", label: "Grok 2", contextWindow: 131_072 },
+    { id: "grok-2-vision-1212", label: "Grok 2 Vision", contextWindow: 32_768 },
   ],
 };
 

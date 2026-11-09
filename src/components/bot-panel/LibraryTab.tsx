@@ -1,5 +1,5 @@
 import { AppWindow, Brain, FileText, Folder, Globe, Zap } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { t } from "@/lib/i18n";
 import { usePageOpener } from "@/lib/page-open";
@@ -57,6 +57,13 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const skills = useManagedSkills(bot);
   const memory = useMemoryDoc(bot);
   const { pages, apps, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
+  const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "files" }>({ botId: bot.id, category: "all" });
+  const categories = [
+    { id: "pages", label: t("botPanel.library.pages"), count: pages.length },
+    { id: "apps", label: t("botPanel.library.apps"), count: apps.length },
+    { id: "files", label: t("botPanel.library.files"), count: shared.length + unshared.length },
+  ] as const;
+  const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category && category.count > 0)) ? selection.category : "all";
   const showInChat = (messageId: string) => {
     dispatch({ type: "focusMessage", threadId: bot.threadId, messageId });
     if (phone) dispatch({ type: "toggleSettings", open: false });
@@ -99,21 +106,29 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   }
   return (
     <div data-panel-tabpanel="library">
-      {pages.length > 0 && (
+      <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3 flex flex-wrap gap-1.5">
+        {[{ id: "all" as const, label: t("apps.filter.all") }, ...categories.filter((category) => category.count > 0)].map((category) => (
+          <button key={category.id} type="button" aria-pressed={selected === category.id} onClick={() => setSelection({ botId: bot.id, category: category.id })}
+            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:bg-ink aria-pressed:text-app">
+            {category.label}
+          </button>
+        ))}
+      </div>
+      {(selected === "all" || selected === "pages") && pages.length > 0 && (
         <Card label={t("botPanel.library.pages")} anchor="pages">
           {pages.map((page) => (
             <NavRow key={page.url} data-panel-row="page" icon={Globe} title={<span className="block truncate">{page.title}</span>} hint={<span className="block truncate">{page.url}</span>} onClick={() => openPage(page.url)} />
           ))}
         </Card>
       )}
-      {apps.length > 0 && (
+      {(selected === "all" || selected === "apps") && apps.length > 0 && (
         <Card label={t("botPanel.library.apps")} anchor="apps">
           {apps.map((app) => (
             <NavRow key={app.messageId} data-panel-row="app" icon={AppWindow} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} />
           ))}
         </Card>
       )}
-      {shared.length + unshared.length > 0 && (
+      {(selected === "all" || selected === "files") && shared.length + unshared.length > 0 && (
         <section data-panel-card="files">
           <CardLabel>{t("botPanel.library.files")}</CardLabel>
           <ul className="flex flex-col gap-1.5">

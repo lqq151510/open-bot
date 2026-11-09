@@ -1,4 +1,5 @@
 import { rm } from "node:fs/promises";
+import { removeAppleDoubleFiles } from "./clean-apple-double.mjs";
 
 const generatedPaths = [
   "dist",
@@ -10,6 +11,8 @@ const generatedPaths = [
   "electron/resources/OpenBot Speech.app",
 ];
 
-await Promise.all(
-  generatedPaths.map((path) => rm(path, { recursive: true, force: true })),
-);
+await Promise.all([
+  ...generatedPaths.map((path) => rm(path, { recursive: true, force: true })),
+  removeAppleDoubleFiles(process.cwd()),
+]);
+

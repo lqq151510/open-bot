@@ -1,5 +1,7 @@
 {
   "ignorePatterns": [
+    "**/._*",
+    "**/._*/**",
     ".agent/**",
     ".agents/**",
     ".claude/**",

@@ -9,6 +9,9 @@ dist-companion
 dist-server
 *.local
 .DS_Store
+._*
+**/._*
+.serena/
 *.tsbuildinfo
 electron/resources/speech-helper
 electron/resources/OpenBot Speech.app

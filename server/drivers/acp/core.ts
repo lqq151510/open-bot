@@ -33,6 +33,66 @@ export function skipSubscriptionAuthForLocalInject(model: string | undefined): b
   return Boolean(decodeInjectId(model));
 }
 
+/** Auto-align and repair malformed tool arguments from stdio CLI messages. */
+export function sanitizeAcpToolArguments(rawInput: unknown): Record<string, unknown> {
+  let input: any = rawInput;
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        input = JSON.parse(trimmed);
+      } catch {
+        input = { command: trimmed };
+      }
+    } else {
+      input = { command: trimmed };
+    }
+  }
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+
+  if (input.arguments && typeof input.arguments === "object" && !Array.isArray(input.arguments)) {
+    input = { ...input.arguments, ...input };
+    delete input.arguments;
+  } else if (input.parameters && typeof input.parameters === "object" && !Array.isArray(input.parameters)) {
+    input = { ...input.parameters, ...input };
+    delete input.parameters;
+  }
+
+  const normalized: Record<string, unknown> = { ...input };
+
+  if (normalized.command === undefined) {
+    if (typeof normalized.cmd === "string") normalized.command = normalized.cmd;
+    else if (typeof normalized.script === "string") normalized.command = normalized.script;
+    else if (typeof normalized.exec === "string") normalized.command = normalized.exec;
+  }
+  if (normalized.path === undefined) {
+    if (typeof normalized.file_path === "string") normalized.path = normalized.file_path;
+    else if (typeof normalized.filePath === "string") normalized.path = normalized.filePath;
+    else if (typeof normalized.target_file === "string") normalized.path = normalized.target_file;
+    else if (typeof normalized.file === "string") normalized.path = normalized.file;
+  }
+  if (normalized.content === undefined) {
+    if (typeof normalized.text === "string") normalized.content = normalized.text;
+    else if (typeof normalized.body === "string") normalized.content = normalized.body;
+  }
+  if (normalized.query === undefined) {
+    if (typeof normalized.pattern === "string") normalized.query = normalized.pattern;
+    else if (typeof normalized.search === "string") normalized.query = normalized.search;
+  }
+
+  if (typeof normalized.timeout === "string" && /^\d+$/.test(normalized.timeout)) {
+    normalized.timeout = Number(normalized.timeout);
+  }
+  if (typeof normalized.timeout_seconds === "string" && /^\d+$/.test(normalized.timeout_seconds)) {
+    normalized.timeout_seconds = Number(normalized.timeout_seconds);
+  }
+  if (typeof normalized.recursive === "string") {
+    normalized.recursive = normalized.recursive === "true";
+  }
+
+  return normalized;
+}
+
 import type {
   DriverCreateInput,
   EffortLevel,
@@ -118,6 +178,8 @@ export interface AcpSupport {
   resolveModelsOnCreate?: boolean;
   /** Native-protocol log label, e.g. "grok.acp". */
   nativeSource: string;
+  /** Immediately reclaim process tree on session close to prevent orphan zombies and file lock contention. */
+  orphanProcessCleanup?: boolean;
   /** Whether models behind this CLI can consume a referenced image. */
   images?: boolean;
   /** Narrow compatibility exception for a CLI with verified native image
@@ -414,7 +476,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
         try {
           session.child.stdin.end();
         } catch {}
-        if (support.restartOnMcpChange) void retireChild(threadId, session.child);
+        if (support.restartOnMcpChange || support.orphanProcessCleanup) void retireChild(threadId, session.child);
         else {
           const kill = setTimeout(() => {
             void killCliTree(session.child);
@@ -752,7 +814,8 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
               message: `${support.displayName} offered no "${want}" permission option — cancelling the request instead of guessing`,
             });
 
-          const toolCall = params.toolCall ?? {};
+          const rawToolCall = params.toolCall ?? {};
+          const toolCall = { ...rawToolCall, ...(rawToolCall.rawInput ? { rawInput: sanitizeAcpToolArguments(rawToolCall.rawInput) } : {}) };
           const isQuestion = String(toolCall.toolCallId ?? "").startsWith("interaction_");
           if (current.turnConfig.fullAuto && current.turn.approvalMode === undefined && !isQuestion && answersAlone(toolCall.rawInput?.command)) {
             const allow = optionFor("allow");
@@ -915,6 +978,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
             }
             case "tool_call": {
               current.flushAssistantText();
+              if (u.rawInput) u.rawInput = sanitizeAcpToolArguments(u.rawInput);
               trackRunningTool(current, u, "pending");
               // ACP can send a tool_call already marked completed or failed (e.g. on a denied permission) with no
               // tool_call_update after it.
@@ -933,6 +997,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
               break;
             }
             case "tool_call_update": {
+              if (u.rawInput) u.rawInput = sanitizeAcpToolArguments(u.rawInput);
               trackRunningTool(current, u);
               if (finished) toolEnded((typeof u.toolCallId === "string" && u.toolCallId) ? u.toolCallId : current.unkeyedToolIds.shift());
               break;

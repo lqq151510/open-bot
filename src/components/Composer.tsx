@@ -39,6 +39,7 @@ import { PointedChips } from "./app/PointedChips"; import { SetupRequestChip, se
 import { takePointedChips } from "@/lib/pointed-chips";
 import { splitTranscriptCitations, type CitationAttachment } from "@/lib/citations";
 import { PlaceChip } from "./PlaceChip";
+import { HelperPresencePills, useActiveHelpers } from "./HelperPresencePills";
 import { ApprovalModeSelector } from "./ApprovalModeSelector";
 import { approvalModeFor } from "../../shared/approval-mode";
 import { useOnCall } from "@/lib/call";
@@ -93,6 +94,15 @@ import {
 } from "@/lib/composer-commands";
 import { useSlashSkills } from "@/lib/use-slash-skills";
 import { randomUuid } from "@/lib/random-uuid";
+import { GrokModePill } from "./GrokModePill";
+import {
+  augmentPromptWithGrokMode,
+  readGrokPersonaMode,
+  writeGrokPersonaMode,
+  readGrokThinkMode,
+  writeGrokThinkMode,
+  type GrokPersonaMode,
+} from "@/lib/grok-mode";
 
 const supportsAgents = (instances: InstanceInfo[], candidate?: Bot) =>
   Boolean(candidate && instances.find((instance) => instance.instanceId === candidate.modelSelection.instanceId)?.capabilities?.agentsMcp);
@@ -146,7 +156,13 @@ export function Composer({
     state.instances.find((i) => i.instanceId === steerInstanceId)?.capabilities?.queueing === true;
   const composerTask = profile?.tasks?.find((task) => task.threadId === threadId);
   // Visible branch only: an approval left on an abandoned branch must not block the composer.
-  const approvals = pendingApprovals(group ? group.messages : bot ? visibleMessages(bot) : []);
+  const threadMessages = group ? group.messages : bot ? visibleMessages(bot) : [];
+  const approvals = pendingApprovals(threadMessages);
+  const activeHelpers = useActiveHelpers({
+    currentBot: bot,
+    allBots: state.bots,
+    messages: threadMessages,
+  });
   const approval = approvals[0];
   // A Turn on card can wait while the person walks to their computer: they can still write meanwhile.
   const blocking = Boolean(approval && !approval.message.card?.computerAsk);
@@ -168,6 +184,22 @@ export function Composer({
   const attachmentPending = useDraftAttachmentPending(draftId);
   const failedSends = useFailedComposerSends(draftId); const picks = mentionPicksFor(draftId);
   const [channelMode, setChannelMode] = useComposerChannelMode(draftId);
+  const [grokMode, setGrokMode] = useState<GrokPersonaMode>(() => readGrokPersonaMode());
+  const [grokThink, setGrokThink] = useState(() => readGrokThinkMode());
+  const toggleGrokMode = useCallback(() => {
+    setGrokMode((prev) => {
+      const next = prev === "fun" ? "normal" : "fun";
+      writeGrokPersonaMode(next);
+      return next;
+    });
+  }, []);
+  const toggleGrokThink = useCallback(() => {
+    setGrokThink((prev) => {
+      const next = !prev;
+      writeGrokThinkMode(next);
+      return next;
+    });
+  }, []);
   const editText = useCallback(
     (next: string) => {
       markDraftEdited(draftId);
@@ -549,7 +581,7 @@ export function Composer({
       dispatch({ type: "error", message: t("composer.error.noImages") });
       return;
     }
-    const composed = composeMessage(serializeThreadRefs(effectiveText, threads, currentBotId), attachments);
+    const composed = composeMessage(serializeThreadRefs(augmentPromptWithGrokMode(effectiveText, grokMode, grokThink), threads, currentBotId), attachments);
     if (!composed) return;
     stopDictation();
     const body = restoredRequestText(draftId) ?? composed;
@@ -712,6 +744,7 @@ export function Composer({
           onPick={pickCommand} onHighlight={setHighlight} />
         <MentionMenu listRef={mentionListRef} motion={mentionMotion} choices={candidates} highlight={highlight}
           everyoneCount={mentionEveryoneCount} onPick={pickMention} onHighlight={setHighlight} />
+        <HelperPresencePills helpers={activeHelpers} />
         {approval && (
           <div className={cn("mb-2 overflow-hidden rounded-[24px]", ELEVATED_CARD)}>
             <PendingApprovalPanel
@@ -819,6 +852,12 @@ export function Composer({
                   onPin={(surface) => dispatch({ type: "updateTask", botId: modeBot.id, threadId: modeBot.threadId, patch: { surface } })}
                 />
               )}
+              <GrokModePill
+                mode={grokMode}
+                onToggleMode={toggleGrokMode}
+                think={grokThink}
+                onToggleThink={toggleGrokThink}
+              />
             </div>
           )}
           <MentionTextarea

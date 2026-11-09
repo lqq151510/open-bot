@@ -103,6 +103,33 @@ export class AcpLink implements AcpConnection {
   }
 }
 
+/** Robust parser that tolerates CLI prefix logging, ANSI color codes, and BOMs. */
+export function parseCleanJsonRpcLine(rawLine: string): any | null {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {}
+
+  // oxlint-disable-next-line no-control-regex
+  const cleaned = trimmed.replace(/\uFEFF/g, "").replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {}
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+    try {
+      const obj = JSON.parse(candidate);
+      if (obj && typeof obj === "object") return obj;
+    } catch {}
+  }
+
+  return null;
+}
+
 export class AcpHost {
   readonly links = new Set<AcpLink>();
   /** The last thread to leave still hears the process end: its stopped turn settles on it. */
@@ -145,14 +172,8 @@ export class AcpHost {
       while ((nl = buf.indexOf("\n")) !== -1) {
         const line = buf.slice(0, nl);
         buf = buf.slice(nl + 1);
-        if (!line.trim()) continue;
-        let msg: any;
-        try {
-          msg = JSON.parse(line);
-        } catch {
-          continue;
-        }
-        this.#receive(msg);
+        const msg = parseCleanJsonRpcLine(line);
+        if (msg) this.#receive(msg);
       }
     });
     child.stderr.setEncoding("utf8");

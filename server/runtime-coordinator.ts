@@ -246,6 +246,8 @@ export class RuntimeCoordinator implements Coordinator {
     if (kind === "work" && target.groupId && lineage.some(n => n.assignee.destination.groupId === target.groupId)) throw new Error(ROOM_ANCESTOR);
     const waiting = mode === "notify" || target.groupId !== undefined ? undefined : this.waitingOn(source.botId, target.botId);
     if (waiting) throw new Error(crossed(this.host.names(this.project(waiting.request), this.project(waiting.parent)).requester, waiting.request));
+    const cycle = mode === "notify" || target.groupId !== undefined ? undefined : this.detectDeadlockCycle(source.botId, target.botId);
+    if (cycle) throw new Error(`Deadlock circuit breaker: cyclic coordination detected (${[source.botId, ...cycle].join(" -> ")}). Results return automatically; do not call an awaiting teammate.`);
     const wanted: Reply = mode === "notify" ? "none" : options.reply ?? "resume";
     const reply: Reply = wanted === "none" ? "none" : root.reply === "poll" ? "poll" : wanted;
     const requester: Requester = { kind: "bot_turn", botId: parent.assignee.botId, threadId: parent.assignee.destination.threadId,
@@ -665,6 +667,26 @@ export class RuntimeCoordinator implements Coordinator {
       if (request.assignee.botId !== botId || request.requester.botId !== asker || request.reply === "none" || request.assignee.destination.groupId !== undefined) continue;
       const parent = request.parentId ? this.store.get(request.parentId) : undefined;
       if (parent && !isTerminal(parent)) return { request, parent };
+    }
+    return undefined;
+  }
+
+  private detectDeadlockCycle(sourceBotId: string, targetBotId: string): string[] | undefined {
+    const visited = new Set<string>();
+    const queue: Array<{ current: string; path: string[] }> = [{ current: targetBotId, path: [targetBotId] }];
+    while (queue.length > 0) {
+      const { current, path } = queue.shift()!;
+      if (current === sourceBotId) return path;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      for (const req of this.live()) {
+        if (req.requester.botId === current && req.reply !== "none" && req.assignee.destination.groupId === undefined) {
+          const parent = req.parentId ? this.store.get(req.parentId) : undefined;
+          if (parent && !isTerminal(parent)) {
+            queue.push({ current: req.assignee.botId, path: [...path, req.assignee.botId] });
+          }
+        }
+      }
     }
     return undefined;
   }

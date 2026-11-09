@@ -70,8 +70,9 @@ test("the patch keeps the running path and never deletes ahead of the rename", (
 });
 
 test("the patch tolerates esbuild renaming the path import", () => {
-  const patched = patchAppImageUpdater(UPSTREAM.replaceAll("path2", "path7"));
+  const patched = patchAppImageUpdater(UPSTREAM.replaceAll("path2", "path7").replaceAll("env", "env2"));
 
+  assert.match(patched, /process\.env\.APPIMAGE_SILENT_INSTALL = env2\.APPIMAGE_SILENT_INSTALL/);
   assert.doesNotMatch(patched, renamePattern);
   assert.equal(patched.match(/destination = appImageFile;/g)?.length, 2);
 });

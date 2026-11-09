@@ -30,6 +30,7 @@ export { CodeBlock, HIGHLIGHT_CACHE_MAX, HIGHLIGHT_CACHE_MAX_CHARS, HIGHLIGHT_MA
 import { FilePreviewButton } from "./FilePreviewButton";
 import { SaveIconButton, useHtmlPreview } from "./HtmlFilePreview";
 import { useRevealOriginalMenu } from "./RevealOriginalMenu";
+import { GrokThinkingBubble, extractThinkingBlock } from "./GrokThinkingBubble";
 
 const mermaidCache = new Map<string, string>();
 const MERMAID_CACHE_MAX = 50;
@@ -773,9 +774,11 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
   /** Delivered copies by file name, and the originals those copies came from (copy path -> original). */
   delivered?: DeliveredFiles; originals?: DeliveredFiles;
 }) {
+  const { thought, inProgress, content } = extractThinkingBlock(text);
+  const targetText = thought !== null ? content : text;
   // use() may be called conditionally: only a message that can hold a thread link subscribes to the thread list.
-  const { threads, currentBotId } = MAY_LINK_THREAD.test(text) ? use(ThreadRefsContext) : NO_THREAD_REFS;
-  const { source, imageOffsets } = normalizeMessageMarkdown(text);
+  const { threads, currentBotId } = MAY_LINK_THREAD.test(targetText) ? use(ThreadRefsContext) : NO_THREAD_REFS;
+  const { source, imageOffsets } = normalizeMessageMarkdown(targetText);
   const needsMath = normalizedSourceHasMath(source);
   const [katexReady, setKatexReady] = useState(() => katexPlugin !== null);
   useEffect(() => {
@@ -797,7 +800,7 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
   const mentions = source.includes("@"), linksThreads = threads.length > 0;
   const variant = `${mathPlugin ? "math" : ""}\u0003${mentions ? `${peerSignature(mentionPeers)}\u0001${everyone ? 1 : 0}\u0001${mentionPerson?.profileName ?? ""}` : ""}\u0003${linksThreads ? `${threadListId(threads)}\u0001${currentBotId ?? ""}` : ""}`;
   // Markdown is a plain function of its options (no hooks), so its elements can be kept and drawn again.
-  const markdown = markdownCache.render(text, variant, () => {
+  const markdown = markdownCache.render(targetText, variant, () => {
     const remarkPlugins = [...BASE_REMARK_PLUGINS];
     if (mentions) remarkPlugins.push([remarkMentions, { peers: mentionPeers, everyone, person: mentionPerson }]);
     if (linksThreads) remarkPlugins.push(remarkThreadRefs(threads, currentBotId));
@@ -805,7 +808,8 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
   });
   return (
     <MessageScopeContext.Provider value={{ message, imageOffsets, threads, currentBotId, delivered, originals }}>
-      <div className="chat-md min-w-0 [&>*+*]:mt-2">{markdown}</div>
+      {thought !== null && <GrokThinkingBubble thought={thought} inProgress={inProgress} />}
+      {targetText ? <div className="chat-md min-w-0 [&>*+*]:mt-2">{markdown}</div> : null}
     </MessageScopeContext.Provider>
   );
 }
