@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, ChartNoAxesColumn, Cloud, CloudDownload, Coins, Download, FlaskConical, KeyRound, LockKeyhole, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
+import { Archive, ArrowUpCircle, ChartNoAxesColumn, Cloud, Coins, Download, FlaskConical, KeyRound, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { skillsLibraryEnabled } from "@/lib/feature-flags";
 import { type LocaleKey } from "@/locales";
@@ -99,7 +99,7 @@ export const SECTIONS: Array<{
   { id: "desktopWorkspaces", group: "computers", labelKey: "settings.section.desktopWorkspaces", icon: Building2, keywords: ["workspace", "cloud", "hosted", "vps", "server", "servers", "connect", "pair", "switch", "local"] },
   { id: "computer", group: "computers", labelKey: "settings.section.computer", icon: Monitor, keywords: ["vm", "virtual", "desktop", "browser", "built-in browser", "profiles", "browser profiles"] },
   { id: "permissions", group: "you", labelKey: "settings.section.permissions", icon: Shield, keywords: ["permissions", "approve", "approval", "auto", "ask", "allow", "rules", "access", "safety", "review"] },
-  { id: "logins", group: "computers", labelKey: "settings.section.logins", icon: LockKeyhole, keywords: ["logins", "login", "passwords", "password", "sign in", "2fa", "one-time code", "totp", "fill_login", "1password", "vault"] },
+  { id: "logins", group: "computers", labelKey: "settings.section.logins", icon: Archive, keywords: ["logins", "login", "passwords", "password", "sign in", "2fa", "one-time code", "totp", "fill_login", "1password", "vault"] },
   { id: "cloudAccount", group: "account", labelKey: "settings.section.cloudAccount", icon: Cloud, keywords: ["cloud", "my cloud", "account", "personal", "sign in", "pro", "subscription", "billing", "sync", "send", "this computer", "bots", "logins", "1password"] },
   { id: "organization", group: "account", labelKey: "settings.section.organization", icon: Building2, keywords: ["company", "organization", "organisation", "sign in", "enroll", "managed", "models", "disconnect"] },
   { id: "usage", group: "account", labelKey: "settings.section.usage", icon: Coins, keywords: ["tokens", "cost", "billing", "plan", "quota", "remaining", "weekly", "5-hour", "model", "used"] },
@@ -125,9 +125,9 @@ export const SIMPLE_PAGES: SimpleSettingsPage[] = [
     keywords: ["account", "theme", "looks", "open at login", "startup", "analytics", "advanced mode", "ai", "keys"] },
   { id: "computer", labelKey: "settings.simple.page.computer", icon: Monitor, sections: ["companion", "desktopWorkspaces", "computer"] },
   { id: "permissions", labelKey: "settings.simple.page.permissions", icon: Shield, sections: ["permissions"], keywords: ["approve", "approval", "ask", "allow", "rules"] },
-  { id: "vault", labelKey: "settings.simple.page.vault", icon: LockKeyhole, sections: ["logins"], keywords: ["logins", "passwords", "vault", "sign in"] },
+  { id: "vault", labelKey: "settings.simple.page.vault", icon: Archive, sections: ["logins"], keywords: ["logins", "passwords", "vault", "sign in"] },
   { id: "billing", labelKey: "settings.simple.page.billing", icon: ChartNoAxesColumn, sections: ["usage", "cloudAccount"], keywords: ["billing", "included", "allowance", "cloud hours", "voice"] },
-  { id: "updates", labelKey: "settings.simple.page.updates", icon: CloudDownload, sections: ["updates"],
+  { id: "updates", labelKey: "settings.simple.page.updates", icon: ArrowUpCircle, sections: ["updates"],
     keywords: ["update", "version", "release", "product updates", "newsletter", "email updates", "welcome", "tour", "diagnostics", "logs", "support"] },
 ];
 

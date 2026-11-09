@@ -6410,7 +6410,7 @@
   "settings.simple.billing.weekly": "每周用量 · {provider}",
   "settings.simple.billing.monthlySpend": "每月支出 · {provider}",
   "settings.simple.billing.used": "已用",
-  "settings.simple.billing.ownAi": "你的机器人使用你在「AI」下连接的 AI 账户。每个提供方的方案各有自己的限额。",
+  "settings.simple.billing.ownAi": "你的机器人使用你在设置中连接的 AI 账户。每个提供方的方案各有自己的限额。",
   "settings.simple.billing.limits": "查看全部限额",
   "settings.simple.billing.plan": "方案",
   "settings.simple.computer.bots": "机器人的电脑",

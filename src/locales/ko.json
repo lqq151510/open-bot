@@ -6100,7 +6100,7 @@
   "settings.simple.billing.weekly": "주간 사용량 · {provider}",
   "settings.simple.billing.monthlySpend": "월 사용액 · {provider}",
   "settings.simple.billing.used": "사용",
-  "settings.simple.billing.ownAi": "봇은 AI에서 연결한 AI 계정을 써요. 한도는 제공자마다 요금제에서 정해요.",
+  "settings.simple.billing.ownAi": "봇은 설정에서 연결한 AI 계정을 써요. 한도는 제공자마다 요금제에서 정해져요.",
   "settings.simple.billing.limits": "모든 한도 보기",
   "settings.simple.billing.plan": "요금제",
   "settings.simple.computer.bots": "봇의 컴퓨터",

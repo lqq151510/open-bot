@@ -6348,7 +6348,7 @@
   "settings.simple.billing.weekly": "週間の使用量 · {provider}",
   "settings.simple.billing.monthlySpend": "月間の支出 · {provider}",
   "settings.simple.billing.used": "使用済み",
-  "settings.simple.billing.ownAi": "ボットは、「AI」で接続した AI アカウントを使います。上限は、プロバイダーごとのプランで決まります。",
+  "settings.simple.billing.ownAi": "ボットは、設定で接続した AI アカウントを使います。上限は、プロバイダーごとのプランで決まります。",
   "settings.simple.billing.limits": "すべての上限を見る",
   "settings.simple.billing.plan": "プラン",
   "settings.simple.computer.bots": "ボットのコンピューター",
