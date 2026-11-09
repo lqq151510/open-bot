@@ -66,6 +66,9 @@ const result = (id: string) => host.querySelector<HTMLButtonElement>(`[data-sett
 const row = (id: string) => host.querySelector<HTMLElement>(`[data-key-row="${id}"]`)!;
 
 function type(value: string) {
+  if (!search()) {
+    flushSync(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true })));
+  }
   flushSync(() => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search(), value);
     search().dispatchEvent(new Event("input", { bubbles: true }));

@@ -57,6 +57,9 @@ afterEach(() => {
 const dialog = () => host.querySelector<HTMLElement>('[role="dialog"]')!;
 const search = () => host.querySelector<HTMLInputElement>("[data-settings-search]")!;
 const type = (value: string) => {
+  if (!host.querySelector("[data-settings-search]")) {
+    flushSync(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true })));
+  }
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search(), value);
   flushSync(() => search().dispatchEvent(new Event("input", { bubbles: true })));
 };
