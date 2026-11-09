@@ -1699,6 +1699,12 @@ body {
   height: calc(var(--glass-top, 48px) + 16px);
   background: linear-gradient(to bottom, color-mix(in srgb, var(--place-tint) var(--place-tint-strength, 16%), transparent), transparent);
 }
+.unread-divider-line { background-color: #c8dcf5; }
+.unread-divider-label { color: #1677d2; }
+@container style(--code-color-scheme: dark) {
+  .unread-divider-line { background-color: #39658e; }
+  .unread-divider-label { color: #8ac3ff; }
+}
 @container style(--code-color-scheme: dark) {
   .place-tint { --place-tint-strength: 26%; }
 }

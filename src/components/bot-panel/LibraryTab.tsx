@@ -1,9 +1,10 @@
 import { AppWindow, Brain, FileText, Folder, Globe, Image, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { t } from "@/lib/i18n";
 import { usePageOpener } from "@/lib/page-open";
 import { shortPath } from "@/lib/short-path";
+import { attachmentImageUrl } from "@/lib/composer-attachments";
 import { SIDEBAR_INLINE, useMediaQuery } from "@/lib/use-media-query";
 import { useStore, visibleMessages, type Bot, type Message } from "@/state/store";
 import { AttachedFileChip } from "../AttachmentPreview";
@@ -74,15 +75,33 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "images" | "files" }>({ botId: bot.id, category: "all" });
   const categories = [
     { id: "pages", label: t("botPanel.library.pages"), count: pages.length },
-    { id: "apps", label: t("botPanel.library.apps"), count: apps.length },
-    { id: "images", label: t("activity.tool.generatedMedia"), count: images.length + mediaFiles.length },
+    ...(apps.length ? [{ id: "apps" as const, label: t("botPanel.library.apps"), count: apps.length }] : []),
+    { id: "images", label: t("botPanel.library.media"), count: images.length + mediaFiles.length },
     { id: "files", label: t("botPanel.library.files"), count: shared.length + unshared.length },
   ] as const;
-  const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category && category.count > 0)) ? selection.category : "all";
+  const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category)) ? selection.category : "all";
+  const total = pages.length + apps.length + images.length + mediaFiles.length + shared.length + unshared.length;
+  const selectedCount = selected === "all" ? total : categories.find((category) => category.id === selected)?.count ?? 0;
   const showInChat = (messageId: string) => {
     dispatch({ type: "focusMessage", threadId: bot.threadId, messageId });
     if (phone) dispatch({ type: "toggleSettings", open: false });
   };
+  const messageTimes = new Map(visibleMessages(bot).map((message) => [message.id, message.at]));
+  const entries: Array<{ key: string; category: "pages" | "apps" | "images" | "files"; at?: number; node: ReactNode }> = [
+    ...pages.map((page) => ({ key: `page:${page.url}`, category: "pages" as const, at: messageTimes.get(page.messageId), node: <NavRow data-panel-row="page" icon={Globe} drill={false} title={<span className="block truncate">{page.title}</span>} onClick={() => openPage(page.url)} /> })),
+    ...apps.map((app) => ({ key: `app:${app.messageId}`, category: "apps" as const, at: messageTimes.get(app.messageId), node: <NavRow data-panel-row="app" icon={AppWindow} drill={false} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} /> })),
+    ...images.map((image) => ({ key: `image:${image.path}`, category: "images" as const, at: messageTimes.get(image.messageId), node: <button type="button" data-panel-row="image" onClick={() => showInChat(image.messageId)} className="flex min-h-[46px] w-full items-center gap-2.5 px-3.5 py-[11px] text-left hover:bg-ink/[0.03]"><span className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink/[0.05] text-ink-secondary"><Image size={15} aria-hidden="true" />{attachmentImageUrl(image.path) && <img src={attachmentImageUrl(image.path)!} alt="" className="absolute inset-0 size-full object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />}</span><span className="min-w-0 truncate text-[14px] font-medium text-ink">{image.title}</span></button> })),
+    ...mediaFiles.map((reference) => ({ key: `media:${reference.file.path}`, category: "images" as const, at: messageTimes.get(reference.message.messageId), node: <div data-panel-row="media-file"><AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none rounded-none border-0 bg-transparent text-[14px]" /></div> })),
+    ...shared.map((reference) => ({ key: `file:${reference.file.path}`, category: "files" as const, at: messageTimes.get(reference.message.messageId), node: <AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none rounded-none border-0 bg-transparent text-[14px]" /> })),
+    ...unshared.map((path) => ({ key: `unshared:${path}`, category: "files" as const, node: <div title={t("computer.files.notSharedHint")} className="flex min-w-0 items-center gap-2 px-3 py-2"><FileText size={14} className="shrink-0 text-ink-secondary" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-[13px] text-ink">{fileName(path)}</span><span className="shrink-0 text-[11px] text-ink-tertiary">{t("computer.files.notShared")}</span></div> })),
+  ];
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+  const groups = [
+    { id: "week", label: t("botPanel.library.thisWeek"), matches: (at?: number) => at !== undefined && Number.isFinite(at) && at >= weekStart },
+    { id: "earlier", label: t("botPanel.library.earlier"), matches: (at?: number) => at !== undefined && Number.isFinite(at) && at < weekStart },
+    { id: "undated", label: t("botPanel.library.undated"), matches: (at?: number) => at === undefined || !Number.isFinite(at) },
+  ].map((group) => ({ ...group, entries: entries.filter((entry) => (selected === "all" || entry.category === selected) && group.matches(entry.at)).sort((a, b) => (b.at ?? 0) - (a.at ?? 0)) }));
   const skillsOn = skills.skills.filter((skill) => skill.enabled).length;
   const notes = memory.docs ? panelMemoryNotes(memory.docs).length : null;
   const memoryValue = bot.memoryEnabled === false ? t("botPanel.memory.off")
@@ -109,72 +128,28 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
     </Card>
   );
 
-  if (pages.length + apps.length + images.length + mediaFiles.length + shared.length + unshared.length === 0) {
-    return (
-      <div data-panel-tabpanel="library">
-        <p data-panel-empty="library" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
-          {t("botPanel.library.empty")}
-        </p>
-        {keeps}
-      </div>
-    );
-  }
   return (
     <div data-panel-tabpanel="library">
       <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3 flex flex-wrap gap-1.5">
-        {[{ id: "all" as const, label: t("apps.filter.all") }, ...categories.filter((category) => category.count > 0)].map((category) => (
+        {[{ id: "all" as const, label: t("apps.filter.all") }, ...categories].map((category) => (
           <button key={category.id} type="button" aria-pressed={selected === category.id} onClick={() => setSelection({ botId: bot.id, category: category.id })}
-            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:bg-ink aria-pressed:text-app">
+            className="rounded-full bg-ink/[0.06] px-3 py-1.5 text-[12px] font-medium text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:bg-ink aria-pressed:text-app">
             {category.label}
           </button>
         ))}
       </div>
-      {(selected === "all" || selected === "pages") && pages.length > 0 && (
-        <Card label={t("botPanel.library.pages")} anchor="pages">
-          {pages.map((page) => (
-            <NavRow key={page.url} data-panel-row="page" icon={Globe} title={<span className="block truncate">{page.title}</span>} hint={<span className="block truncate">{page.url}</span>} onClick={() => openPage(page.url)} />
-          ))}
-        </Card>
+      {selectedCount === 0 && (
+        <p data-panel-empty="library" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
+          {selected === "all" ? t("botPanel.library.empty") : t("botPanel.library.emptyCategory")}
+        </p>
       )}
-      {(selected === "all" || selected === "apps") && apps.length > 0 && (
-        <Card label={t("botPanel.library.apps")} anchor="apps">
-          {apps.map((app) => (
-            <NavRow key={app.messageId} data-panel-row="app" icon={AppWindow} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} />
-          ))}
-        </Card>
-      )}
-      {(selected === "all" || selected === "images") && images.length + mediaFiles.length > 0 && (
-        <Card label={t("activity.tool.generatedMedia")} anchor="images">
-          {images.map((image) => (
-            <NavRow key={image.path} data-panel-row="image" icon={Image} title={<span className="block truncate">{image.title}</span>} onClick={() => showInChat(image.messageId)} />
-          ))}
-          {mediaFiles.map((reference) => (
-            <div key={`${reference.message.messageId}:${reference.file.path}`} data-panel-row="media-file" className="px-2 py-1">
-              <AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none" />
-            </div>
-          ))}
-        </Card>
-      )}
-      {(selected === "all" || selected === "files") && shared.length + unshared.length > 0 && (
-        <section data-panel-card="files">
-          <CardLabel>{t("botPanel.library.files")}</CardLabel>
-          <ul className="flex flex-col gap-1.5">
-            {shared.map((reference) => (
-              <li key={`${reference.message.messageId}:${reference.file.path}`} className="min-w-0">
-                <AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none" />
-              </li>
-            ))}
-            {unshared.map((path) => (
-              <li key={path} title={t("computer.files.notSharedHint")} className="flex min-w-0 items-center gap-2 rounded-lg border border-hairline/40 px-2.5 py-2">
-                <FileText size={14} className="shrink-0 text-ink-secondary" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{fileName(path)}</span>
-                <span className="shrink-0 text-[11px] text-ink-tertiary">{t("computer.files.notShared")}</span>
-              </li>
-            ))}
-          </ul>
+      {groups.filter((group) => group.entries.length > 0).map((group) => (
+        <section key={group.id} data-library-period={group.id}>
+          <CardLabel>{group.label}</CardLabel>
+          <div className="overflow-hidden rounded-xl bg-composer ring-1 ring-inset ring-ink/[0.06]">{group.entries.map((entry) => <div key={entry.key}>{entry.node}</div>)}</div>
         </section>
-      )}
-      <p className="mt-3 text-center text-[12px] text-ink-tertiary">{t("botPanel.library.scope")}</p>
+      ))}
+      {selectedCount > 0 && <p className="mt-3 text-center text-[12px] text-ink-tertiary">{t("botPanel.library.scope")}</p>}
       {keeps}
     </div>
   );

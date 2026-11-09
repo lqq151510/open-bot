@@ -159,6 +159,21 @@ export function PluginsPanel() {
   const [xConnected, setXConnected] = useState<boolean | null>(null);
   const [postizConnected, setPostizConnected] = useState<boolean | null>(null);
   const [emailConnected, setEmailConnected] = useState<boolean | null>(null);
+  const [detailSlug, setDetailSlug] = useState<string | null>(null);
+  const detailSlugRef = useRef(detailSlug);
+  detailSlugRef.current = detailSlug;
+  const detailBackRef = useRef<HTMLButtonElement>(null);
+  const lastDetailRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (detailSlug) detailBackRef.current?.focus();
+    else if (lastDetailRef.current) {
+      const trigger = [...(dialogRef.current?.querySelectorAll<HTMLElement>("[data-app-detail-open]") ?? [])]
+        .find((element) => element.dataset.appDetailOpen === lastDetailRef.current);
+      trigger?.focus();
+      lastDetailRef.current = null;
+    }
+  }, [detailSlug]);
 
   const polls = useRef(new Map<string, () => void>());
   const statusGenerations = useRef(new Map<string, number>());
@@ -286,6 +301,7 @@ export function PluginsPanel() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (detailSlugRef.current) { setDetailSlug(null); return; }
         dispatch({ type: "togglePlugins", open: false });
         return;
       }
@@ -402,7 +418,7 @@ export function PluginsPanel() {
 
   const matching = (cards ?? []).filter((c) => (!managedConnectorUnavailableReason(mode, c.slug) || hasActiveConnection(status[c.slug]))
     && (!search || `${c.label} ${c.slug} ${connectorDescription(c)}`.toLowerCase().includes(search.toLowerCase())));
-  const isConnected = (slug: string) => Boolean(status[slug]?.connected || status[slug]?.accounts?.length);
+  const isConnected = (slug: string) => hasActiveConnection(status[slug]);
   const filter: AppsFilter = surface === "mcp" ? "mcp" : tab === "connected" ? "connected" : "all";
   const shownHosted = new Set(HOSTED_MCP_APPS.filter((app) => hostedShown(app, search, filter, hostedConnected)).map((app) => app.id));
   const showEmail = (!search || `email mail imap smtp mailbox ${t("email.description")}`.toLowerCase().includes(search.toLowerCase().trim())) && (filter === "all" || (filter === "connected" && emailConnected !== false));
@@ -462,6 +478,7 @@ export function PluginsPanel() {
   const pillTone = (selected: boolean) => selected
     ? "bg-ink text-app"
     : "bg-control/70 text-ink-secondary hover:bg-raised-hover hover:text-ink";
+  const detailCard = detailSlug ? cards?.find((card) => card.slug === detailSlug) : undefined;
 
   return (
     <div
@@ -480,6 +497,19 @@ export function PluginsPanel() {
         tabIndex={-1}
         className="glass-surface glass-popup animate-pop-in relative flex max-w-[780px] flex-col overflow-hidden rounded-2xl"
       >
+        {detailCard ? <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7" data-app-detail={detailCard.slug}>
+          <div className="flex items-center justify-between gap-3">
+            <button ref={detailBackRef} type="button" onClick={() => setDetailSlug(null)} className="rounded-lg px-2 py-1.5 text-[13px] text-ink-secondary hover:bg-raised hover:text-ink">{t("rail.back")}</button>
+            <button type="button" onClick={close} aria-label={t("connectors.closeAria")} className="flex size-8 items-center justify-center rounded-full text-ink-secondary hover:bg-raised hover:text-ink"><X size={18} /></button>
+          </div>
+          <div className="mt-6 flex items-center gap-4">
+            <ServiceIcon card={detailCard} className="size-14 shrink-0 rounded-xl" />
+            <h2 id="plugins-title" className="min-w-0 truncate text-[20px] font-semibold text-ink">{detailCard.label}</h2>
+          </div>
+          <p className="mt-4 text-[14px] leading-relaxed text-ink-secondary">{connectorDescription(detailCard)}</p>
+          {detailCard.categories?.length ? <div className="mt-4 flex flex-wrap gap-2">{detailCard.categories.map((name) => <span key={name} className="rounded-full bg-control px-3 py-1 text-[12px] text-ink-secondary">{appCategoryLabel(name)}</span>)}</div> : null}
+          <div className="mt-6">{renderTile(detailCard, true)}</div>
+        </div> : <>
         <header className="flex flex-col gap-4 px-5 pb-4 pt-5 sm:px-7 sm:pt-6">
           <div>
           <div className="flex items-center justify-between gap-3">
@@ -753,11 +783,12 @@ export function PluginsPanel() {
             </div>
           )}
         </div>
+        </>}
       </div>
     </div>
   );
 
-  function renderTile(card: ToolkitCard) {
+  function renderTile(card: ToolkitCard, detail = false) {
     const serviceStatus = status[card.slug];
     const failed = serviceStatus?.status && /^(expired|failed)$/i.test(serviceStatus.status);
     const pending = serviceStatus?.pending && !failed;
@@ -794,7 +825,9 @@ export function PluginsPanel() {
           <ServiceIcon card={card} className="size-10 shrink-0 rounded-[10px]" />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-[14px] font-semibold leading-5 text-ink">{card.label}</span>
+              {detail ? <span className="truncate text-[14px] font-semibold leading-5 text-ink">{card.label}</span> : <button type="button" data-app-detail-open={card.slug}
+                onClick={() => { lastDetailRef.current = card.slug; setDetailSlug(card.slug); }}
+                className="min-w-0 truncate text-left text-[14px] font-semibold leading-5 text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus">{card.label}</button>}
               {connected && !pending && (
                 <Check size={13} strokeWidth={2.5} className="shrink-0 text-success" aria-label={t("apps.connected")} />
               )}
@@ -823,6 +856,7 @@ export function PluginsPanel() {
           </div>
           <button
             type="button"
+            data-app-connection-action={card.slug}
             disabled={!configured || inventoryPhase !== "ready" || busy || included || Boolean(unavailableReason)}
             title={unavailableReason ?? undefined}
             onClick={() => {

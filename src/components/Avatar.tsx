@@ -18,6 +18,7 @@ import { useHalloweenDressed, wornBody } from "@/lib/halloween-dress";
 import { t } from "@/lib/i18n";
 import { CarvedAvatar } from "./CarvedAvatar";
 import { steelBodyImage } from "@/lib/steel-body";
+import { usePrefersReducedMotion } from "./mascot-clock";
 
 export const EYE_SCALE = 1.12;
 export const MOUTH_WEIGHT = 11;
@@ -171,22 +172,32 @@ function GradientAvatarComponent(
   }, [motion, motionKey, animated]);
 
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const [pointerActive, setPointerActive] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  useEffect(() => {
+    if ((!trackPointer || reduced) && pointerActive) {
+      setPointer({ x: 0, y: 0 });
+      setPointerActive(false);
+    }
+  }, [trackPointer, reduced, pointerActive]);
   const range = forward ? POINTER_GAZE.forward : POINTER_GAZE.authored;
   const onPointerMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
-    if (!trackPointer || !animated) return;
+    if (!trackPointer || event.pointerType === "touch") return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    setPointerActive(true);
     setPointer({
       x: Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)) * range,
       y: Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1)) * range,
     });
   };
-  const onPointerLeave = () => setPointer({ x: 0, y: 0 });
+  const onPointerLeave = () => { setPointer({ x: 0, y: 0 }); setPointerActive(false); };
 
   return (
     <span
       className="inline-flex shrink-0"
-      onPointerMove={trackPointer && animated ? onPointerMove : undefined}
-      onPointerLeave={trackPointer && animated ? onPointerLeave : undefined}
+      onPointerMove={trackPointer && !reduced ? onPointerMove : undefined}
+      onPointerLeave={trackPointer && !reduced ? onPointerLeave : undefined}
     >
       <CursorAvatar
         ref={inner}
@@ -205,7 +216,9 @@ function GradientAvatarComponent(
         eyeScale={eyeScale}
         showMouth={showMouth}
         mouthStroke={mouthStroke}
-        paused={!animated}
+        autoBlink={animated}
+        autoExpression={animated}
+        paused={!animated && !pointerActive}
       />
     </span>
   );

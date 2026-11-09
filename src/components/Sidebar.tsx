@@ -1297,7 +1297,7 @@ export function Sidebar({ open, onClose, collapseToIcons = false, onNewBot }: {
           className={cn("relative flex shrink-0 items-center", density === "icons" ? "flex-col gap-1" : corner ? "pointer-events-auto" : simpleDesk ? "gap-2" : simple ? "gap-1 pl-0.5" : "ml-0.5 gap-0.5")}
           style={windowNoDragStyle}
         >
-          {simpleDesk && <SidebarSearchToggle ref={searchToggleRef} corner={corner} open={searchShown} onToggle={() => (searchShown ? closeSearch() : setSearchOpen(true))} />}
+          {simpleDesk && <SidebarSearchToggle ref={searchToggleRef} corner={corner} open={false} onToggle={openCommandPalette} />}
           {density === "icons" && <button
             type="button"
             onClick={openCommandPalette}

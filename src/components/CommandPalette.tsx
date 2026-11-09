@@ -1,18 +1,22 @@
 import { t } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
-import { Bot as BotIcon, MessageSquare, Search, Users } from "lucide-react";
-import { api, openBot, useStore, type Bot, type Group } from "@/state/store";
+import { Bot as BotIcon, ChartNoAxesColumn, Keyboard, MessageSquare, Monitor, Puzzle, RefreshCw, Search, Settings, Users, type LucideIcon } from "lucide-react";
+import { api, openBot, useStore, visibleMessages, type Bot, type Group } from "@/state/store";
 import { rankByName } from "@/lib/palette-rank";
 import { useShowThreads } from "@/lib/thread-preferences";
 import { cn } from "@/lib/cn";
 import type { SearchHit } from "@/lib/search-hit";
 import { landOnSearchHit } from "@/lib/focus-message";
 import { imeComposing } from "@/lib/send-key";
+import { BotAvatar } from "./Avatar";
+import { lastLine } from "./sidebar-preview";
 
+type PaletteAction = { id: string; label: string; keywords: string; icon: LucideIcon; run: () => void };
 type PaletteEntry =
   | { kind: "bot"; bot: Bot }
   | { kind: "room"; group: Group }
-  | { kind: "message"; hit: SearchHit };
+  | { kind: "message"; hit: SearchHit }
+  | { kind: "action"; action: PaletteAction };
 
 const OPEN_EVENT = "omb:open-command-palette";
 
@@ -20,7 +24,7 @@ export function openCommandPalette() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
+export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenChange?: (open: boolean) => void; onNewBot?: () => void; onNewGroup?: () => void }) {
   const { state, dispatch } = useStore();
   const showThreads = useShowThreads();
   const [open, setOpen] = useState(false);
@@ -86,10 +90,21 @@ export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean
 
   const bots = rankByName(state.bots.filter((b) => !b.hidden), q);
   const rooms = rankByName(state.groups, q);
+  const actions: PaletteAction[] = [
+    ...(onNewBot ? [{ id: "new-bot", label: t("sidebar.newBotSimple"), keywords: "new bot create robot 新建 创建 机器人 新建机器人 新建bot", icon: BotIcon, run: onNewBot }] : []),
+    ...(onNewGroup ? [{ id: "new-group", label: t("sidebar.newChat.createGroup"), keywords: "new group create chat 创建群聊 新建群聊 群组", icon: Users, run: onNewGroup }] : []),
+    { id: "apps", label: t("sidebar.connectApps"), keywords: "connect apps plugins mcp 连接 应用 插件 连接应用", icon: Puzzle, run: () => dispatch({ type: "togglePlugins", open: true, surface: "apps" }) },
+    { id: "settings", label: `${t("settings.title")} · ${t("settings.section.general")}`, keywords: "settings general preferences 设置 通用", icon: Settings, run: () => dispatch({ type: "toggleAppSettings", open: true, section: "general" }) },
+    { id: "computer", label: `${t("settings.title")} · ${t("settings.simple.page.computer")}`, keywords: "settings computer desktop 设置 电脑", icon: Monitor, run: () => dispatch({ type: "toggleAppSettings", open: true, section: "computer" }) },
+    { id: "usage", label: `${t("settings.title")} · ${t("settings.simple.page.billing")}`, keywords: "settings usage billing quota 设置 用量 账单", icon: ChartNoAxesColumn, run: () => dispatch({ type: "toggleAppSettings", open: true, section: "usage" }) },
+    { id: "updates", label: `${t("settings.title")} · ${t("settings.simple.page.updates")}`, keywords: "settings updates version 设置 更新 版本", icon: RefreshCw, run: () => dispatch({ type: "toggleAppSettings", open: true, section: "updates" }) },
+    { id: "shortcuts", label: t("shortcuts.title"), keywords: "keyboard shortcuts help 键盘 快捷键 帮助", icon: Keyboard, run: () => dispatch({ type: "toggleShortcuts", open: true }) },
+  ].filter((action) => !q || `${action.label} ${action.keywords}`.toLowerCase().includes(q));
   const entries: PaletteEntry[] = [
     ...bots.map((bot): PaletteEntry => ({ kind: "bot", bot })),
     ...rooms.map((group): PaletteEntry => ({ kind: "room", group })),
     ...(q ? messageHits.map((hit): PaletteEntry => ({ kind: "message", hit })) : []),
+    ...actions.map((action): PaletteEntry => ({ kind: "action", action })),
   ];
   const selected = entries.length ? Math.min(cursor, entries.length - 1) : 0;
 
@@ -103,8 +118,12 @@ export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean
       }
     } else if (entry.kind === "bot") {
       openBot(dispatch, entry.bot, showThreads);
-    } else {
+    } else if (entry.kind === "room") {
       dispatch({ type: "select", id: entry.group.id });
+    } else {
+      setOpen(false);
+      entry.action.run();
+      return;
     }
     setOpen(false);
   };
@@ -130,6 +149,7 @@ export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean
 
   const roomOffset = bots.length;
   const messageOffset = bots.length + rooms.length;
+  const actionOffset = messageOffset + (q ? messageHits.length : 0);
 
   const row = (key: string, index: number, onPick: () => void, children: React.ReactNode, twoLine = false) => (
     <button
@@ -185,20 +205,23 @@ export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean
               {t("palette.bots")}
             </div>
           )}
-          {bots.map((bot, i) =>
-            row(
+          {bots.map((bot, i) => {
+            const preview = lastLine(bot, visibleMessages(bot), state.instances, showThreads) || bot.title;
+            return row(
               `bot:${bot.id}`,
               i,
               () => void activate({ kind: "bot", bot }),
               <>
-                <BotIcon size={16} className="shrink-0 text-ink-secondary" />
-                <span className="truncate text-[14px] text-ink">{bot.name}</span>
-                {bot.title && (
-                  <span className="min-w-0 truncate text-[13px] text-ink-secondary">{bot.title}</span>
-                )}
+                <BotAvatar bot={bot} size={30} animated={false} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-[14px] text-ink">{bot.name}</span>
+                  {preview && (
+                    <span className="truncate text-[13px] text-ink-secondary">{preview}</span>
+                  )}
+                </span>
               </>,
-            ),
-          )}
+            );
+          })}
           {rooms.length > 0 && (
             <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
               {t("palette.groups")}
@@ -242,6 +265,13 @@ export function CommandPalette({ onOpenChange }: { onOpenChange?: (open: boolean
                 true,
               );
             })}
+          {actions.length > 0 && (
+            <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("composer.commands.title")}</div>
+          )}
+          {actions.map((action, i) => row(`action:${action.id}`, actionOffset + i, () => void activate({ kind: "action", action }), <>
+            <action.icon size={16} className="shrink-0 text-ink-secondary" />
+            <span className="truncate text-[14px] text-ink">{action.label}</span>
+          </>))}
         </div>
       </div>
     </div>

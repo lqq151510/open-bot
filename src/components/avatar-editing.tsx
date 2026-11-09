@@ -35,10 +35,18 @@ export function AvatarFraming({
   bot,
   disabled,
   onPatch,
+  previewUrl,
+  previewName,
+  onPreviewLoad,
+  onPreviewError,
 }: {
   bot: Bot;
   disabled: boolean;
   onPatch: (patch: AvatarPatch) => void;
+  previewUrl?: string;
+  previewName?: string;
+  onPreviewLoad?: (size: { width: number; height: number }) => void;
+  onPreviewError?: () => void;
 }) {
   const zoom = clampAvatarZoom(bot.avatarZoom ?? AVATAR_ZOOM_MIN);
   const focusX = clampAvatarFocus(bot.avatarFocusX ?? AVATAR_FOCUS_CENTER);
@@ -78,12 +86,20 @@ export function AvatarFraming({
         onPointerCancel={endDrag}
         onWheel={onWheel}
       >
-        <BotAvatar bot={bot} size={FRAME_SIZE} animated={false} label={t("botIdentity.framing.preview", { name: bot.name })} />
+        {previewUrl ? <span className="block overflow-hidden rounded-full" style={{ width: FRAME_SIZE, height: FRAME_SIZE }}>
+          <img src={previewUrl} alt={t("botIdentity.framing.preview", { name: bot.name })} draggable={false} onLoad={(event) => onPreviewLoad?.({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={onPreviewError} className="block size-full max-w-none object-cover"
+            style={{ objectPosition: `${focusX * 100}% ${focusY * 100}%`, transform: `scale(${zoom})`, transformOrigin: `${focusX * 100}% ${focusY * 100}%` }} />
+        </span> : <BotAvatar bot={bot} size={FRAME_SIZE} animated={false} label={t("botIdentity.framing.preview", { name: bot.name })} />}
       </div>
-      <div className="mb-1.5 mt-4 flex items-baseline justify-between">
+      {previewUrl ? <div className="mt-3 text-center text-[12px] text-ink-secondary">
+        <p className="truncate">{previewName}</p>
+        <p className="mt-1">{t("botPanel.avatar.dragToPosition")}</p>
+      </div> : <div className="mb-1.5 mt-4 flex items-baseline justify-between">
         <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("settings.profile.avatar.zoom")}</span>
         <span className="tabular-nums text-[12px] text-ink-secondary">{Math.round(zoom * 100)}%</span>
-      </div>
+      </div>}
+      <div className={previewUrl ? "mt-3 flex items-center gap-3" : undefined}>
+      {previewUrl && <span aria-hidden="true" className="text-ink-secondary">−</span>}
       <input
         type="range"
         min={AVATAR_ZOOM_MIN}
@@ -97,8 +113,11 @@ export function AvatarFraming({
         aria-valuenow={zoom}
         aria-valuetext={`${Math.round(zoom * 100)}%`}
         onChange={(event) => onPatch({ avatarZoom: clampAvatarZoom(Number(event.target.value)) })}
-        className="w-full accent-accent"
+        className={previewUrl ? "min-w-0 flex-1 accent-ink" : "w-full accent-accent"}
       />
+      {previewUrl && <span aria-hidden="true" className="text-ink-secondary">+</span>}
+      </div>
+      {!previewUrl && (
       <div className="mt-1.5 flex items-center justify-between gap-3 text-[12px] text-ink-secondary">
         <span>{t("botIdentity.framing.hint")}</span>
         {framed && (
@@ -112,6 +131,7 @@ export function AvatarFraming({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -142,8 +162,8 @@ export function useAvatarImage(bot: Bot, onPatch: (patch: AvatarPatch) => void) 
   cropRef.current = crop;
   const busy = uploading || generating;
 
-  const upload = async (file: File | undefined) => {
-    if (!file || busy) return;
+  const upload = async (file: File | undefined, framing?: Pick<AvatarPatch, "avatarCrop" | "avatarZoom" | "avatarFocusX" | "avatarFocusY">): Promise<boolean> => {
+    if (!file || busy) return false;
     setUploading(true);
     setError(null);
     try {
@@ -157,9 +177,12 @@ export function useAvatarImage(bot: Bot, onPatch: (patch: AvatarPatch) => void) 
         avatarZoom: AVATAR_ZOOM_MIN,
         avatarFocusX: AVATAR_FOCUS_CENTER,
         avatarFocusY: AVATAR_FOCUS_CENTER,
+        ...framing,
       });
+      return true;
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+      return false;
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

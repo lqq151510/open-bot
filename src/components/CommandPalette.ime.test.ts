@@ -19,7 +19,8 @@ import { CommandPalette, openCommandPalette } from "./CommandPalette";
 
 const bot: Bot = {
   id: "ime-bot", threadId: "ime-thread", name: "Shelby", title: "", description: "",
-  color: "blue", notifications: false, unread: false, busy: false, messages: [], section: "",
+  color: "blue", notifications: false, unread: false, busy: false,
+  messages: [{ id: "latest", role: "bot", kind: "text", text: "Latest update", at: 1 }], section: "",
   modelSelection: { instanceId: "claude", model: "fake" },
 };
 const room = { id: "ime-room", name: "设计评审", memberIds: [bot.id] } as unknown as Group;
@@ -37,8 +38,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function open() {
-  flushSync(() => root.render(createElement(CommandPalette)));
+function open(onNewBot?: () => void, onNewGroup?: () => void) {
+  flushSync(() => root.render(createElement(CommandPalette, { onNewBot, onNewGroup })));
   flushSync(() => openCommandPalette());
   return document.querySelector<HTMLInputElement>('[role="dialog"] input')!;
 }
@@ -58,6 +59,52 @@ function press(input: HTMLInputElement, key: string, init: KeyboardEventInit = {
 const dialog = () => document.querySelector('[role="dialog"]');
 
 describe("Command palette with an input method", () => {
+  it("shows each bot's own avatar and recent conversation preview", () => {
+    open();
+    const result = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Shelby"));
+    expect(result?.textContent).toContain("Latest update");
+    expect(result?.querySelector('[aria-label="Shelby"]')).not.toBeNull();
+  });
+
+  it("finds connect apps by Chinese keywords and opens it with Enter", () => {
+    const input = open();
+    type(input, "连接应用");
+    press(input, "Enter");
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "togglePlugins", open: true, surface: "apps" });
+    expect(dialog()).toBeNull();
+  });
+
+  it.each([
+    ["通用", "general"], ["电脑", "computer"], ["账单", "usage"], ["更新", "updates"],
+  ])("opens the %s settings page from search", (query, section) => {
+    const input = open();
+    type(input, query);
+    press(input, "Enter");
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleAppSettings", open: true, section });
+    expect(dialog()).toBeNull();
+  });
+
+  it("includes new bot in keyboard navigation without creating it directly", () => {
+    const create = vi.fn();
+    const input = open(create);
+    press(input, "ArrowDown");
+    press(input, "ArrowDown");
+    press(input, "Enter");
+    expect(create).toHaveBeenCalledOnce();
+    expect(fixture.dispatch).not.toHaveBeenCalledWith({ type: "newBot" });
+    expect(dialog()).toBeNull();
+  });
+
+  it("opens group creation from search without creating a group immediately", () => {
+    const create = vi.fn();
+    const input = open(undefined, create);
+    type(input, "创建群聊");
+    press(input, "Enter");
+    expect(create).toHaveBeenCalledOnce();
+    expect(fixture.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: "createGroup" }));
+    expect(dialog()).toBeNull();
+  });
+
   it.each([
     { name: "composition", init: { isComposing: true } },
     { name: "IME key code", init: { keyCode: 229 } },

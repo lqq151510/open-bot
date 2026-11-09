@@ -4,7 +4,7 @@ import Markdown, { defaultUrlTransform, type Components, type ExtraProps, type O
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { fromMarkdown, type Options as MarkdownParseOptions } from "mdast-util-from-markdown";
-import { Check, Copy, Download, Eye, LoaderCircle, RotateCcw, WrapText, X } from "lucide-react";
+import { Check, Copy, Download, Eye, Globe, LoaderCircle, RotateCcw, WrapText, X } from "lucide-react";
 import { useCopyFeedback } from "@/lib/copy-text";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -624,6 +624,7 @@ function MarkdownLink({ href, children, ...rest }: { href?: string; children?: R
   // SAFETY: react-markdown hands hast data-* attributes through as string props
   const props = rest as Record<string, unknown>;
   const { threads, currentBotId, message, delivered, originals } = useContext(MessageScopeContext);
+  const simple = !useAdvancedMode();
   const linkMenu = useThreadLinkMenu(href), openPage = usePageOpener();
   if (!href) return <span className="break-words">{children}</span>;
   if (isUseMyComputerUrl(href)) return <UseMyComputerLink>{children}</UseMyComputerLink>;
@@ -654,7 +655,8 @@ function MarkdownLink({ href, children, ...rest }: { href?: string; children?: R
           <span>{children}</span>
         </a>
       ) : (
-        <a {...anchor} href={href} target="_blank" rel="noreferrer" dir="auto" className={LINK_CLASS}>
+        <a {...anchor} href={href} target="_blank" rel="noreferrer" dir="auto" className={cn(LINK_CLASS, simple && "text-ink decoration-ink/30")}>
+          {simple && <Globe size={13} aria-hidden="true" data-web-source-icon className="me-1 inline-block align-[-0.1em] text-ink-tertiary" />}
           {children}
         </a>
       )}</>; }}

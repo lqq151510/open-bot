@@ -120,6 +120,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Apps pop-up", () => {
+  it("opens an app's details with the same connection state and returns to the catalog", () => {
+    const initial = render();
+    initial.nodes.find((node) => node.props["data-app-detail-open"] === "gmail")!.props.onClick!();
+    const detail = render();
+    expect(detail.nodes.some((node) => node.props["data-app-detail"] === "gmail")).toBe(true);
+    expect(detail.html).toContain("Read and send email");
+    const action = detail.nodes.find((node) => node.props["data-app-connection-action"] === "gmail")!;
+    expect(action.props.disabled).toBe(false);
+    expect(action.props.children).toBe("Connect");
+    detail.nodes.find((node) => node.type === "button" && node.props.children === "Back")!.props.onClick!();
+    expect(render().nodes.some((node) => node.props["data-app-detail-open"] === "gmail")).toBe(true);
+  });
+
   it("connects each hosted app inside the apps grid without a Composio key or MCP detour", () => {
     fixture.overrides.set(CONFIGURED, false);
     const { html, nodes: tree } = render();
@@ -251,7 +264,7 @@ describe("Apps pop-up", () => {
     expect(link.props.target).toBe("_blank");
     expect(link.props.rel).toBe("noopener noreferrer");
     const tile = tree.find((node) => node.props["data-app-tile"] === "gmail")!;
-    const button = nodes(tile).find((node) => node.type === "button")!;
+    const button = nodes(tile).find((node) => node.props["data-app-connection-action"] === "gmail")!;
     vi.mocked(api).mockClear();
     button.props.onClick!();
     expect(open).toHaveBeenCalledWith("", "_blank");
@@ -296,7 +309,7 @@ describe("Apps pop-up", () => {
     const { nodes: tree } = render();
     expect(tree.some((node) => node.type === "a" && node.props.href === "https://auth.example.test/old")).toBe(false);
     const tile = tree.find((node) => node.props["data-app-tile"] === "gmail")!;
-    nodes(tile).find((node) => node.type === "button")!.props.onClick!();
+    nodes(tile).find((node) => node.props["data-app-connection-action"] === "gmail")!.props.onClick!();
     expect(api).toHaveBeenCalledWith("/api/connectors/gmail/authorize", { method: "POST" });
     await Promise.resolve();
     expect(page.location.replace).toHaveBeenCalledWith("https://auth.example.test/new");
@@ -312,7 +325,7 @@ describe("Apps pop-up", () => {
     vi.stubGlobal("window", { open: () => page });
     const { nodes: tree } = render();
     const tile = tree.find((node) => node.props["data-app-tile"] === "gmail")!;
-    nodes(tile).find((node) => node.type === "button")!.props.onClick!();
+    nodes(tile).find((node) => node.props["data-app-connection-action"] === "gmail")!.props.onClick!();
     expect(api).toHaveBeenCalledWith("/api/connectors/gmail/authorize", { method: "POST" });
     await Promise.resolve();
     expect(page.location.replace).toHaveBeenCalledWith("https://auth.example.test/retry");
@@ -331,7 +344,7 @@ describe("Apps pop-up", () => {
     expect(tile.some((node) => node.props["aria-label"] === "Connected")).toBe(false);
     expect(tile.some((node) => node.props.title === "Signed out. Reconnect to keep using it.")).toBe(true);
     expect(html).not.toContain("1 connected");
-    const button = tile.find((node) => node.type === "button")!;
+    const button = tile.find((node) => node.props["data-app-connection-action"] === "gmail")!;
     expect(button.props.children).toBe("Reconnect");
     expect(tile.filter((node) => node.type === "button").map((node) => node.props.children)).not.toContain("Add account");
     button.props.onClick!();
@@ -415,7 +428,7 @@ describe("Apps pop-up", () => {
     const { html, nodes: tree } = render();
     const tile = nodes(tree.find((node) => node.props["data-app-tile"] === "gmail"));
     expect(tile.some((node) => node.props["aria-label"] === "Connected")).toBe(true);
-    expect(tile.find((node) => node.type === "button")!.props.children).toBe("Add account");
+    expect(tile.find((node) => node.props["data-app-connection-action"] === "gmail")!.props.children).toBe("Add account");
     expect(html).toContain('aria-label="Reconnect work to Gmail"');
     expect(html).not.toContain('aria-label="Reconnect personal to Gmail"');
   });
@@ -431,7 +444,7 @@ describe("Apps pop-up", () => {
     vi.stubGlobal("window", { open: () => page });
     const initial = render();
     const tile = initial.nodes.find((node) => node.props["data-app-tile"] === "gmail")!;
-    nodes(tile).find((node) => node.type === "button")!.props.onClick!();
+    nodes(tile).find((node) => node.props["data-app-connection-action"] === "gmail")!.props.onClick!();
     await Promise.resolve();
     const recovered = render();
     const recoveredTile = recovered.nodes.find((node) => node.props["data-app-tile"] === "gmail")!;
@@ -536,6 +549,21 @@ describe("Apps pop-up", () => {
     expect(html).toContain('data-app-tile="slack"');
     expect(html).not.toContain('data-app-tile="gmail"');
     expect(html).not.toContain("MCP inventory");
+    expect(html).toContain("1 connected");
+  });
+
+  it("keeps expired and pending accounts out of the connected list and count", () => {
+    fixture.overrides.set(CARDS, [card("slack"), card("gmail"), card("notion")]);
+    fixture.overrides.set(STATUS, {
+      slack: { connected: true, accounts: [{ id: "active", status: "ACTIVE" }] },
+      gmail: { connected: true, accounts: [{ id: "expired", status: "EXPIRED" }] },
+      notion: { connected: false, pending: true, accounts: [{ id: "pending", status: "INITIATED" }] },
+    });
+    fixture.overrides.set(TAB, "connected");
+    const { html } = render();
+    expect(html).toContain('data-app-tile="slack"');
+    expect(html).not.toContain('data-app-tile="gmail"');
+    expect(html).not.toContain('data-app-tile="notion"');
     expect(html).toContain("1 connected");
   });
 

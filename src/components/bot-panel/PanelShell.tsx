@@ -21,10 +21,11 @@ function initialTarget(section: BotSettingsSection | null, link: PanelLink | nul
   return section ? linkTarget(section, link) : { tab: "details" };
 }
 
-export function BotPanel({ bot, derived, linkedSection, onClose }: {
+export function BotPanel({ bot, derived, linkedSection, onClose, slackUrl }: {
   bot: Bot;
   derived: ReturnType<typeof useBotSettingsDerived>;
   linkedSection: BotSettingsSection | null;
+  slackUrl?: string | null;
   onClose: () => void;
 }) {
   const { dragProps } = useCaptionChrome();
@@ -155,7 +156,7 @@ export function BotPanel({ bot, derived, linkedSection, onClose }: {
               ))}
             </div>
             <div role="tabpanel">
-              {tab === "details" && <DetailsTab bot={bot} derived={derived} onOpen={openPage} />}
+              {tab === "details" && <DetailsTab bot={bot} derived={derived} onOpen={openPage} slackUrl={slackUrl} />}
               {tab === "library" && <LibraryTab bot={bot} onOpen={openPage} />}
               {tab === "computer" && <ComputerTab bot={bot} derived={derived} onOpen={openPage} />}
             </div>

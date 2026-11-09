@@ -116,6 +116,23 @@ describe("mention highlighting", () => {
   });
 });
 
+describe("web source links", () => {
+  it("marks an external source without changing its destination or accessible text", () => {
+    mode.advanced = false;
+    try {
+      const html = renderToStaticMarkup(createElement(ChatMarkdown, { text: "[Official source](https://example.test/article)" }));
+      expect(html).toContain('href="https://example.test/article"');
+      expect(html).toContain('data-web-source-icon="true"');
+      expect(html).toContain('aria-hidden="true"');
+      expect(html).toContain("Official source");
+    } finally {
+      mode.advanced = true;
+    }
+    const advanced = renderToStaticMarkup(createElement(ChatMarkdown, { text: "[Official source](https://example.test/article)" }));
+    expect(advanced).not.toContain("data-web-source-icon");
+  });
+});
+
 describe("math before katex loads", () => {
   it("keeps the formula as source until katex is loaded, then typesets it", async () => {
     expect(messageNeedsKatex("Inline $x$.")).toBe(true);

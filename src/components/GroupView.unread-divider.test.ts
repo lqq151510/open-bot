@@ -64,9 +64,9 @@ describe("NewMessagesDivider", () => {
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain(">New<");
     expect(html).toContain("text-[11px]");
-    expect(html).toContain("text-accent-text");
+    expect(html).toContain("unread-divider-label");
     expect(html.match(/h-px flex-1/g)).toHaveLength(2);
-    expect(html).toContain("rtl:bg-linear-to-l");
+    expect(html.match(/unread-divider-line/g)).toHaveLength(2);
     expect(html).toContain("motion-reduce:transition-none");
     expect(html).toContain("grid-rows-[1fr]");
   });

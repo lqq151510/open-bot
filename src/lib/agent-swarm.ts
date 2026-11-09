@@ -149,7 +149,9 @@ export function extractSwarmState({
               : [];
 
       const taskMessage = String(parsedArgs.message ?? parsedArgs.reason ?? parsedArgs.title ?? tool.summary ?? "协同执行专项任务");
-      const isDone = Boolean(tool.output || !message.toolInFlight);
+      const agentStatus = tool.ok === true ? "done" : tool.ok === false ? "blocked" : "working";
+      const statusText = tool.ok === true ? "任务已完成" : tool.ok === false ? "任务执行失败" : "正在处理子任务...";
+      const stepStatus = tool.ok === true ? "completed" : tool.ok === false ? "failed" : "running";
 
       for (const targetId of botIds) {
         const matched = allBots.find((b) => b.id === targetId || b.name === targetId);
@@ -162,8 +164,8 @@ export function extractSwarmState({
             name,
             role: meta.role,
             icon: meta.icon,
-            status: isDone ? "done" : "working",
-            statusText: isDone ? "任务已完成" : "正在处理子任务...",
+            status: agentStatus,
+            statusText,
             currentTask: taskMessage,
             bot: matched,
             isCoordinator: false,
@@ -171,7 +173,8 @@ export function extractSwarmState({
         } else {
           const existing = agentsMap.get(targetId)!;
           if (!existing.isCoordinator) {
-            existing.status = isDone ? "done" : "working";
+            existing.status = agentStatus;
+            existing.statusText = statusText;
             existing.currentTask = taskMessage;
           }
         }
@@ -181,7 +184,7 @@ export function extractSwarmState({
           title: String(parsedArgs.title || parsedArgs.reason || `协同处理: ${meta.role}`),
           assignedToId: targetId,
           assignedToName: name,
-          status: isDone ? "completed" : "running",
+          status: stepStatus,
           summary: taskMessage,
         });
 

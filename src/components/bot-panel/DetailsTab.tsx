@@ -1,7 +1,9 @@
-import { Calendar, Monitor, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Calendar, ChevronRight, Monitor, Slack, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
+import { appendComposerDraft } from "@/lib/drafts";
 import { routineFinished, routineNextLabel } from "@/lib/routine-display";
 import { useStore, type Bot } from "@/state/store";
 import { useChatMoreItems } from "../ChatMoreMenu";
@@ -13,7 +15,7 @@ import { useOpenComputer } from "./ComputerTab";
 import { Switch } from "../SettingsPrimitives";
 import type { SimplePageId } from "./page-registry";
 import { TryAsking } from "./TryAsking";
-import { Card, NavRow, RowIcon, rowCls, RowText } from "./rows";
+import { Card, LabelAction, NavRow, RowIcon, rowCls, RowText } from "./rows";
 
 type Derived = ReturnType<typeof useBotSettingsDerived>;
 
@@ -41,11 +43,13 @@ export function ItemRow({ item }: { item: SidebarMenuItem }) {
   );
 }
 
-export function DetailsTab({ bot, derived, onOpen }: {
+export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
   bot: Bot;
   derived: Derived;
   onOpen: (page: SimplePageId) => void;
+  slackUrl?: string | null;
 }) {
+  const [hiddenSuggestions, setHiddenSuggestions] = useState<string[]>([]);
   const { items } = useChatMoreItems(bot);
   const { dispatch } = useStore();
   const openComputer = useOpenComputer(bot);
@@ -67,7 +71,7 @@ export function DetailsTab({ bot, derived, onOpen }: {
 
       <BotConversations bot={bot} />
 
-      {derived.botRoutines.length === 0 ? (
+      {derived.botRoutines.length === 0 && hiddenSuggestions.includes(bot.id) ? (
         <div data-panel-empty="routines" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
           <p>{t("botPanel.routines.empty")}</p>
           <button
@@ -79,7 +83,7 @@ export function DetailsTab({ bot, derived, onOpen }: {
             {t("botPanel.routines.add")}
           </button>
         </div>
-      ) : (
+      ) : derived.botRoutines.length > 0 ? (
         <Card label={t("botSettings.simple.routines")} anchor="routines">
           {[...derived.botRoutines]
             .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? Infinity) - (b.nextRunAt ?? Infinity) || a.name.localeCompare(b.name))
@@ -102,6 +106,20 @@ export function DetailsTab({ bot, derived, onOpen }: {
             value={routinesOn > 0 ? t("botPanel.routinesOn", { count: routinesOn }) : t("botPanel.none")}
             onClick={() => onOpen("routines")}
           />
+        </Card>
+      ) : null}
+
+      {!hiddenSuggestions.includes(bot.id) && (slackUrl || derived.botRoutines.length === 0) && (
+        <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
+          {slackUrl && <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botSlack.manage")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </a>}
+          {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
+            appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
+            requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
+          }} />}
         </Card>
       )}
 

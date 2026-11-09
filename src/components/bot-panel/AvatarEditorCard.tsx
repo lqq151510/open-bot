@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ChevronDown, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -11,6 +11,7 @@ import { MASCOT_BODY_IDS } from "../../../shared/mascot-bodies";
 import { HALLOWEEN_BODY_IDS } from "../../../shared/halloween-bodies";
 import { isHalloweenBody, type BotBodyId } from "../../../shared/bot-body";
 import { useHalloweenDressed, wornBody } from "@/lib/halloween-dress";
+import { clipboardImageFiles, IMAGE_MAX_BYTES, isImageFile } from "@/lib/composer-attachments";
 import { MausAvatar } from "../Avatar";
 import { AvatarImageGenerator } from "../AvatarImageGenerator";
 import { AvatarFraming, OrganizationAvatarIcons, RESET_MASCOT_PATCH, useAvatarImage, type AvatarPatch } from "../avatar-editing";
@@ -60,6 +61,18 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
   const { fileRef, crop, uploading, generating, busy, error, upload, removeImage, generate } = image;
   const showsImage = crop !== "mascot" && Boolean(bot.avatarUrl);
   const [tab, setTab] = useState<AvatarEditorTab>(showsImage ? "upload" : "bot");
+  const [pending, setPending] = useState<{ file: File; url: string; framing: AvatarPatch; decoded: boolean; size?: { width: number; height: number } } | null>(null);
+  const [pendingError, setPendingError] = useState<string | null>(null);
+  useEffect(() => () => { if (pending) URL.revokeObjectURL(pending.url); }, [pending?.url]);
+  const stage = (file: File | undefined) => {
+    if (!file || busy) return;
+    if (!isImageFile(file) || file.size > IMAGE_MAX_BYTES) {
+      setPendingError(t("botPanel.avatar.invalidImage"));
+      return;
+    }
+    setPendingError(null);
+    setPending({ file, url: URL.createObjectURL(file), framing: { avatarCrop: "circle", avatarZoom: 1, avatarFocusX: 0.5, avatarFocusY: 0.5 }, decoded: false });
+  };
   const tabsRef = useRef<HTMLDivElement>(null);
   // The card is a dialog: focus moves into it, onto the tab it opened on, so Escape and Tab work from the start.
   useEffect(() => {
@@ -102,6 +115,11 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
       aria-label={t("botPanel.avatar.edit")}
       data-panel-avatar-editor
       onKeyDown={onKeyDown}
+      onPaste={(event) => {
+        if (tab !== "upload" || busy) return;
+        const file = clipboardImageFiles(event.clipboardData)[0];
+        if (file) { event.preventDefault(); stage(file); }
+      }}
       className="popover-surface absolute inset-x-[-5px] top-[80px] z-30 overflow-hidden rounded-2xl border border-ink/[0.08] bg-menu text-left shadow-2xl shadow-black/50"
     >
       <div ref={tabsRef} className="flex items-center gap-0.5 border-b border-ink/[0.06] p-2">
@@ -204,6 +222,7 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
           <div className="[&>div:first-child]:mt-0 [&>div:first-child]:border-0 [&>div:first-child]:pt-0">
             <AvatarImageGenerator
               botLabel={bot.title || bot.name}
+              compact
               disabled={uploading}
               generating={generating}
               onGenerate={generate}
@@ -213,14 +232,23 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
 
         {tab === "upload" && (
           <>
-            <OrganizationAvatarIcons busy={busy} onUpload={(file) => void upload(file)} />
+            <OrganizationAvatarIcons busy={busy} onUpload={stage} />
+            {pending ? <>
+              <AvatarFraming bot={{ ...bot, ...pending.framing }} previewUrl={pending.url} previewName={`${pending.file.name}${pending.size ? ` · ${pending.size.width}×${pending.size.height}` : ""}`} disabled={busy} onPatch={(patch) => setPending((current) => current ? { ...current, framing: { ...current.framing, ...patch } } : current)}
+                onPreviewLoad={(size) => setPending((current) => current?.url === pending.url ? { ...current, decoded: true, size } : current)}
+                onPreviewError={() => { setPendingError(t("botPanel.avatar.invalidImage")); setPending((current) => current?.url === pending.url ? { ...current, decoded: false } : current); }} />
+              <div className="mt-3 flex gap-2">
+                <button type="button" data-avatar-restart disabled={busy} onClick={() => { setPending(null); setPendingError(null); }} className="flex-1 rounded-lg bg-control px-3 py-2 text-[13px] text-ink disabled:opacity-50">{t("botPanel.avatar.restart")}</button>
+                <button type="button" data-avatar-apply disabled={busy || !pending.decoded} onClick={() => void upload(pending.file, pending.framing).then((saved) => { if (saved) setPending(null); })} className="flex-1 rounded-lg bg-ink px-3 py-2 text-[13px] text-app disabled:opacity-50">{t("botPanel.avatar.apply")}</button>
+              </div>
+            </> : <>
             {showsImage && <AvatarFraming bot={bot} disabled={busy} onPatch={onPatch} />}
             <input
               ref={fileRef}
               type="file"
               accept="image/png,image/jpeg,image/gif,image/webp"
               className="sr-only"
-              onChange={(event) => void upload(event.target.files?.[0])}
+              onChange={(event) => { stage(event.target.files?.[0]); event.target.value = ""; }}
             />
             <button
               type="button"
@@ -230,12 +258,13 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
-                void upload(event.dataTransfer.files?.[0]);
+                stage(event.dataTransfer.files?.[0]);
               }}
-              className="flex w-full flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-ink/15 px-3 py-6 text-center text-[13px] text-ink-secondary hover:border-ink/25 hover:text-ink disabled:opacity-50"
+              className="flex min-h-[220px] w-full flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-ink/15 px-3 py-6 text-center text-[13px] text-ink-secondary hover:border-ink/25 hover:text-ink disabled:opacity-50"
             >
-              {uploading ? <Loader2 size={22} className="animate-spin" /> : <ImagePlus size={22} />}
+              {uploading && <Loader2 size={22} className="animate-spin" />}
               <span>{t("botPanel.avatar.drop")}</span>
+              <span className="rounded-lg bg-ink/[0.06] px-3 py-1.5 font-medium text-ink">{t("botPanel.avatar.chooseLocal")}</span>
               <span className="text-[12px] text-ink-tertiary">{t("botPanel.avatar.types")}</span>
             </button>
             <div className="mt-2.5 flex items-center gap-2.5">
@@ -261,10 +290,11 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
               )}
             </div>
             {!showsImage && <p className="mt-2 text-[12px] text-ink-tertiary">{t("botPanel.avatar.uploadHint")}</p>}
+            </>}
           </>
         )}
 
-        {error && <div role="alert" className="mt-3 text-[12px] text-danger">{error}</div>}
+        {(pendingError || error) && <div role="alert" className="mt-3 text-[12px] text-danger">{pendingError || error}</div>}
       </div>
     </div>
   );

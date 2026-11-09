@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { BOT_BODY_IDS } from "../../shared/bot-body";
 import { en, locales } from "@/locales";
-import { setLocale } from "./i18n";
+import { loadLocale, setLocale, t } from "./i18n";
 import { MAUS_COLOR_NAMES, PICKABLE_STATES } from "./mascot";
 import { bodyName, colorName, expressionName, silhouetteName } from "./mascot-names";
 
@@ -28,6 +28,14 @@ describe("mascot names", () => {
     expect([bodyName("pumpkin"), colorName("red"), expressionName("happy"), silhouetteName("Ghost")]).toEqual(["Pumpkin", "red", "happy", "Ghost"]);
     setLocale("pt-br");
     expect([bodyName("pumpkin"), colorName("red"), expressionName("happy"), silhouetteName("Ghost")]).toEqual(["Abóbora", "vermelha", "feliz", "Fantasma"]);
+  });
+
+  it("names every picker option in Simplified Chinese", async () => {
+    await loadLocale("zh");
+    for (const key of keys) expect(Object.hasOwn(locales.zh!, key), key).toBe(true);
+    expect([bodyName("star"), colorName("blue"), expressionName("happy")]).toEqual(["星形", "蓝色", "开心"]);
+    expect(t("mascot.useBody", { name: bodyName("star") })).toBe("使用星形形状");
+    expect(t("mascot.useColor", { color: colorName("blue") })).toBe("使用蓝色机器人颜色");
   });
 
   it("falls back to the id or name it was given when the catalog has none", () => {

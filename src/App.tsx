@@ -14,6 +14,7 @@ import { ThreadRefsProvider } from "@/components/ThreadRefs";
 import { initAnalytics } from "@/lib/analytics";
 import { parseComputerHelp } from "@/lib/computer-control";
 import { Sidebar } from "@/components/Sidebar";
+import { NewRoomPanel } from "@/components/SidebarNewRoomPanel";
 import { ChatView } from "@/components/ChatView";
 import { GroupView } from "@/components/GroupView";
 import { SIDEBAR_AND_PANEL_FIT, SIDEBAR_INLINE, TWO_SIDE_PANELS_FIT, useMediaQuery } from "@/lib/use-media-query";
@@ -138,6 +139,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
   usePageLanguage(effectiveLanguage(useLanguageChoice(), state.config?.language), true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [newBotOpen, setNewBotOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
   // Stays mounted once opened: a Cloud bought in it can arrive after the sheet is closed.
   const cloudAddOpened = useRef(false);
   cloudAddOpened.current ||= Boolean(state.cloudAdd);
@@ -277,6 +279,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
     drawerOpen ||
     paletteOpen ||
     newBotOpen ||
+    newGroupOpen ||
     state.settingsOpen ||
     state.computerOpen ||
     state.inspectorOpen ||
@@ -442,6 +445,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
       <WelcomeKeeper viewer={viewer} />
       {state.pluginsOpen && <PluginsPanel />}
       {newBotOpen && <NewBotDialog onClose={() => setNewBotOpen(false)} />}
+      {newGroupOpen && <NewRoomPanel onClose={() => setNewGroupOpen(false)} />}
       {state.shortcutsOpen && (
         <KeyboardShortcutsModal
           open={state.shortcutsOpen}
@@ -449,7 +453,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
         />
       )}
       {/* After the modals: same z-50 tier, so DOM order keeps the palette on top. */}
-      <CommandPalette onOpenChange={setPaletteOpen} />
+      <CommandPalette onOpenChange={setPaletteOpen} onNewBot={canCreateBots === false ? undefined : requestNewBot} onNewGroup={() => setNewGroupOpen(true)} />
       {/* Blink resolves -webkit-app-region in DOM order, so this no-drag twin after the headers cuts the drawer button back out. */}
       {!calendarFocus && <span
         aria-hidden

@@ -147,6 +147,7 @@ const { AvatarImageGenerator } = await import("./AvatarImageGenerator");
 const { AvatarFraming } = await import("./avatar-editing");
 const { MascotFaceColorPicker } = await import("./MascotFaceColorPicker");
 const { Switch } = await import("./SettingsPrimitives");
+const { getDraft } = await import("@/lib/drafts");
 
 afterAll(() => vi.unstubAllGlobals());
 
@@ -574,7 +575,7 @@ describe("the avatar editor", () => {
 
     click(find(generate, "data-avatar-tab", "upload"));
     const upload = editor(bot);
-    expect(upload.html).toContain("Drop a picture here, or choose one");
+    expect(upload.html).toContain("Drop or paste a picture, or choose one");
     expect(upload.html).toContain("PNG, JPEG, GIF, or WebP · up to 10 MB");
     expect(segment(upload, "data-avatar-crop").options.map((option) => [option.value, option.disabled])).toEqual([
       ["circle", true], ["rounded", true], ["square", true],
@@ -591,6 +592,45 @@ describe("the avatar editor", () => {
     expect(patch).toHaveBeenLastCalledWith({ avatarCrop: "square" });
     click(find(withImage, "aria-label", "Remove custom avatar image"));
     expect(patch).toHaveBeenLastCalledWith({ avatarUrl: null, avatarCrop: "mascot", avatarZoom: AVATAR_ZOOM_MIN, avatarFocusX: AVATAR_FOCUS_CENTER, avatarFocusY: AVATAR_FOCUS_CENTER });
+  });
+
+  it("previews a dropped image without changing the bot until it is applied", () => {
+    const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    const bot = makeBot();
+    click(find(editor(bot), "data-avatar-tab", "upload"));
+    const drop = find(editor(bot), "data-avatar-drop");
+    const preventDefault = vi.fn();
+    (drop.props.onDrop as (event: unknown) => void)({ preventDefault, dataTransfer: { files: [{ name: "portrait.png", type: "image/png", size: 123 }] } });
+    const preview = editor(bot);
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(preview.html).toContain("portrait.png");
+    expect(find(preview, "data-avatar-apply").props.disabled).toBe(true);
+    (ofType(preview, AvatarFraming)!.props.onPreviewLoad as (size: { width: number; height: number }) => void)({ width: 160, height: 240 });
+    expect(find(editor(bot), "data-avatar-apply").props.disabled).toBe(false);
+    expect(editor(bot).html).toContain("portrait.png · 160×240");
+    (ofType(editor(bot), AvatarFraming)!.props.onPreviewError as () => void)();
+    expect(find(editor(bot), "data-avatar-apply").props.disabled).toBe(true);
+    expect(editor(bot).html).toContain("Choose a PNG, JPEG, GIF, or WebP image under 10 MB.");
+    expect(patch).not.toHaveBeenCalled();
+    click(find(preview, "data-avatar-restart", undefined));
+    expect(editor(bot).html).toContain("Drop or paste a picture, or choose one");
+    expect(editor(bot).html).not.toContain("Choose a PNG, JPEG, GIF, or WebP image under 10 MB.");
+    createUrl.mockRestore();
+  });
+
+  it("accepts a pasted image while the upload tab is open", () => {
+    const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pasted");
+    const bot = makeBot();
+    click(find(editor(bot), "data-avatar-tab", "upload"));
+    const image = { name: "pasted.png", type: "image/png", size: 123 };
+    const preventDefault = vi.fn();
+    (find(editor(bot), "data-panel-avatar-editor").props.onPaste as (event: unknown) => void)({
+      preventDefault, clipboardData: { items: [{ kind: "file", type: "image/png", getAsFile: () => image }] },
+    });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(editor(bot).html).toContain("pasted.png");
+    expect(patch).not.toHaveBeenCalled();
+    createUrl.mockRestore();
   });
 
   it("closes on Escape without letting the dialog close settings", () => {
@@ -613,7 +653,7 @@ describe("the Details tab", () => {
     const rendered = botTab(makeBot());
     expect(ofType(rendered, ModelPicker)!.props).toMatchObject({ bot: expect.objectContaining({ id: "scout" }), threadId: "thread-scout", contained: true });
     expect(ofType(rendered, BotConversations)!.props.bot).toMatchObject({ id: "scout" });
-    const order = ['data-panel-row="model"', 'data-panel-card="conversations"', 'data-panel-empty="routines"', 'data-panel-item="find"', 'data-panel-item="activity"']
+    const order = ['data-panel-row="model"', 'data-panel-card="conversations"', 'data-panel-card="suggestions"', 'data-panel-item="find"', 'data-panel-item="activity"']
       .map((marker) => rendered.html.indexOf(marker));
     expect(order.every((index) => index > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -625,19 +665,33 @@ describe("the Details tab", () => {
     expect(switches(rendered.html)).toBe(0);
   });
 
-  it("says what routines are while the bot has none, with Add a routine, and lists them once it has some", () => {
+  it("suggests a routine while the bot has none and keeps the routine page reachable after hiding", () => {
     const empty = botTab(makeBot());
-    expect(empty.html).toContain('data-panel-empty="routines"');
-    expect(empty.html).toContain(">Routines are recurring tasks this bot runs on a schedule. Ask it in chat to set one up.<");
-    expect(empty.html.match(/data-panel-page="routines"/g)).toHaveLength(1);
-    const add = find(empty, "data-panel-page", "routines");
-    expect(add.props.children).toBe("Add a routine");
+    expect(empty.html).toContain('data-panel-card="suggestions"');
+    expect(empty.html).toContain("Create a routine");
+    expect(empty.html).toContain('data-panel-action="suggest-routine"');
+    const add = find(empty, "data-panel-action", "suggest-routine");
+    vi.stubGlobal("requestAnimationFrame", () => 0);
     click(add);
-    expect(onOpen).toHaveBeenLastCalledWith("routines");
+    expect(getDraft(localStorage, "bot:scout:thread-scout")).toContain("What are routines, and how do I set one up?");
+    expect(onOpen).not.toHaveBeenCalled();
+    click(find(empty, "data-panel-action", "hide-suggestions"));
+    const hidden = botTab(makeBot());
+    expect(hidden.html).not.toContain('data-panel-card="suggestions"');
+    expect(hidden.html).toContain('data-panel-empty="routines"');
     fixture.derived.botRoutines = [routine()];
     const some = botTab(makeBot());
     expect(some.html).not.toContain('data-panel-empty="routines"');
     expect(some.html.indexOf('data-panel-card="conversations"')).toBeLessThan(some.html.indexOf('data-panel-page="routines"'));
+  });
+
+  it("only offers Slack management when a validated management address is available", () => {
+    const bot = makeBot();
+    expect(botTab(bot).html).not.toContain('data-panel-action="manage-slack"');
+    const rendered = capture(() => DetailsTab({ bot, derived: derived(), onOpen, slackUrl: "https://example.test/slack" }));
+    const link = find(rendered, "data-panel-action", "manage-slack");
+    expect(link.props.href).toBe("https://example.test/slack");
+    expect(link.props.rel).toBe("noopener noreferrer");
   });
 
   it("values Routines by how many are on, and opens the routines page", () => {
@@ -817,6 +871,40 @@ describe("the Bot settings page", () => {
 });
 
 describe("the Library tab", () => {
+  it("groups mixed items by message time and sorts the newest first", () => {
+    const now = new Date();
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+    const bot = makeBot({ messages: [
+      { id: "old", role: "bot", kind: "text", at: weekStart - 1, attachments: [{ kind: "image", path: "/api/attachments/old.png", mime: "image/png", name: "old.png" }] },
+      { id: "image", role: "bot", kind: "text", at: weekStart + 1, attachments: [{ kind: "image", path: "/api/attachments/image.png", mime: "image/png", name: "image.png" }] },
+      { id: "file", role: "bot", kind: "text", at: weekStart + 2, attachments: [{ kind: "file", path: "/api/attachments/report.pdf", mime: "application/pdf", name: "report.pdf" }] },
+    ] });
+    const html = library(bot).html;
+    const week = html.indexOf('data-library-period="week"');
+    const earlier = html.indexOf('data-library-period="earlier"');
+    expect(week).toBeGreaterThan(-1);
+    expect(html.indexOf("report.pdf", week)).toBeLessThan(html.indexOf("image.png", week));
+    expect(earlier).toBeGreaterThan(html.indexOf("image.png", week));
+    expect(html.indexOf("old.png", earlier)).toBeGreaterThan(earlier);
+  });
+
+  it("keeps the preceding few days in This week on a Monday", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 10, 9, 12));
+    try {
+      const bot = makeBot({ messages: [
+        { id: "sunday", role: "bot", kind: "text", at: new Date(2026, 10, 8, 12).getTime(), attachments: [{ kind: "image", path: "/api/attachments/sunday.png", mime: "image/png", name: "sunday.png" }] },
+        { id: "older", role: "bot", kind: "text", at: new Date(2026, 10, 1, 12).getTime(), attachments: [{ kind: "image", path: "/api/attachments/older.png", mime: "image/png", name: "older.png" }] },
+      ] });
+      const html = library(bot).html;
+      expect(html.indexOf(">sunday.png</span>")).toBeGreaterThan(html.indexOf('data-library-period="week"'));
+      expect(html.indexOf(">sunday.png</span>")).toBeLessThan(html.indexOf('data-library-period="earlier"'));
+      expect(html.indexOf(">older.png</span>")).toBeGreaterThan(html.indexOf('data-library-period="earlier"'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("separates shared audio and video from ordinary files without losing their message grants", () => {
     const bot = makeBot({ messages: [{ id: "reply", role: "bot", kind: "text", at: 1, attachments: [
       { kind: "file", path: "/api/attachments/demo.mp4", mime: "video/mp4", name: "demo.mp4" },
@@ -828,7 +916,7 @@ describe("the Library tab", () => {
     expect(items.mediaFiles.every((item) => item.message.messageId === "reply" && item.message.threadId === bot.threadId)).toBe(true);
     expect(items.shared.map((item) => item.file.name)).toEqual(["report.pdf"]);
     const rendered = library(bot);
-    const filter = rendered.nodes.find((node) => node.type === "button" && node.props.children === "Generated media");
+    const filter = rendered.nodes.find((node) => node.type === "button" && node.props.children === "Media");
     expect(filter).toBeDefined();
     click(filter!);
     const filtered = library(bot);
@@ -847,6 +935,7 @@ describe("the Library tab", () => {
     expect(libraryItems(bot).images).toEqual([{ messageId: "new", path: image.path, title: image.name }]);
     const rendered = library(bot);
     expect(rendered.html).toContain("chart.png");
+    expect(rendered.html).toContain('src="/api/attachments/chart.png"');
     expect(rendered.html).not.toContain("private.png");
     click(find(rendered, "data-panel-row", "image"));
     expect(fixture.dispatch).toHaveBeenCalledWith({ type: "focusMessage", threadId: bot.threadId, messageId: "new" });
@@ -854,10 +943,21 @@ describe("the Library tab", () => {
 
   it("says what it will hold while the bot has made nothing, then what it remembers, its skills and its folder", () => {
     const rendered = library(makeBot());
+    expect(rendered.nodes.filter((node) => node.type === "button" && ["All", "Pages", "Media", "Files"].includes(String(node.props.children))).map((node) => node.props.children)).toEqual(["All", "Pages", "Media", "Files"]);
     expect(rendered.html).toContain('data-panel-empty="library"');
     const order = ['data-panel-empty="library"', 'data-panel-page="memory"', 'data-panel-page="skills"', 'data-panel-page="folder"'].map((marker) => rendered.html.indexOf(marker));
     expect(order.every((index) => index > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("keeps an empty category selected and shows its empty state", () => {
+    const bot = makeBot();
+    const rendered = library(bot);
+    const media = rendered.nodes.find((node) => node.type === "button" && node.props.children === "Media")!;
+    click(media);
+    const filtered = library(bot);
+    expect(filtered.html).toContain("Nothing here yet");
+    expect(filtered.nodes.find((node) => node.type === "button" && node.props.children === "Media")?.props["aria-pressed"]).toBe(true);
   });
 
   it("values What it remembers by the notes in MEMORY.md, says Off when memory is off, and opens the memory page", () => {

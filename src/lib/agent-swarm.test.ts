@@ -43,7 +43,8 @@ describe("agent-swarm", () => {
       notifications: false,
       color: "blue" as const,
       unread: false,
-      modelSelection: { model: "default" },
+      messages: [],
+      modelSelection: { instanceId: "test", model: "default" },
       ...partial,
     });
 
@@ -85,7 +86,7 @@ describe("agent-swarm", () => {
         {
           id: "m-1",
           role: "bot",
-          kind: "tool",
+          kind: "activity",
           at: 1000,
           tool: {
             name: "coordinate_bots",
@@ -111,6 +112,21 @@ describe("agent-swarm", () => {
       expect(state.steps[0].assignedToName).toBe("SearchBot");
       expect(state.steps[1].assignedToName).toBe("CoderBot");
       expect(state.logs.length).toBe(2);
+    });
+
+    it.each([
+      [undefined, "working", "running"],
+      [true, "done", "completed"],
+      [false, "blocked", "failed"],
+    ] as const)("maps tool result %s to the real agent and step status", (ok, agentStatus, stepStatus) => {
+      const bot = makeBot({ id: "coordinator" });
+      const message: Message = {
+        id: "call", role: "bot", kind: "activity", at: 1,
+        tool: { name: "delegate_bot", input: JSON.stringify({ bot_ids: ["worker"] }), ok },
+      };
+      const state = extractSwarmState({ currentBot: bot, messages: [message] });
+      expect(state.agents.find((agent) => agent.id === "worker")?.status).toBe(agentStatus);
+      expect(state.steps[0]?.status).toBe(stepStatus);
     });
   });
 });

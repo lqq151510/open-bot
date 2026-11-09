@@ -164,7 +164,8 @@ function CarvedAvatarComponent(
   const faceInk = mascotFaceInk(faceColor);
   const uid = useId().replace(/:/g, "");
   const reduced = usePrefersReducedMotion();
-  const live = animated && !reduced;
+  const [pointerActive, setPointerActive] = useState(false);
+  const live = (animated || pointerActive) && !reduced;
   const group = useRef<SVGGElement>(null);
   const eyes = [useRef<SVGRectElement>(null), useRef<SVGRectElement>(null)] as const;
   const smile = useRef<SVGPathElement>(null);
@@ -174,6 +175,13 @@ function CarvedAvatarComponent(
   const props = useRef({ state, gaze });
   props.current = { state, gaze };
   const [initial] = useState(() => carvedGeometry(body, pose.current));
+
+  useEffect(() => {
+    if ((!trackPointer || reduced) && pointerActive) {
+      cue.current.pointer = null;
+      setPointerActive(false);
+    }
+  }, [trackPointer, reduced, pointerActive]);
 
   const startle = () => {
     cue.current.startleUntil = performance.now() + 1100;
@@ -186,10 +194,10 @@ function CarvedAvatarComponent(
   }));
 
   useEffect(() => {
-    if (!live || motion === "none") return;
+    if (!live || !animated || motion === "none") return;
     if (motion === "blink") cue.current.blinkAt = performance.now();
     else if (STARTLE.has(motion)) startle();
-  }, [motion, motionKey, live]);
+  }, [motion, motionKey, live, animated]);
 
   const paint = (p: CarvedPose) => {
     const g = carvedGeometry(body, p);
@@ -224,11 +232,11 @@ function CarvedAvatarComponent(
       last = now;
       const mood = moodFor(props.current.state);
       const rate = mood.glance ?? 1;
-      if (rate > 0 && now > glanceAt) {
+      if (animated && rate > 0 && now > glanceAt) {
         target = GLANCES[Math.floor(Math.random() * GLANCES.length)];
         glanceAt = now + (1400 + Math.random() * 3200) / rate;
       }
-      if (now > blinkAt) {
+      if (animated && now > blinkAt) {
         cue.current.blinkAt = now;
         blinkAt = now + 2600 + Math.random() * 4200;
       }
@@ -255,24 +263,27 @@ function CarvedAvatarComponent(
     };
     const ticket = mascotClock().add(step, group.current?.ownerSVGElement);
     return () => ticket.remove();
-  }, [body, live, size]);
+  }, [animated, body, live, size]);
 
   const onPointerMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (event.pointerType === "touch") return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     cue.current.pointer = {
       x: Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)),
       y: Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1)),
     };
+    setPointerActive(true);
   };
-  const onPointerLeave = () => { cue.current.pointer = null; };
+  const onPointerLeave = () => { cue.current.pointer = null; setPointerActive(false); };
 
   const fills = carvedFills(body, color);
   const resolve = (fill: string) => (fill === "body" ? fills.body : fill === "accent" ? fills.accent : fill);
   return (
     <span
       className="inline-flex shrink-0"
-      onPointerMove={trackPointer && live ? onPointerMove : undefined}
-      onPointerLeave={trackPointer && live ? onPointerLeave : undefined}
+      onPointerMove={trackPointer && !reduced ? onPointerMove : undefined}
+      onPointerLeave={trackPointer && !reduced ? onPointerLeave : undefined}
     >
       <svg
         viewBox="-14 -14 268 268"

@@ -83,7 +83,7 @@ export function PanelHero({ bot, activeState, patch, editorOpen, onToggleEditor 
         <BotAvatar bot={bot} size={80} state={activeState} />
         <span
           aria-hidden="true"
-          className="absolute inset-0 flex items-center justify-center rounded-[24px] bg-black/0 text-white opacity-0 transition-[opacity,background-color] group-hover:bg-black/40 group-hover:opacity-100 group-focus-visible:bg-black/40 group-focus-visible:opacity-100 group-focus-within:opacity-100 touch:opacity-100 motion-reduce:transition-none"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[24px] bg-black/0 text-white opacity-0 transition-[opacity,background-color] group-hover:bg-black/40 group-hover:opacity-100 group-focus-visible:bg-black/40 group-focus-visible:opacity-100 group-focus-within:opacity-100 touch:opacity-100 motion-reduce:transition-none"
         >
           <Pencil size={20} />
         </span>
