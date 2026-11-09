@@ -8,6 +8,7 @@ import { t } from "./lib/i18n";
 import { loadPageLanguage } from "./lib/language-preference";
 import { applySkinChoice, readSkinChoice } from "./lib/skins";
 import { applyChatWidth, readChatWidth } from "./lib/chat-width";
+import { bootAccent } from "./lib/accent";
 import { applyFont, readFont } from "./lib/fonts";
 import { settleAdvancedModeDefault } from "./lib/interface-mode";
 import { BrowserSignInPage } from "./pair/BrowserSignInPage";
@@ -20,6 +21,7 @@ import "./styles.css";
 // Before first paint; settleAdvancedModeDefault must run before applySkin writes omb-skin.
 settleAdvancedModeDefault();
 applySkinChoice(readSkinChoice());
+bootAccent();
 applyFont(readFont());
 applyChatWidth(readChatWidth());
 const pageLanguage = loadPageLanguage();

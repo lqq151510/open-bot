@@ -25,7 +25,7 @@ export function Switch({
       className={cn(
         "relative cursor-pointer h-6 w-11 shrink-0 rounded-full transition-colors enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
         "in-data-[settings-look=simple]:h-5 in-data-[settings-look=simple]:w-8",
-        checked ? "bg-accent" : "bg-control in-data-[settings-look=simple]:bg-ink/[0.12] in-data-[settings-look=simple]:ring-1 in-data-[settings-look=simple]:ring-inset in-data-[settings-look=simple]:ring-ink/45",
+        checked ? "bg-[var(--color-switch-on)]" : "bg-control in-data-[settings-look=simple]:bg-ink/[0.12] in-data-[settings-look=simple]:ring-1 in-data-[settings-look=simple]:ring-inset in-data-[settings-look=simple]:ring-ink/45",
         className,
       )}
     >

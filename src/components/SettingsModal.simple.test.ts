@@ -164,10 +164,10 @@ describe("Settings in Simple mode", () => {
     for (const id of hidden) expect(SIMPLE_HIDDEN_SECTIONS).toContain(id);
   });
 
-  it("opens General on Account, then Appearance, Notifications, System, Bot and Import, with Advanced mode last as a plain row", () => {
+  it("opens General on Account, then Appearance, System, Notifications, Bot and Import, with Advanced mode last as a plain row", () => {
     const html = render();
     expect(currentPage(html)).toBe("general");
-    expect(groupLabels(html)).toEqual(["Account", "Appearance", "Notifications", "System", "Bot", "Import", "Organization"]);
+    expect(groupLabels(html)).toEqual(["Account", "Appearance", "System", "Notifications", "Bot", "Import", "Organization"]);
     expect(blocks(html).at(-1)).toBe("advanced-mode");
     expect([...html.matchAll(/<button[^>]*role="switch"[^>]*>/g)].at(-1)?.[0]).toContain('aria-label="Advanced mode"');
     expect(html).toContain("Show every control, including tools for builders. Nothing is deleted either way.");
@@ -179,7 +179,7 @@ describe("Settings in Simple mode", () => {
   it("puts the sidebar's colour and picture right under Theme in General, the switch for the window's rail beside them, and only the skins behind More looks", () => {
     fixture.rail = { available: true, hidden: false };
     const html = render();
-    const appearance = html.slice(html.indexOf('data-settings-block="appearance"'), html.indexOf(">Notifications<"));
+    const appearance = html.slice(html.indexOf('data-settings-block="appearance"'), html.indexOf(">System<"));
     const order = ['aria-label="Theme"', ">Sidebar picture<", 'aria-label="Show your computers"', 'aria-label="Color my messages with the bot&#x27;s color"', ">More looks<"]
       .map((needle) => appearance.indexOf(needle));
     expect(order.every((at) => at > -1), String(order)).toBe(true);

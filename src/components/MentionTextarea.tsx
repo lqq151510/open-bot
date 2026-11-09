@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 import { useCallback, useLayoutEffect, useRef, type RefObject, type TextareaHTMLAttributes } from "react";
 import { type MentionPeer } from "@/lib/mentions";
+import { useSpellcheck } from "@/lib/spellcheck-preference";
 import { MentionText } from "./MentionText";
 
 const TEXT_LAYOUT = ["font-family", "font-size", "font-weight", "font-style", "font-stretch", "font-feature-settings", "font-variation-settings",
@@ -12,6 +13,7 @@ export function MentionTextarea({ inputRef, peers, everyone = false, wrapperClas
   peers: readonly MentionPeer[];
   everyone?: boolean;
 }) {
+  const spellcheck = useSpellcheck();
   const mirrorRef = useRef<HTMLDivElement>(null);
   const sync = useCallback(() => {
     const input = inputRef.current;
@@ -49,6 +51,6 @@ export function MentionTextarea({ inputRef, peers, everyone = false, wrapperClas
     <div ref={mirrorRef} dir={props.dir} aria-hidden="true" className="mention-editor-mirror pointer-events-none absolute inset-0 overflow-hidden">
       <MentionText text={String(props.value ?? "")} peers={peers} everyone={everyone} />{"\n"}
     </div>
-    <textarea {...props} ref={inputRef} onScroll={(event) => { sync(); props.onScroll?.(event); }} />
+    <textarea {...props} spellCheck={props.spellCheck ?? spellcheck} ref={inputRef} onScroll={(event) => { sync(); props.onScroll?.(event); }} />
   </div>;
 }

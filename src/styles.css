@@ -275,6 +275,8 @@
      "the app is talking to you", not as a browser default */
   --color-focus: #459ffe;
   --color-accent-text: #7fc0ff;
+  /* the reference keeps switches blue even when the accent is black */
+  --color-switch-on: #3c7eeb;
   --color-bubble-user: #5a5a5a;
   --color-success: #38d591;
   --color-danger: #ff5667;

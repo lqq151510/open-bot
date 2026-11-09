@@ -34,8 +34,9 @@ import { ProfileSummaryRow } from "./ProfileSettings";
 import { ImportSettings } from "./ImportSettings";
 import { NotificationRows } from "./NotificationSettingsRows";
 import { useServerUpdateItem } from "./SidebarProfileMenu";
-import { AdvancedModeRow, BrowserProfilesRow, ColorUserBubblesRow, FollowUpRow, LanguageRow, ReplayTourRow, SendKeyRow, UpdatesRow } from "./AppSettingsRows";
+import { AdvancedModeRow, BrowserProfilesRow, ColorUserBubblesRow, FollowUpRow, LanguageRow, ReplayTourRow, SendKeyRow, SpellCheckRow, UpdatesRow } from "./AppSettingsRows";
 import { ThemeRow } from "./ThemeRow";
+import { AccentRow } from "./AccentRow";
 import { AdminOnly } from "./AdminOnly";
 
 export type SimpleDisclosureId = "ai-more" | "ai-keys" | "computer-elsewhere" | "billing-limits";
@@ -66,22 +67,19 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
         <SettingsGroup label={t("settings.section.appearance")} block="appearance">
           <SettingsRows>
             <ThemeRow simple />
+            <AccentRow />
             <PlaceLookRows />
             <ChromeRailRow />
             <WindowFrameRow />
             <ColorUserBubblesRow simple />
             <LanguageRow simple />
+            <SpellCheckRow />
             <SendKeyRow simple />
             <FollowUpRow simple />
             <SettingRow title={t("settings.simple.looks.title")}>
               <button type="button" className="ui-button" onClick={onLooks}>{t("settings.simple.looks.change")}</button>
             </SettingRow>
           </SettingsRows>
-        </SettingsGroup>
-      )}
-      {has("appearance") && (
-        <SettingsGroup label={t("notifications.title")}>
-          <SettingsRows><NotificationRows simple /></SettingsRows>
         </SettingsGroup>
       )}
       {has("general") && (
@@ -93,6 +91,11 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
             <AttachmentStorageSettings />
             <AnalyticsRow simple />
           </SettingsRows>
+        </SettingsGroup>
+      )}
+      {has("appearance") && (
+        <SettingsGroup label={t("notifications.title")}>
+          <SettingsRows><NotificationRows simple /></SettingsRows>
         </SettingsGroup>
       )}
       {(has("engines") || has("connections") || has("botAccess")) && (
