@@ -125,7 +125,7 @@ const { AvatarEditorCard } = await import("./bot-panel/AvatarEditorCard");
 const { DetailsTab } = await import("./bot-panel/DetailsTab");
 const { BotConversations } = await import("./bot-panel/Conversations");
 const { SettingsPage } = await import("./bot-panel/SettingsPage");
-const { LibraryTab } = await import("./bot-panel/LibraryTab");
+const { LibraryTab, libraryItems } = await import("./bot-panel/LibraryTab");
 const { ApprovalChip } = await import("./ComposerPlusMenu");
 const { callMode, setCallMode } = await import("@/lib/call-mode");
 const { ComputerTab, WherePage } = await import("./bot-panel/ComputerTab");
@@ -798,6 +798,21 @@ describe("the Bot settings page", () => {
 });
 
 describe("the Library tab", () => {
+  it("lists bot images from the visible conversation and opens their latest message", () => {
+    const image = { kind: "image" as const, path: "/api/attachments/chart.png", mime: "image/png", name: "chart.png" };
+    const bot = makeBot({ messages: [
+      { id: "old", role: "bot", kind: "text", at: 1, attachments: [image] },
+      { id: "user", role: "user", kind: "text", at: 2, attachments: [{ ...image, path: "/api/attachments/private.png" }] },
+      { id: "new", role: "bot", kind: "text", at: 3, attachments: [image] },
+    ] });
+    expect(libraryItems(bot).images).toEqual([{ messageId: "new", path: image.path, title: image.name }]);
+    const rendered = library(bot);
+    expect(rendered.html).toContain("chart.png");
+    expect(rendered.html).not.toContain("private.png");
+    click(find(rendered, "data-panel-row", "image"));
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "focusMessage", threadId: bot.threadId, messageId: "new" });
+  });
+
   it("says what it will hold while the bot has made nothing, then what it remembers, its skills and its folder", () => {
     const rendered = library(makeBot());
     expect(rendered.html).toContain('data-panel-empty="library"');

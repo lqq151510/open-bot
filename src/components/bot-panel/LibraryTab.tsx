@@ -1,4 +1,4 @@
-import { AppWindow, Brain, FileText, Folder, Globe, Zap } from "lucide-react";
+import { AppWindow, Brain, FileText, Folder, Globe, Image, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { t } from "@/lib/i18n";
@@ -18,6 +18,7 @@ import { useMemoryDoc } from "./use-memory-doc";
 export interface LibraryItems {
   pages: Array<{ messageId: string; title: string; url: string }>;
   apps: Array<{ messageId: string; title: string }>;
+  images: Array<{ messageId: string; path: string; title: string }>;
   shared: Array<NonNullable<ReturnType<ReturnType<typeof sharedFileReferences>["get"]>>>;
   unshared: string[];
 }
@@ -26,7 +27,9 @@ export interface LibraryItems {
 export function libraryItems(bot: Bot, messages: readonly Message[] = visibleMessages(bot)): LibraryItems {
   const pages: LibraryItems["pages"] = [];
   const apps: LibraryItems["apps"] = [];
+  const images: LibraryItems["images"] = [];
   const seenPages = new Set<string>();
+  const seenImages = new Set<string>();
   for (const message of [...messages].reverse()) {
     const page = message.publishedPage;
     if (page?.state === "live" && page.url && !seenPages.has(page.url)) {
@@ -34,6 +37,13 @@ export function libraryItems(bot: Bot, messages: readonly Message[] = visibleMes
       pages.push({ messageId: message.id, title: page.title || page.url, url: page.url });
     }
     if (message.kind === "app" && message.app?.doc) apps.push({ messageId: message.id, title: message.app.title });
+    if (message.role === "bot" && message.kind === "text") {
+      for (const attachment of message.attachments ?? []) {
+        if ((attachment.kind !== "image" && attachment.kind !== undefined) || seenImages.has(attachment.path)) continue;
+        seenImages.add(attachment.path);
+        images.push({ messageId: message.id, path: attachment.path, title: attachment.name || fileName(attachment.path) });
+      }
+    }
   }
   const references = sharedFileReferences(bot);
   const shared: LibraryItems["shared"] = [];
@@ -44,7 +54,7 @@ export function libraryItems(bot: Bot, messages: readonly Message[] = visibleMes
     shared.push(reference);
   }
   const unshared = recentChangedFiles(bot).filter((path) => !references.has(path));
-  return { pages, apps, shared, unshared };
+  return { pages, apps, images, shared, unshared };
 }
 
 const fileName = (path: string) => path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
@@ -56,11 +66,12 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const phone = !useMediaQuery(SIDEBAR_INLINE, true);
   const skills = useManagedSkills(bot);
   const memory = useMemoryDoc(bot);
-  const { pages, apps, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
-  const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "files" }>({ botId: bot.id, category: "all" });
+  const { pages, apps, images, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
+  const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "images" | "files" }>({ botId: bot.id, category: "all" });
   const categories = [
     { id: "pages", label: t("botPanel.library.pages"), count: pages.length },
     { id: "apps", label: t("botPanel.library.apps"), count: apps.length },
+    { id: "images", label: t("activity.tool.generatedMedia"), count: images.length },
     { id: "files", label: t("botPanel.library.files"), count: shared.length + unshared.length },
   ] as const;
   const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category && category.count > 0)) ? selection.category : "all";
@@ -94,7 +105,7 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
     </Card>
   );
 
-  if (pages.length + apps.length + shared.length + unshared.length === 0) {
+  if (pages.length + apps.length + images.length + shared.length + unshared.length === 0) {
     return (
       <div data-panel-tabpanel="library">
         <p data-panel-empty="library" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
@@ -125,6 +136,13 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
         <Card label={t("botPanel.library.apps")} anchor="apps">
           {apps.map((app) => (
             <NavRow key={app.messageId} data-panel-row="app" icon={AppWindow} title={<span className="block truncate">{app.title}</span>} onClick={() => showInChat(app.messageId)} />
+          ))}
+        </Card>
+      )}
+      {(selected === "all" || selected === "images") && images.length > 0 && (
+        <Card label={t("activity.tool.generatedMedia")} anchor="images">
+          {images.map((image) => (
+            <NavRow key={image.path} data-panel-row="image" icon={Image} title={<span className="block truncate">{image.title}</span>} onClick={() => showInChat(image.messageId)} />
           ))}
         </Card>
       )}
