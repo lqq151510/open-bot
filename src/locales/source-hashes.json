@@ -93369,7 +93369,11 @@
       "remote.client.endsDec7": "5d9f8b310cc70fd59233acccd00c4fd201e3b33ef2ed79e4fc3aa491c95f8f35",
       "phone.code.pairingCode": "1c5ea2f7ed52a91c82993d40cf16581ac6ccff5283e1840cad1a1857311d1121",
       "phone.code.typeIntro": "eefcfc11ed512a8866f3764a972fa5a7c7bdd01bcbe4cb1681c37ae697f69fe1",
-      "phone.signIn.emailCode": "81c2e322abeb89f738de06ccdbefa7893c976a129b89c194299c75bd490fe128"
+      "phone.signIn.emailCode": "81c2e322abeb89f738de06ccdbefa7893c976a129b89c194299c75bd490fe128",
+      "botPanel.computer.title": "6d3ac489128eb83d9f039c74d0c07ad2352459017cf53e31ba6bbbd286af9df6",
+      "botPanel.computer.running": "f4ccae29e1bb0c20a124570a1b43f4347ea94bba9f84ffdfddd9c7445b126128",
+      "botPanel.computer.idle": "ab0171ca0494d441cb6fe96e2efbe1c2a129f1d87cd6c17f03613cfd111149dd",
+      "newBot.namePlaceholder": "1e606defbbaaead925898d2fd975ffce27bbaafac91bb856c7d075226840702d"
     }
   }
 }
