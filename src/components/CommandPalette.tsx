@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { Bot as BotIcon, ChartNoAxesColumn, Keyboard, MessageSquare, Monitor, Puzzle, RefreshCw, Search, Settings, Users, type LucideIcon } from "lucide-react";
 import { api, openBot, useStore, visibleMessages, type Bot, type Group } from "@/state/store";
 import { rankByName } from "@/lib/palette-rank";
+import { isMacPlatform } from "@/lib/keyboard-shortcuts";
+import { shortcutBots, shownBotIds } from "@/lib/sidebar-shortcut-order";
 import { useShowThreads } from "@/lib/thread-preferences";
 import { cn } from "@/lib/cn";
 import type { SearchHit } from "@/lib/search-hit";
@@ -38,6 +40,8 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         setOpen((o) => !o);
+      } else if ((e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key) && !e.shiftKey && !e.altKey) {
+        setOpen(false);
       }
     };
     const onOpen = () => setOpen(true);
@@ -61,6 +65,11 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
   }, [onOpenChange, open]);
 
   const q = query.trim().toLowerCase();
+  const roster = shortcutBots(
+    state.bots.filter((bot) => !bot.hidden),
+    shownBotIds(typeof document === "undefined" ? null : document.querySelector("[data-sidebar-root]")),
+  );
+  const modKey = isMacPlatform() ? "⌘" : "Ctrl+";
 
   useEffect(() => {
     if (!open || !q) {
@@ -88,7 +97,7 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
 
   if (!open) return null;
 
-  const bots = rankByName(state.bots.filter((b) => !b.hidden), q);
+  const bots = rankByName(roster, q);
   const rooms = rankByName(state.groups, q);
   const actions: PaletteAction[] = [
     ...(onNewBot ? [{ id: "new-bot", label: t("sidebar.newBotSimple"), keywords: "new bot create robot 新建 创建 机器人 新建机器人 新建bot", icon: BotIcon, run: onNewBot }] : []),
@@ -151,7 +160,7 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
   const messageOffset = bots.length + rooms.length;
   const actionOffset = messageOffset + (q ? messageHits.length : 0);
 
-  const row = (key: string, index: number, onPick: () => void, children: React.ReactNode, twoLine = false) => (
+  const row = (key: string, index: number, onPick: () => void, children: React.ReactNode, twoLine = false, hint?: string) => (
     <button
       key={key}
       ref={index === selected ? selectedRef : undefined}
@@ -165,6 +174,11 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
       )}
     >
       {children}
+      {hint && (
+        <kbd aria-hidden="true" className="ms-auto shrink-0 rounded-md border border-hairline/40 px-1.5 py-0.5 text-[11px] text-ink-secondary">
+          {hint}
+        </kbd>
+      )}
     </button>
   );
 
@@ -201,12 +215,14 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
             </div>
           )}
           {bots.length > 0 && (
-            <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
+            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">
               {t("palette.bots")}
             </div>
           )}
           {bots.map((bot, i) => {
             const preview = lastLine(bot, visibleMessages(bot), state.instances, showThreads) || bot.title;
+            const rosterIndex = roster.findIndex((entry) => entry.id === bot.id);
+            const hint = rosterIndex >= 0 && rosterIndex < 9 ? `${modKey}${rosterIndex + 1}` : undefined;
             return row(
               `bot:${bot.id}`,
               i,
@@ -214,16 +230,18 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
               <>
                 <BotAvatar bot={bot} size={30} animated={false} />
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-[14px] text-ink">{bot.name}</span>
+                  <span className="truncate text-[15px] text-ink">{bot.name}</span>
                   {preview && (
                     <span className="truncate text-[13px] text-ink-secondary">{preview}</span>
                   )}
                 </span>
               </>,
+              false,
+              hint,
             );
           })}
           {rooms.length > 0 && (
-            <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
+            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">
               {t("palette.groups")}
             </div>
           )}
@@ -234,12 +252,12 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
               () => void activate({ kind: "room", group }),
               <>
                 <Users size={16} className="shrink-0 text-ink-secondary" />
-                <span className="truncate text-[14px] text-ink">{group.name}</span>
+                <span className="truncate text-[15px] text-ink">{group.name}</span>
               </>,
             ),
           )}
           {q && messageHits.length > 0 && (
-            <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">
+            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">
               {t("palette.messages")}
             </div>
           )}
@@ -266,12 +284,12 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
               );
             })}
           {actions.length > 0 && (
-            <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("composer.commands.title")}</div>
+            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">{t("composer.commands.title")}</div>
           )}
           {actions.map((action, i) => row(`action:${action.id}`, actionOffset + i, () => void activate({ kind: "action", action }), <>
             <action.icon size={16} className="shrink-0 text-ink-secondary" />
-            <span className="truncate text-[14px] text-ink">{action.label}</span>
-          </>))}
+            <span className="truncate text-[15px] text-ink">{action.label}</span>
+          </>, false, action.id === "new-bot" ? `${modKey}N` : undefined))}
         </div>
       </div>
     </div>
