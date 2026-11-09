@@ -8,12 +8,12 @@ import { LIVE_IDLE_MINUTES_DEFAULT, liveCallEndpoint, liveCallKey, liveCallSetti
 describe("live settings", () => {
   it("defaults to a 5 minute idle hang-up and reading typed replies, with no key", () => {
     expect(LIVE_IDLE_MINUTES_DEFAULT).toBe(5);
-    expect(liveSettingsFor({} as AppConfig)).toEqual({ configured: false, voice: "", readTypedReplies: true, idleMinutes: 5 });
+    expect(liveSettingsFor({} as AppConfig)).toEqual({ configured: false, voice: "", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 });
   });
 
   it("reports saved values and where the key comes from, never the key", () => {
     const settings = liveSettingsFor({ live: { key: "sk-test", voice: "sol", readTypedReplies: false, idleMinutes: 12 } } as AppConfig);
-    expect(settings).toEqual({ configured: true, keySource: "live", voice: "sol", readTypedReplies: false, idleMinutes: 12 });
+    expect(settings).toEqual({ configured: true, keySource: "live", voice: "sol", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: false, idleMinutes: 12 });
     expect(JSON.stringify(settings)).not.toContain("sk-test");
   });
 });
@@ -37,7 +37,7 @@ describe("the key a Live call uses", () => {
     const others = { imageGen: { key: "sk-image" }, openaiCompat: { key: "sk-compat" }, openrouter: { key: "sk-or" }, xai: { key: "xai-key" } } as AppConfig;
     expect(liveCallKey(others)).toBeNull();
     expect(liveCallKey({ ...others, openai: { key: " " } })).toBeNull();
-    expect(liveSettingsFor(others)).toEqual({ configured: false, voice: "", readTypedReplies: true, idleMinutes: 5 });
+    expect(liveSettingsFor(others)).toEqual({ configured: false, voice: "", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 });
   });
 });
 
@@ -77,7 +77,7 @@ describe("Live calls through Azure OpenAI", () => {
 
   it("tell a caller without the admin scope the service, not which resource", () => {
     const client = liveSettingsForClient(liveSettingsFor({ live: { ...azure, key: "azure-secret", keyFor } } as AppConfig));
-    expect(client).toEqual({ configured: true, keySource: "live", provider: "azure", voice: "", readTypedReplies: true, idleMinutes: 5 });
+    expect(client).toEqual({ configured: true, keySource: "live", provider: "azure", voice: "", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 });
     expect(JSON.stringify(client)).not.toContain("my-res");
     expect(JSON.stringify(client)).not.toContain("live-prod");
   });

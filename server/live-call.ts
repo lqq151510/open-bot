@@ -134,7 +134,7 @@ export class LiveSessionError extends Error {
   }
 }
 
-export function liveInstructions(bot: LiveBot, { cloudHome = false }: { cloudHome?: boolean } = {}): string {
+export function liveInstructions(bot: LiveBot, { cloudHome = false, voiceLanguage = "auto" }: { cloudHome?: boolean; voiceLanguage?: "auto" | "en" | "zh" } = {}): string {
   const name = oneLine(bot.name) || "the agent";
   const title = oneLine(bot.title ?? "");
   const description = oneLine(bot.description ?? "").slice(0, 400);
@@ -145,7 +145,7 @@ export function liveInstructions(bot: LiveBot, { cloudHome = false }: { cloudHom
     `To the user you are one assistant, ${name}, and you speak in the first person. Your work — looking things up, using your tools, files and memory, researching, deciding, and answering anything that needs facts this conversation does not hold — happens when you delegate. Delegating is how you think and act; it is not someone else.`,
     "Never mention a backend, delegation, a voice layer, or another system or model doing the work, and never say you are only a voice. Say \"I\" about the work.",
     "Never ask the user whether you may look something up or check something. When it needs checking, delegate at once and say briefly that you are checking.",
-    "Speak warmly and naturally, at an unhurried pace. Keep replies short: one or two sentences unless the user asks for more. Speak the language the user speaks.",
+    `Speak warmly and naturally, at an unhurried pace. Keep replies short: one or two sentences unless the user asks for more. ${voiceLanguage === "zh" ? "Speak Simplified Chinese." : voiceLanguage === "en" ? "Speak English." : "Speak the language the user speaks."}`,
     "",
     "Backchannel policy: Use light backchannels. Acknowledge naturally without competing with the user.",
     "Interruption policy: Stop speaking when the user interrupts. Listen to what they say.",
@@ -211,6 +211,7 @@ export interface CreateLiveSessionInput {
   history: LiveHistoryMessage[];
   cloudHome: boolean;
   voice?: string;
+  voiceLanguage?: "auto" | "en" | "zh";
   endpoint?: LiveEndpoint;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -229,7 +230,7 @@ export async function createLiveSession(input: CreateLiveSessionInput): Promise<
   const body = {
     session: {
       model: endpoint.model,
-      instructions: liveInstructions(input.bot, { cloudHome: input.cloudHome }),
+      instructions: liveInstructions(input.bot, { cloudHome: input.cloudHome, voiceLanguage: input.voiceLanguage }),
       delegation: { type: "client" },
       audio: { output: { voice: liveVoice(input.voice) } },
       // Azure's GPT-Live refuses `session.client` ("Unknown parameter"): see LIVE_DATA_CHANNEL for who may hold such a call.

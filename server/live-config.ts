@@ -4,7 +4,7 @@ import { z } from "zod";
 export const LIVE_KEY_NEEDS_ENDPOINT = "Save the Azure endpoint first: a Live key works only with the endpoint it was saved for.";
 const NOWHERE = "nowhere";
 
-/** Live calls: `key` is a key for Live calls only; with `provider` "openai" (the default) a call without one uses `openai.key`, with "azure" it is the Azure resource's key and is required. `keyFor` says where `key` may go (`liveKeyTarget`): the server sets it when the key is saved and never takes it from a request; absent, the key is from before Azure was offered, so OpenAI's. `azureEndpoint` is the resource URL and `azureDeployment` the gpt-live-1 deployment name. `voice` is a GPT-Live voice. */
+/** Live calls: `key` is a key for Live calls only; with `provider` "openai" (the default) a call without one uses `openai.key`, with "azure" it is the Azure resource's key and is required. `keyFor` says where `key` may go (`liveKeyTarget`): the server sets it when the key is saved and never takes it from a request; absent, the key is from before Azure was offered, so OpenAI's. `azureEndpoint` is the resource URL and `azureDeployment` the gpt-live-1 deployment name. `voice` is a GPT-Live voice, `voiceSpeed` is client playback speed, and `voiceLanguage` steers the response language. */
 export const liveConfigSchema = z.object({
   key: z.string().optional(),
   keyFor: z.string().max(300).optional(),
@@ -12,6 +12,8 @@ export const liveConfigSchema = z.object({
   azureEndpoint: z.string().trim().max(300).optional(),
   azureDeployment: z.string().trim().max(64).optional(),
   voice: z.string().trim().max(40).regex(/^[a-z]*$/, "a Live voice is a lowercase built-in voice name").optional(),
+  voiceSpeed: z.number().min(0.75).max(1.5).optional(),
+  voiceLanguage: z.enum(["auto", "en", "zh"]).optional(),
   readTypedReplies: z.boolean().optional(),
   idleMinutes: z.number().int().min(1).max(60).optional(),
 });
@@ -23,6 +25,8 @@ export interface LiveConfig {
   azureEndpoint?: string;
   azureDeployment?: string;
   voice?: string;
+  voiceSpeed?: number;
+  voiceLanguage?: "auto" | "en" | "zh";
   readTypedReplies?: boolean;
   idleMinutes?: number;
 }

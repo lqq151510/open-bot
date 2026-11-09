@@ -56,10 +56,10 @@ function deps(overrides: Partial<LiveRouteDeps> = {}): LiveRouteDeps & { saved: 
       deviceRevoked: vi.fn((device: string) => (device === "phone-1" ? { ...call, client: "ios" as const, status: "ending" as const } : null)),
     },
     resolveTarget: (botId, threadId) => (botId === "bot1" && (threadId ?? "t1") === "t1" ? { botId, botName: "Ada", threadId: threadId ?? "t1" } : null),
-    settings: () => ({ configured: true, voice: "marin", readTypedReplies: true, idleMinutes: 5 }),
+    settings: () => ({ configured: true, voice: "marin", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 }),
     saveSettings: vi.fn(async (patch: SettingsPatch): Promise<LiveSettings> => {
       saved.push(patch);
-      return { configured: true, voice: "marin", readTypedReplies: true, idleMinutes: 5, ...patch };
+      return { configured: true, voice: "marin", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5, ...patch };
     }),
     ...overrides,
   };
@@ -132,12 +132,14 @@ describe("live routes", () => {
   });
   it("saves non-secret settings and refuses the key", async () => {
     const d = deps();
-    expect(await request(d, "PATCH", "/api/live/settings", { idleMinutes: 10, readTypedReplies: false })).toMatchObject({ status: 200, body: { live: { idleMinutes: 10, readTypedReplies: false } } });
+    expect(await request(d, "PATCH", "/api/live/settings", { idleMinutes: 10, readTypedReplies: false, voiceSpeed: 1.25, voiceLanguage: "zh" })).toMatchObject({ status: 200, body: { live: { idleMinutes: 10, readTypedReplies: false, voiceSpeed: 1.25, voiceLanguage: "zh" } } });
     expect(await request(d, "PATCH", "/api/live/settings", { key: "sk-x" })).toEqual({ status: 400, body: { error: "Those Live settings are not valid." } });
     expect((await request(d, "PATCH", "/api/live/settings", { idleMinutes: 0 })).status).toBe(400);
     expect((await request(d, "PATCH", "/api/live/settings", { idleMinutes: 61 })).status).toBe(400);
     expect((await request(d, "PATCH", "/api/live/settings", { voice: "Marin!" })).status).toBe(400);
-    expect(d.saved).toEqual([{ idleMinutes: 10, readTypedReplies: false }]);
+    expect((await request(d, "PATCH", "/api/live/settings", { voiceSpeed: 2 })).status).toBe(400);
+    expect((await request(d, "PATCH", "/api/live/settings", { voiceLanguage: "fr" })).status).toBe(400);
+    expect(d.saved).toEqual([{ idleMinutes: 10, readTypedReplies: false, voiceSpeed: 1.25, voiceLanguage: "zh" }]);
   });
   it("saves an Azure provider, endpoint and deployment, refusing a host the key must not reach", async () => {
     const d = deps();
@@ -157,7 +159,7 @@ describe("live routes", () => {
   });
   it("never answers with the key", async () => {
     const res = await request(deps(), "PATCH", "/api/live/settings", { voice: "cedar" });
-    expect(res).toEqual({ status: 200, body: { live: { configured: true, voice: "cedar", readTypedReplies: true, idleMinutes: 5 } } });
+    expect(res).toEqual({ status: 200, body: { live: { configured: true, voice: "cedar", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 } } });
   });
   it("passes other paths and methods", async () => {
     expect(await request(deps(), "GET", "/api/live/summary")).toEqual({ status: 404, body: { from: "inline routes" } });

@@ -63,6 +63,10 @@ export interface LiveSettings {
   /** The Azure deployment of gpt-live-1; empty means "gpt-live-1". */
   azureDeployment?: string;
   voice: string;
+  /** Client-side playback speed for Live audio. */
+  voiceSpeed: number;
+  /** Language requested for Live responses; auto follows the user's language. */
+  voiceLanguage: "auto" | "en" | "zh";
   readTypedReplies: boolean;
   idleMinutes: number;
 }

@@ -33,20 +33,20 @@ afterEach(() => {
 });
 
 describe("color my messages", () => {
-  it("is on until the person turns it off", async () => {
+  it("keeps the neutral bubble until the person turns color on", async () => {
     const preference = await import("./user-bubble-preference");
-    expect(preference.readColorUserBubbles()).toBe(true);
-    expect(preference.useColorUserBubbles()).toBe(true);
+    expect(preference.readColorUserBubbles()).toBe(false);
+    expect(preference.useColorUserBubbles()).toBe(false);
     local.setItem(preference.USER_BUBBLE_COLOR_KEY, "0");
     expect(preference.readColorUserBubbles()).toBe(false);
     local.setItem(preference.USER_BUBBLE_COLOR_KEY, "1");
     expect(preference.readColorUserBubbles()).toBe(true);
   });
 
-  it("stays on when this device's storage cannot be read", async () => {
+  it("keeps the neutral bubble when this device's storage cannot be read", async () => {
     vi.stubGlobal("localStorage", { getItem: () => { throw new Error("blocked"); }, setItem: () => {} });
     const preference = await import("./user-bubble-preference");
-    expect(preference.readColorUserBubbles()).toBe(true);
+    expect(preference.readColorUserBubbles()).toBe(false);
   });
 
   it("remembers the choice on this device", async () => {

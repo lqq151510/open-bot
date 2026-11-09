@@ -2640,7 +2640,7 @@ describe("live config frames", () => {
   });
 
   it("keeps live settings when a config frame arrives", () => {
-    const live = { configured: true, voice: "sol", readTypedReplies: false, idleMinutes: 7 };
+    const live = { configured: true, voice: "sol", voiceSpeed: 1.25, voiceLanguage: "zh" as const, readTypedReplies: false, idleMinutes: 7 };
     const config = configStatusFromFrame({ ...baseFrame, live });
     expect(config.live).toEqual(live);
     const state = reducer(initialState, { type: "configStatus", config });

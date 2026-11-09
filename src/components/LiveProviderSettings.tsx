@@ -11,7 +11,7 @@ const FIELD = "w-full rounded-lg border border-hairline bg-inset px-2.5 py-1.5 t
 
 export function LiveProviderSettings() {
   const { state, dispatch } = useStore();
-  const live: LiveSettings = state.config?.live ?? { configured: false, voice: "", readTypedReplies: true, idleMinutes: 5 };
+  const live: LiveSettings = state.config?.live ?? { configured: false, voice: "", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 };
   const provider: LiveProvider = live.provider ?? "openai";
   const [endpoint, setEndpoint] = useState(live.azureEndpoint ?? "");
   const [deployment, setDeployment] = useState(live.azureDeployment ?? "");

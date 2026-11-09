@@ -21,7 +21,9 @@ import { GITHUB_REF_CLASS, isUseMyComputerUrl, LINK_CLASS, UseMyComputerLink, us
 import { githubRefFromProps, remarkGithubRefs } from "@/lib/github-refs";
 import { GITHUB_REF_ICONS, LinkHoverCard } from "@/components/LinkHoverCard";
 import { useThreadLinkMenu } from "@/components/ThreadLinkMenu";
-import { looksLikeThreadRefUrl, parseThreadRefUrl, resolveThreadRefAddress, remarkThreadRefs } from "../lib/thread-refs";
+import { looksLikeThreadRefUrl, parseBotRefUrl, parseThreadRefUrl, resolveThreadRefAddress, remarkThreadRefs } from "../lib/thread-refs";
+import { BOT_EMOJI_PATTERN, remarkBotRefs } from "@/lib/bot-refs";
+import { BotChip } from "./BotChip";
 import { MarkdownImagePreview, MessageFolderFiles, OutsideWorkspaceFile, saveFailureText, useLocalFileSave, type MessageAttachmentContext } from "./AttachmentPreview";
 import { ThreadLink, ThreadRefsContext, threadLinkFromProps, type ThreadRefsValue } from "./ThreadRefs";
 import { MarkdownTable } from "./MarkdownTable";
@@ -68,7 +70,7 @@ export const localFilePath = (href?: string): string | null => {
 };
 
 export function chatUrlTransform(value: string, key = "href"): string {
-  if (looksLikeThreadRefUrl(value) || isUseMyComputerUrl(value)) return value;
+  if (looksLikeThreadRefUrl(value) || isUseMyComputerUrl(value) || parseBotRefUrl(value)) return value;
   // Markdown-to-HTML percent-encodes a destination's backslashes (C:%5CUsers…); restore them and leave other escapes
   // for the server's single decode.
   const url = /^[a-zA-Z]:%5C/i.test(value) ? value.replace(/%5C/gi, "\\") : value;
@@ -628,6 +630,8 @@ function MarkdownLink({ href, children, ...rest }: { href?: string; children?: R
   const linkMenu = useThreadLinkMenu(href), openPage = usePageOpener();
   if (!href) return <span className="break-words">{children}</span>;
   if (isUseMyComputerUrl(href)) return <UseMyComputerLink>{children}</UseMyComputerLink>;
+  const botAddress = parseBotRefUrl(href);
+  if (botAddress) return <BotChip botId={botAddress.botId} botName={typeof children === "string" ? children : undefined}>{children}</BotChip>;
   const address = parseThreadRefUrl(href);
   const ref = address ? resolveThreadRefAddress(threads, address, currentBotId) : null;
   if (ref) return <ThreadLink target={ref} ambiguous={ref.ambiguous}>{children}</ThreadLink>;
@@ -674,6 +678,11 @@ const MARKDOWN_COMPONENTS: Components = {
   },
   span(props) {
     // SAFETY: react-markdown hands hast data-* attributes through as string props
+    const botId = (props as Record<string, unknown>)["data-bot-chip"];
+    const botName = (props as Record<string, unknown>)["data-bot-name"];
+    if (typeof botId === "string") {
+      return <BotChip botId={botId} botName={typeof botName === "string" ? botName : undefined}>{props.children}</BotChip>;
+    }
     const link = threadLinkFromProps(props as Record<string, unknown>);
     if (link) return <ThreadLink target={link.target} ambiguous={link.ambiguous}>{props.children}</ThreadLink>;
     const { node: _node, children, ...rest } = props;
@@ -731,8 +740,8 @@ const MARKDOWN_COMPONENTS: Components = {
   },
 };
 
-// A thread link is "#" directly before a title, or an app link. A heading's "## " never reaches the plugin as text.
-const MAY_LINK_THREAD = /#[^\s#]|openbot/i;
+// A thread link is "#" directly before a title, an app link, or a bot reference with circle emoji.
+const MAY_LINK_THREAD = /#[^\s#]|openbot|[🟣🔵🟢🟡🟠🔴⚫⚪🟤]/iu;
 const NO_THREAD_REFS: ThreadRefsValue = { threads: [] };
 
 // One plugin list for everything every message shares; a message adds mentions only when it has an "@" and thread
@@ -779,8 +788,12 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
   const { thought, inProgress, content } = extractThinkingBlock(text);
   const targetText = thought !== null ? content : text;
   // use() may be called conditionally: only a message that can hold a thread link subscribes to the thread list.
-  const { threads, currentBotId } = MAY_LINK_THREAD.test(targetText) ? use(ThreadRefsContext) : NO_THREAD_REFS;
+  const { threads, bots, currentBotId } = MAY_LINK_THREAD.test(targetText) ? use(ThreadRefsContext) : NO_THREAD_REFS;
   const { source, imageOffsets } = normalizeMessageMarkdown(targetText);
+  const botCandidates = useMemo(() => {
+    if (bots && bots.length > 0) return bots;
+    return mentionPeers.filter((p) => !p.person).map((p) => ({ id: p.name, name: p.name, color: p.color }));
+  }, [bots, mentionPeers]);
   const needsMath = normalizedSourceHasMath(source);
   const [katexReady, setKatexReady] = useState(() => katexPlugin !== null);
   useEffect(() => {
@@ -799,13 +812,14 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
     };
   }, [needsMath]);
   const mathPlugin = needsMath && katexReady ? katexPlugin : null;
-  const mentions = source.includes("@"), linksThreads = threads.length > 0;
-  const variant = `${mathPlugin ? "math" : ""}\u0003${mentions ? `${peerSignature(mentionPeers)}\u0001${everyone ? 1 : 0}\u0001${mentionPerson?.profileName ?? ""}` : ""}\u0003${linksThreads ? `${threadListId(threads)}\u0001${currentBotId ?? ""}` : ""}`;
+  const mentions = source.includes("@"), linksThreads = threads.length > 0, linksBots = botCandidates.length > 0 && BOT_EMOJI_PATTERN.test(source);
+  const variant = `${mathPlugin ? "math" : ""}\u0003${mentions ? `${peerSignature(mentionPeers)}\u0001${everyone ? 1 : 0}\u0001${mentionPerson?.profileName ?? ""}` : ""}\u0003${linksThreads ? `${threadListId(threads)}\u0001${currentBotId ?? ""}` : ""}\u0003${linksBots ? botCandidates.map((b) => b.name).join(",") : ""}`;
   // Markdown is a plain function of its options (no hooks), so its elements can be kept and drawn again.
   const markdown = markdownCache.render(targetText, variant, () => {
     const remarkPlugins = [...BASE_REMARK_PLUGINS];
     if (mentions) remarkPlugins.push([remarkMentions, { peers: mentionPeers, everyone, person: mentionPerson }]);
     if (linksThreads) remarkPlugins.push(remarkThreadRefs(threads, currentBotId));
+    if (linksBots) remarkPlugins.push(remarkBotRefs(botCandidates));
     return Markdown({ children: source, remarkPlugins, rehypePlugins: rehypePluginsFor(mathPlugin), urlTransform: chatUrlTransform, components: MARKDOWN_COMPONENTS });
   });
   return (

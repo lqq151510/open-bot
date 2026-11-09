@@ -1,13 +1,12 @@
 import type { LocaleKey } from "@/locales";
 import type { BotSettingsSection } from "@/state/store";
 
-export const PANEL_TABS = ["details", "library", "computer"] as const;
+export const PANEL_TABS = ["details", "library"] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
 
 export const TAB_LABEL: Record<PanelTab, LocaleKey> = {
-  details: "botPanel.tab.details",
+  details: "botPanel.tab.activity",
   library: "botPanel.tab.library",
-  computer: "botPanel.tab.computer",
 };
 
 export type PageId =
@@ -34,7 +33,7 @@ export interface PageMeta {
 
 export const PAGES: Record<PageId, PageMeta> = {
   settings: { title: "botPanel.page.settings", home: "details" },
-  where: { title: "computer.simple.whereWorks", home: "computer" },
+  where: { title: "computer.simple.whereWorks", home: "details" },
   setup: { title: "botSetup.ideas", home: "details" },
   model: { title: "model.simple.model", home: "details" },
   instructions: { title: "botSettings.simple.instructions", home: "details" },
@@ -43,9 +42,9 @@ export const PAGES: Record<PageId, PageMeta> = {
   apps: { title: "botPanel.appsRow", home: "details", intro: "botPanel.apps.intro" },
   memory: { title: "botPanel.memoryRow", home: "library", intro: "botPanel.memory.intro" },
   skills: { title: "botSettings.simple.skills", home: "library", intro: "botSettings.simple.skillsHint" },
-  browser: { title: "settings.sites.title", home: "computer" },
+  browser: { title: "settings.sites.title", home: "details" },
   folder: { title: "computer.files.folder", home: "library", intro: "botPanel.folder.intro" },
-  android: { title: "botPanel.page.android", home: "computer" },
+  android: { title: "botPanel.page.android", home: "details" },
   voice: { title: "botPanel.page.voice", home: "details" },
   blurb: { title: "botPanel.page.blurb", home: "details" },
   team: { title: "botPanel.page.team", home: "details" },
@@ -80,8 +79,8 @@ const SECTION_TARGET: Record<BotSettingsSection, PanelTarget> = {
   memory: { tab: "library", page: "memory" },
   library: { tab: "library" },
   routines: { tab: "details", page: "routines" },
-  access: { tab: "computer" },
-  model: { tab: "details", anchor: "model" },
+  access: { tab: "details", anchor: "computer" },
+  model: { tab: "details", page: "settings", anchor: "model" },
   permissions: { tab: "details", page: "settings", anchor: "approval" },
   voice: { tab: "details" },
   visibility: { tab: "details" },

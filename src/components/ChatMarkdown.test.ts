@@ -1446,4 +1446,26 @@ describe("a code block far from the screen", () => {
       shiki.codeToHtml.mockReset();
     }
   });
+
+  describe("bot navigation chips in markdown", () => {
+    it("renders emoji circle followed by bot name as interactive bot chip", () => {
+      const html = renderToStaticMarkup(
+        createElement(
+          ThreadRefsContext.Provider,
+          { value: { threads: [], bots: [{ id: "openai-intel", name: "OpenAI 情报", color: "purple" }] } },
+          createElement(ChatMarkdown, { text: "点这里就能打开: 🟣 OpenAI 情报。" }),
+        ),
+      );
+      expect(html).toContain('data-bot-chip="openai-intel"');
+      expect(html).toContain("OpenAI 情报");
+    });
+
+    it("renders openbot://bot/ link as interactive bot chip", () => {
+      const html = renderToStaticMarkup(
+        createElement(ChatMarkdown, { text: "[OpenAI 情报](openbot://bot/openai-intel)" }),
+      );
+      expect(html).toContain('data-bot-chip="openai-intel"');
+      expect(html).toContain("OpenAI 情报");
+    });
+  });
 });

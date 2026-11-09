@@ -9,6 +9,7 @@ import { parseBotRefUrl, parseThreadRefUrl, resolveThreadRefAddress, splitThread
 
 export interface ThreadRefsValue {
   threads: ThreadRefCandidate[];
+  bots?: Array<{ id: string; name: string; color?: string }>;
   currentBotId?: string;
 }
 
@@ -43,12 +44,13 @@ const signatureOf = (refs: ThreadRefCandidate[]) =>
 export function ThreadRefsProvider({ children }: { children: ReactNode }) {
   const { state } = useStore();
   const next = collectThreadRefs(state.bots, state.groups);
+  const bots = useMemo(() => state.bots.map((b) => ({ id: b.id, name: b.name, color: b.color })), [state.bots]);
   const signature = signatureOf(next);
   const cache = useRef({ signature, threads: next });
   if (cache.current.signature !== signature) cache.current = { signature, threads: next };
   const threads = cache.current.threads;
   const currentBotId = state.selectedId;
-  const value = useMemo(() => ({ threads, currentBotId }), [threads, currentBotId]);
+  const value = useMemo(() => ({ threads, bots, currentBotId }), [threads, bots, currentBotId]);
   return <ThreadRefsContext.Provider value={value}>{children}</ThreadRefsContext.Provider>;
 }
 

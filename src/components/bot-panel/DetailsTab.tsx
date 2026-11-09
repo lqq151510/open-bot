@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, ChevronRight, Monitor, Slack, Sparkles } from "lucide-react";
+import { Calendar, ChevronRight, Slack } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -7,11 +7,11 @@ import { appendComposerDraft } from "@/lib/drafts";
 import { routineFinished, routineNextLabel } from "@/lib/routine-display";
 import { useStore, type Bot } from "@/state/store";
 import { useChatMoreItems } from "../ChatMoreMenu";
-import { ModelPicker } from "../ModelPicker";
 import type { SidebarMenuItem } from "../SidebarPopoverMenu";
 import type { useBotSettingsDerived } from "../bot-settings/useBotSettingsDerived";
 import { BotConversations } from "./Conversations";
-import { useOpenComputer } from "./ComputerTab";
+import { ComputerSummary } from "./ComputerTab";
+import { VoiceChatSummary } from "./VoiceChatSummary";
 import { Switch } from "../SettingsPrimitives";
 import type { SimplePageId } from "./page-registry";
 import { TryAsking } from "./TryAsking";
@@ -52,25 +52,11 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
   const [hiddenSuggestions, setHiddenSuggestions] = useState<string[]>([]);
   const { items } = useChatMoreItems(bot);
   const { dispatch } = useStore();
-  const openComputer = useOpenComputer(bot);
   const routinesOn = derived.botRoutines.filter((routine) => routine.enabled).length;
   const conversationItems = CONVERSATION_ITEMS.flatMap((key) => items.filter((item) => item.key === key));
 
   return (
     <div data-panel-tabpanel="details">
-      <Card anchor="model">
-        <div data-panel-row="model" className={rowCls}>
-          <ModelPicker
-            bot={bot}
-            contained
-            threadId={bot.threadId}
-            label={<span className="flex min-w-0 flex-1 items-center gap-2.5"><RowIcon icon={Sparkles} /><RowText title={t("model.simple.model")} /></span>}
-          />
-        </div>
-      </Card>
-
-      <BotConversations bot={bot} />
-
       {derived.botRoutines.length === 0 && hiddenSuggestions.includes(bot.id) ? (
         <div data-panel-empty="routines" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
           <p>{t("botPanel.routines.empty")}</p>
@@ -84,7 +70,7 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
           </button>
         </div>
       ) : derived.botRoutines.length > 0 ? (
-        <Card label={t("botSettings.simple.routines")} anchor="routines">
+        <Card label={t("botPanel.section.upcoming")} anchor="routines">
           {[...derived.botRoutines]
             .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? Infinity) - (b.nextRunAt ?? Infinity) || a.name.localeCompare(b.name))
             .slice(0, 3)
@@ -109,13 +95,17 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
         </Card>
       ) : null}
 
-      {!hiddenSuggestions.includes(bot.id) && (slackUrl || derived.botRoutines.length === 0) && (
+      {!hiddenSuggestions.includes(bot.id) && (
         <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
-          {slackUrl && <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+          {slackUrl ? <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
             <RowIcon icon={Slack} />
-            <RowText title={t("botSlack.manage")} />
+            <RowText title={t("botPanel.suggestions.slack")} />
             <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </a>}
+          </a> : <button type="button" data-panel-action="manage-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botPanel.suggestions.slack")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </button>}
           {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
             appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
             requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
@@ -123,11 +113,13 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
         </Card>
       )}
 
+      <ComputerSummary bot={bot} />
+
+      <VoiceChatSummary />
+
       <TryAsking bot={bot} />
 
-      <Card label={t("botPanel.tab.computer")} anchor="computer">
-        <NavRow data-panel-action="open-computer" icon={Monitor} title={t("computer.screenOf", { name: bot.name })} value={t("place.action.watch")} onClick={() => openComputer()} />
-      </Card>
+      <BotConversations bot={bot} />
 
       {conversationItems.length > 0 && (
         <Card label={t("botPanel.section.conversation")} anchor="conversation">

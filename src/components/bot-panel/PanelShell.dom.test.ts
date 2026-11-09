@@ -31,7 +31,8 @@ vi.mock("./ComputerTab", () => ({ ComputerTab: stub("computer") }));
 vi.mock("./pages", () => ({
   PageBody: ({ page, editingInstructions }: { page: string; editingInstructions?: boolean }) =>
     createElement("div", { "data-stub-page": page, "data-editing-instructions": editingInstructions === true ? "true" : undefined },
-      createElement("section", { "data-panel-card": "approval" })),
+      createElement("section", { "data-panel-card": "approval" }),
+      createElement("section", { "data-panel-card": "model" })),
   pageSurfaceCls: "",
 }));
 
@@ -114,14 +115,14 @@ describe("named links into the bot panel", () => {
 
     flushSync(() => openBotSettings(fixture.dispatch, "access"));
     await settle();
-    expect([tab(), page()]).toEqual(["computer", null]);
+    expect([tab(), page()]).toEqual(["details", null]);
   });
 
   it("follows the same link again after the panel has moved on", async () => {
     openBotSettings(fixture.dispatch, "access");
     render("access");
     await settle();
-    expect(tab()).toBe("computer");
+    expect(tab()).toBe("details");
 
     click(host.querySelector('[data-panel-tab="details"]'));
     expect(tab()).toBe("details");
@@ -129,7 +130,7 @@ describe("named links into the bot panel", () => {
     flushSync(() => openBotSettings(fixture.dispatch, "access"));
     render("access");
     await settle();
-    expect(tab()).toBe("computer");
+    expect(tab()).toBe("details");
   });
 
   it("opens Bot settings with the Instructions editor for a soul link, and closes it when the panel moves on", async () => {
@@ -153,6 +154,15 @@ describe("named links into the bot panel", () => {
     expect(scrolled.mock.contexts).toContain(host.querySelector('[data-panel-card="approval"]'));
   });
 
+  it("opens the Model card from a model link", async () => {
+    const scrolled = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    openBotSettings(fixture.dispatch, "model");
+    render("model");
+    await settle();
+    expect(page()).toBe("settings");
+    expect(scrolled.mock.contexts).toContain(host.querySelector('[data-panel-card="model"]'));
+  });
+
   it("lands usage, history, voice and visibility links on the Details tab, with no Advanced page", async () => {
     for (const section of ["usage", "history", "voice", "visibility", "overview"] as const) {
       openBotSettings(fixture.dispatch, section);
@@ -164,19 +174,20 @@ describe("named links into the bot panel", () => {
 });
 
 describe("the panel's tabs", () => {
-  it("are Details, Library and Computer, opening on Details, each drawing its own tab", async () => {
+  it("are Activity and Library, opening on Activity", async () => {
     render(null);
     await settle();
     expect([...host.querySelectorAll('[role="tab"]')].map((element) => [element.getAttribute("data-panel-tab"), element.textContent]))
-      .toEqual([["details", "Details"], ["library", "Library"], ["computer", "Computer"]]);
+      .toEqual([["details", "Activity"], ["library", "Library"]]);
     expect(tab()).toBe("details");
     const strip = host.querySelector('[role="tablist"]')!.className.split(" ");
     expect(strip).toEqual(expect.arrayContaining(["sticky", "top-0", "bg-app", "gap-0.5"]));
     expect(host.querySelector('[role="tab"]')!.className.split(" ")).toEqual(expect.arrayContaining(["h-[26px]", "text-[13px]", "bg-ink/[0.07]"]));
-    for (const id of ["library", "computer", "details"]) {
+    for (const id of ["library", "details"]) {
       click(host.querySelector(`[data-panel-tab="${id}"]`));
       expect(tab()).toBe(id);
-      expect(host.querySelector(`[data-stub-${id}]`), id).not.toBeNull();
+      if (id === "library") expect(host.querySelector(`[data-stub-${id}]`), id).not.toBeNull();
+      else expect(host.querySelector('[data-stub-details]')).not.toBeNull();
     }
   });
 });
@@ -189,7 +200,7 @@ describe("the panel's top", () => {
     expect(top.map((button) => button.getAttribute("aria-label") ?? button.getAttribute("title"))).toEqual(["Share", "Bot settings", "Close settings"]);
     for (const button of [moreButton()!, top[1]!, top[2]!]) expect(button.querySelector("span, svg")).not.toBeNull();
     click(moreButton());
-    expect([...menu()!.querySelectorAll("[data-menu-key]")].map((row) => row.getAttribute("data-menu-key"))).toEqual(["copy", "download"]);
+    expect([...menu()!.querySelectorAll("[data-menu-key]")].map((row) => row.getAttribute("data-menu-key"))).toEqual(["share-bot-template", "duplicate-bot", "copy", "download"]);
     press(moreButton(), "Escape");
     click(top[2]!);
     expect(onClose).toHaveBeenCalledOnce();
@@ -198,11 +209,11 @@ describe("the panel's top", () => {
   it("opens Bot settings from the gear on any tab, with Back to Details", async () => {
     render(null);
     await settle();
-    click(host.querySelector('[data-panel-tab="computer"]'));
+    click(host.querySelector('[data-panel-tab="library"]'));
     click(host.querySelector("[data-panel-gear]"));
     expect(page()).toBe("settings");
     expect(host.querySelector("[data-panel-gear]")!.getAttribute("aria-current")).toBe("page");
-    expect(host.querySelector("[data-panel-back]")!.textContent).toBe("Details");
+    expect(host.querySelector("[data-panel-back]")!.textContent).toBe("Activity");
     click(host.querySelector("[data-panel-back]"));
     expect([tab(), page()]).toEqual(["details", null]);
   });

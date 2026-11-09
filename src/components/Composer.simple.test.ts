@@ -121,6 +121,8 @@ describe("the Simple composer in a bot chat", () => {
     expect(container.querySelector("[data-composer-actions]")!.className.split(" ")).toContain("gap-2");
     expect(container.querySelector("[data-composer-plus]")!.className.split(" ")).toEqual(expect.arrayContaining(["size-7", "bg-ink/[0.05]", "ring-inset", "text-ink-tertiary"]));
     expect(container.querySelector('button[aria-label="Attach a file"]')).toBeNull();
+    expect(container.querySelector("[data-testid='grok-mode-pill']")).toBeNull();
+    expect(container.querySelector('button[aria-label="Start dictation"]')).toMatchObject({ disabled: true });
     expect(container.querySelector("[data-goal-chip]")).toBeNull();
     expect(container.querySelector("[data-approval-chip]")).toBeNull();
     const tone = userBubbleTone("purple");

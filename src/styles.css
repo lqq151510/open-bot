@@ -22,6 +22,13 @@
 .openbot-composer:focus-within {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 42%, transparent), 0 8px 28px color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
+[data-skin="daylight"] .openbot-composer:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink) 18%, transparent), 0 8px 24px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+[data-skin="daylight"] [data-call-button="composer"]:not(:disabled) {
+  background-color: var(--color-ink) !important;
+  color: var(--color-app) !important;
+}
 
 /* Grok-style Multi-Agent Presence & Visual Glow */
 .openbot-pinned-working {

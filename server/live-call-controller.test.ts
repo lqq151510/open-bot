@@ -38,7 +38,7 @@ function setup(overrides: Partial<LiveCallDeps> = {}) {
   const frames: Array<LiveCallState | null> = [];
   const logs: string[] = [];
   let activity: LiveActivity = "idle";
-  const settings: ReturnType<LiveCallDeps["settings"]> = { key: "sk-test", endpoint: ENDPOINT, voice: "sol", readTypedReplies: true, idleMinutes: 5 };
+  const settings: ReturnType<LiveCallDeps["settings"]> = { key: "sk-test", endpoint: ENDPOINT, voice: "sol", voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 };
   const queue = new Set<string>();
   let messageCounter = 0;
   const deps: LiveCallDeps = {
@@ -78,7 +78,7 @@ describe("LiveCallController lifecycle", () => {
   it("creates the session with the key and voice, attaches the sideband and goes live", async () => {
     const t = setup();
     const result = await t.controller.start({ auth: owner, ...BOT, client: "ios", sdp: "offer-sdp" });
-    expect(t.deps.createSession).toHaveBeenCalledWith({ key: "sk-test", endpoint: ENDPOINT, sdp: "offer-sdp", botId: "bot1", threadId: "t1", voice: "sol" });
+    expect(t.deps.createSession).toHaveBeenCalledWith({ key: "sk-test", endpoint: ENDPOINT, sdp: "offer-sdp", botId: "bot1", threadId: "t1", voice: "sol", voiceLanguage: "auto" });
     expect(result.sdp).toBe("answer-sdp");
     expect(result.call).toMatchObject({ botId: "bot1", threadId: "t1", client: "ios", voice: "sol", status: "connecting" });
     expect(t.socket().url).toBe("ws://fake/sess_1/attach");

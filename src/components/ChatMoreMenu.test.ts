@@ -145,9 +145,14 @@ describe("ChatMoreMenu, the round ⋯ for the bot panel", () => {
 });
 
 describe("ChatShareMenu, the bot panel's Share", () => {
-  it("copies or downloads the conversation, in those words", () => {
+  it("creates a bot copy and keeps conversation export actions", () => {
     const menu = menuOf(createElement(ChatShareMenu, { bot, className: "" }));
-    expect(menu.items.map((item) => [item.key, item.label])).toEqual([["copy", "Copy conversation"], ["download", "Download conversation"]]);
+    expect(menu.items.map((item) => [item.key, item.label])).toEqual([
+      ["share-bot-template", "Share template link"],
+      ["duplicate-bot", "Create a copy"],
+      ["copy", "Copy conversation"],
+      ["download", "Download conversation"],
+    ]);
   });
 });
 

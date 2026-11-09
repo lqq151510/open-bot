@@ -1,6 +1,6 @@
 import { useMemo, useState, type JSX } from "react";
 import { Bug, Copy, Cpu, Download, Gauge, ListChecks, MessagesSquare, Monitor, MoreHorizontal, Search, Share, SquarePen, UserRound } from "lucide-react";
-import { currentTaskBot, openBotThread, useStore, visibleMessages, type Bot } from "@/state/store";
+import { api, currentTaskBot, openBotThread, useStore, visibleMessages, type Bot } from "@/state/store";
 import { useAdvancedMode } from "@/lib/interface-mode";
 import { useShowThreads } from "@/lib/thread-preferences";
 import { requestChatFind, useChatFindOpen } from "@/lib/chat-find";
@@ -205,9 +205,25 @@ function ExportMore({ bot }: { bot: Bot }) {
 
 function ShareMenu({ bot, className }: { bot: Bot; className: string }) {
   const { items } = useChatMoreItems(bot);
+  const { dispatch } = useStore();
+  const shareItems: SidebarMenuItem[] = [
+    {
+      key: "share-bot-template",
+      label: t("chat.shareBotTemplate"),
+      icon: <Share size={16} />,
+      onSelect: () => { void api(`/api/threads/${bot.threadId}/bot-template`, { method: "POST", body: JSON.stringify({}) }).catch((error: unknown) => dispatch({ type: "error", message: error instanceof Error ? error.message : t("chat.shareBotTemplateFailed") })); },
+    },
+    {
+      key: "duplicate-bot",
+      label: t("chat.createBotCopy"),
+      icon: <Copy size={16} />,
+      onSelect: () => dispatch({ type: "duplicateBot", botId: bot.id }),
+    },
+    ...exportItems(items).map((item, index) => ({ ...item, separatorBefore: index === 0 })),
+  ];
   return (
     <SidebarPopoverMenu
-      items={exportItems(items)}
+      items={shareItems}
       ariaLabel={t("chat.export.heading")}
       triggerClassName="rounded-full"
       triggerTitle={t("chat.export.heading")}

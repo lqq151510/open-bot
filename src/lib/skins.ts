@@ -39,10 +39,12 @@ export const SKINS: readonly Skin[] = [
 export type SkinChoice = SkinId | "system";
 export const THEME_SKINS = { light: "daylight", dark: "midnight" } as const satisfies Record<"light" | "dark", SkinId>;
 
-export const DEFAULT_SKIN_CHOICE: SkinChoice = "system";
-export const PRIOR_INSTALL_SKIN: SkinId = "midnight";
+export const DEFAULT_SKIN_CHOICE: SkinChoice = THEME_SKINS.light;
+export const PRIOR_INSTALL_SKIN: SkinId = THEME_SKINS.light;
 
 const KEY = "omb-skin";
+const CHOICE_VERSION_KEY = "omb-skin-choice-version";
+const CHOICE_VERSION = "2";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 function isSkinId(value: unknown): value is SkinId {
@@ -79,7 +81,10 @@ export function readSkinChoice(): SkinChoice {
   try {
     const store = getStore();
     const stored = store?.getItem(KEY);
-    if (isSkinChoice(stored)) return stored;
+    if (isSkinChoice(stored)) {
+      if (stored === "system" && store?.getItem(CHOICE_VERSION_KEY) !== CHOICE_VERSION) return DEFAULT_SKIN_CHOICE;
+      return stored;
+    }
     return hasPriorRun(store) ? PRIOR_INSTALL_SKIN : DEFAULT_SKIN_CHOICE;
   } catch {
     return PRIOR_INSTALL_SKIN;
@@ -135,7 +140,9 @@ export function wearSkin(value: unknown): void {
 
 export function applySkinChoice(choice: SkinChoice): void {
   try {
-    getStore()?.setItem(KEY, choice);
+    const store = getStore();
+    store?.setItem(KEY, choice);
+    store?.setItem(CHOICE_VERSION_KEY, CHOICE_VERSION);
   } catch {
   }
   followSystem(choice === "system");

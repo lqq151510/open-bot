@@ -155,6 +155,12 @@ describe("live startup context", () => {
     expect(text).toContain("Never answer it yourself.");
   });
 
+  it("uses a saved response language only when one was selected", () => {
+    expect(liveInstructions({ name: "Rigel" }, { voiceLanguage: "zh" })).toContain("Speak Simplified Chinese.");
+    expect(liveInstructions({ name: "Rigel" }, { voiceLanguage: "en" })).toContain("Speak English.");
+    expect(liveInstructions({ name: "Rigel" }, { voiceLanguage: "auto" })).toContain("Speak the language the user speaks.");
+  });
+
   it("on a Cloud, says the voice runs on the user's My Cloud, not their own computer", () => {
     const text = liveInstructions({ name: "Rigel", title: "QA" }, { cloudHome: true });
     expect(text.split("\n")[0]).toBe(`You are Rigel, QA, an AI agent that runs on ${CLOUD_HOME_PLACE}.`);

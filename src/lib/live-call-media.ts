@@ -59,6 +59,12 @@ export const MEDIA_CONNECT_TIMEOUT_MS = 20_000;
 class LiveUnsupportedError extends Error {}
 
 let audio: HTMLAudioElement | null = null;
+let playbackRate = 1;
+/** Change the playback rate now and apply it to the next remote Live audio track. */
+export function setLivePlaybackRate(rate: number): void {
+  playbackRate = Number.isFinite(rate) && rate >= 0.75 && rate <= 1.5 ? rate : 1;
+  if (audio) audio.playbackRate = playbackRate;
+}
 const defaults: LiveMediaDeps = {
   getUserMedia: (constraints) => {
     if (!globalThis.navigator?.mediaDevices?.getUserMedia) return Promise.reject(new LiveUnsupportedError(t("call.live.unsupported")));
@@ -71,6 +77,7 @@ const defaults: LiveMediaDeps = {
   request: (path, init) => api(path, init),
   playRemote: async (track) => {
     audio ??= Object.assign(document.createElement("audio"), { autoplay: true });
+    audio.playbackRate = playbackRate;
     audio.srcObject = new MediaStream([track]);
     await audio.play();
   },

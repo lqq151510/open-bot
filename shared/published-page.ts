@@ -5,6 +5,13 @@ export interface PublishedPageCard {
    * published; `message` says so and `upgrade` offers a bigger plan. */
   state: "live" | "unpublished" | "limit";
   title: string;
+  /** A Bot template card shares the page link lifecycle but adds a downloadable, portable Bot package. */
+  kind?: "bot-template";
+  templateState?: "draft" | "published" | "unpublished";
+  description?: string;
+  botColor?: string;
+  mascotBody?: string;
+  mascotExpression?: string | null;
   pageId?: string;
   url?: string;
   /** This account's pages and its plan's limit after this publish, as "3 of 5 pages". */

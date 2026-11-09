@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AppWindow, AudioLines, ChevronRight, FileText, ShieldCheck, Tag } from "lucide-react";
+import { AppWindow, AudioLines, ChevronRight, Cpu, FileText, KeyRound, Monitor, ShieldCheck, Tag } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -14,6 +14,7 @@ import { BOT_PROFILE_LIMITS } from "../../../shared/bot-profile";
 import { ApprovalChip } from "../ComposerPlusMenu";
 import { useDesktopCapabilities } from "../DesktopCapabilities";
 import { DefaultBotHideRow } from "../DefaultBotControls";
+import { ModelPicker } from "../ModelPicker";
 import { SoulField } from "../SoulField";
 import { BotApiCard } from "../bot-settings/BotApiCard";
 import { useBotApps } from "../bot-settings/useBotApps";
@@ -124,6 +125,17 @@ export function SettingsPage({ bot, derived, onOpen, editingInstructions = false
         )}
       </Card>
 
+      <Card anchor="model">
+        <div data-panel-row="model" className={rowCls}>
+          <ModelPicker
+            bot={bot}
+            contained
+            threadId={bot.threadId}
+            label={<span className="flex min-w-0 flex-1 items-center gap-2.5"><RowIcon icon={Cpu} /><RowText title={t("model.simple.model")} /></span>}
+          />
+        </div>
+      </Card>
+
       <Card anchor="approval">
         <ColRow data-panel-row="approval">
           <div className="flex items-center gap-2.5">
@@ -162,6 +174,21 @@ export function SettingsPage({ bot, derived, onOpen, editingInstructions = false
             <Segmented attr="data-call-mode" label={t("call.mode.menu")} value={callMode} onChange={setCallMode} options={callOptions} />
           </div>
         </ColRow>
+      </Card>
+
+      <Card label={t("botPanel.tab.computer")} anchor="computer">
+        <NavRow
+          data-panel-page="where"
+          icon={Monitor}
+          title={t("computer.simple.whereWorks", { name: bot.name })}
+          onClick={() => onOpen?.("where")}
+        />
+        <NavRow
+          data-panel-page="browser"
+          icon={KeyRound}
+          title={t("settings.sites.title")}
+          onClick={() => onOpen?.("browser")}
+        />
       </Card>
 
       <Card anchor="uses">

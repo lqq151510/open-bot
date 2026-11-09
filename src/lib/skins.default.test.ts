@@ -39,19 +39,29 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("default skin", () => {
-  it("opens a fresh install following the computer's light or dark setting, in Simple mode, and keeps following it", async () => {
-    expect(await boot()).toEqual({ skin: "daylight", advanced: false, stored: "system" });
+  it("opens a fresh install in Light, regardless of the computer setting", async () => {
+    expect(await boot()).toEqual({ skin: "daylight", advanced: false, stored: "daylight" });
     values.set("omb-installed", "2026-10-17T00:00:00.000Z");
     os.dark = true;
-    expect(await boot()).toEqual({ skin: "midnight", advanced: false, stored: "system" });
+    expect(await boot()).toEqual({ skin: "daylight", advanced: false, stored: "daylight" });
   });
 
-  it("switches between Daylight and Midnight when the computer does, while following it", async () => {
-    await boot();
+  it("switches between Daylight and Midnight when Follow system is selected", async () => {
+    const skins = await import("./skins");
+    skins.applySkinChoice("system");
     setOsDark(true);
     expect(document.documentElement.dataset.skin).toBe("midnight");
     setOsDark(false);
     expect(document.documentElement.dataset.skin).toBe("daylight");
+    expect((await import("./skins")).readSkinChoice()).toBe("system");
+  });
+
+  it("migrates the old implicit System default to Light once", async () => {
+    values.set("omb-skin", "system");
+    expect(await boot()).toMatchObject({ skin: "daylight", stored: "daylight" });
+    const skins = await import("./skins");
+    skins.applySkinChoice("system");
+    expect(skins.readSkinChoice()).toBe("system");
   });
 
   it("stops following the computer once someone picks a skin", async () => {
@@ -63,16 +73,16 @@ describe("default skin", () => {
     expect(values.get("omb-skin")).toBe("meadow");
   });
 
-  it("keeps an install that ran before in Midnight when nobody picked a skin", async () => {
+  it("keeps an explicitly saved dark choice", async () => {
     values.set("omb-skin", "midnight");
     expect(await boot()).toMatchObject({ skin: "midnight", stored: "midnight" });
   });
 
-  it("keeps Midnight for an earlier install whose saved skin is missing or no longer exists", async () => {
+  it("defaults an earlier install with no valid saved skin to Light", async () => {
     values.set("omb-installed", "2026-01-01T00:00:00.000Z");
-    expect(await boot()).toEqual({ skin: "midnight", advanced: true, stored: "midnight" });
+    expect(await boot()).toEqual({ skin: "daylight", advanced: true, stored: "daylight" });
     values.set("omb-skin", "retired-skin");
-    expect(await boot()).toMatchObject({ skin: "midnight", stored: "midnight" });
+    expect(await boot()).toMatchObject({ skin: "daylight", stored: "daylight" });
   });
 
   it("always honours a skin someone chose", async () => {
@@ -84,14 +94,16 @@ describe("default skin", () => {
     expect(await boot()).toMatchObject({ skin: "midnight", advanced: false });
   });
 
-  it("shows System as the theme and the matching look as the selected skin in Appearance on a fresh install", async () => {
+  it("shows Light as the theme and Daylight as the selected look on a fresh install", async () => {
     os.dark = true;
     await boot();
     const [{ SkinPicker }, { ThemeRow }] = await Promise.all([import("@/components/SkinPicker"), import("@/components/ThemeRow")]);
     const picker = renderToStaticMarkup(createElement(SkinPicker));
     const pressed = [...picker.matchAll(/aria-pressed="true"[\s\S]*?<div class="text-\[13px\] font-medium text-ink">([^<]+)</g)].map(([, name]) => name);
-    expect(pressed).toEqual(["Midnight"]);
+    expect(pressed).toEqual(["Daylight"]);
     const theme = renderToStaticMarkup(createElement(ThemeRow));
-    expect([...theme.matchAll(/aria-checked="true"[^>]*>([^<]+)</g)].map(([, label]) => label)).toEqual(["System"]);
+    expect([...theme.matchAll(/aria-checked="true"[^>]*>([^<]+)</g)].map(([, label]) => label)).toEqual(["Light"]);
+    expect(theme).toContain(">System</button>");
+    expect(theme).toContain(">Dark</button>");
   });
 });

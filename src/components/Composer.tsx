@@ -858,12 +858,12 @@ export function Composer({
                   onPin={(surface) => dispatch({ type: "updateTask", botId: modeBot.id, threadId: modeBot.threadId, patch: { surface } })}
                 />
               )}
-              <GrokModePill
+              {advanced && <GrokModePill
                 mode={grokMode}
                 onToggleMode={toggleGrokMode}
                 think={grokThink}
                 onToggleThink={toggleGrokThink}
-              />
+              />}
             </div>
           )}
           <MentionTextarea
@@ -984,18 +984,20 @@ export function Composer({
             <Square size={simpleDock ? 10 : 14} className="fill-current" />
           </button>
         )}
-        {!locked && !busy && micReady && (
+        {!locked && !busy && (micReady || simpleDock) && (
           <button
             onClick={toggleMic}
+            disabled={!micReady}
             aria-label={recording ? t("composer.dictation.stop") : t("composer.dictation.start")}
             className={cn(
               "flex shrink-0 items-center justify-center rounded-full",
               simpleDock ? "size-7" : "size-8",
+              !micReady && "cursor-not-allowed opacity-40",
               recording
                 ? "animate-pulse bg-danger/20 text-danger"
                 : advanced || singleRow ? "text-ink-secondary hover:bg-raised hover:text-ink" : SIMPLE_CONTROL,
             )}
-            title={recording ? t("composer.dictation.stopHint") : t("composer.dictation.hint")}
+            title={!micReady ? t("composer.dictation.unavailable") : recording ? t("composer.dictation.stopHint") : t("composer.dictation.hint")}
           >
             <Mic size={16} strokeWidth={1.75} absoluteStrokeWidth className="[&_rect]:fill-current" />
           </button>

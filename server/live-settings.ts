@@ -57,6 +57,8 @@ export function liveSettingsFor(cfg: AppConfig): LiveSettings {
     ...(cfg.live?.azureEndpoint ? { azureEndpoint: cfg.live.azureEndpoint } : {}),
     ...(cfg.live?.azureDeployment ? { azureDeployment: cfg.live.azureDeployment } : {}),
     voice: cfg.live?.voice ?? "",
+    voiceSpeed: Number.isFinite(cfg.live?.voiceSpeed) && cfg.live!.voiceSpeed! >= 0.75 && cfg.live!.voiceSpeed! <= 1.5 ? cfg.live!.voiceSpeed! : 1,
+    voiceLanguage: cfg.live?.voiceLanguage === "en" || cfg.live?.voiceLanguage === "zh" ? cfg.live.voiceLanguage : "auto",
     readTypedReplies: cfg.live?.readTypedReplies ?? true,
     idleMinutes: Number.isInteger(minutes) && minutes! >= 1 && minutes! <= 60 ? minutes! : LIVE_IDLE_MINUTES_DEFAULT,
   };

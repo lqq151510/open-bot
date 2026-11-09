@@ -138,7 +138,7 @@ export function CallTargetButton({
   const keyId = useId();
   const elsewhereName = liveElsewhere ? state.bots.find((candidate) => candidate.id === media.botId)?.name : undefined;
   const composer = placement === "composer";
-  const round = Boolean(fill) || Boolean(inverse) || placement === "panel";
+  const round = composer || Boolean(fill) || Boolean(inverse) || placement === "panel";
   const label = active
     ? t("call.hangUpOn", { name: targetName })
     : liveElsewhere
@@ -257,31 +257,29 @@ export function CallTargetButton({
         aria-label={label}
         title={label}
         data-call-button={placement}
-        style={fill && !active ? { backgroundColor: fill, color: ink } : undefined}
+        style={!composer && fill && !active ? { backgroundColor: fill, color: ink } : undefined}
         className={cn(
           "relative flex shrink-0 items-center justify-center disabled:opacity-60",
           round ? "rounded-full transition-[color,background,filter]" : "rounded-l-3xl rounded-r-lg active:rounded-3xl transition-[color,background,border-radius]",
-          composer && fill ? "size-7" : composer || placement === "panel" ? "size-8" : "size-9",
+          composer ? "size-7" : placement === "panel" ? "size-8" : "size-9",
           active
             ? "bg-danger text-white hover:brightness-110"
+            : composer
+              ? "bg-[#111111] text-white hover:opacity-90 active:scale-95 transition-all shadow-sm"
             : inverse
               ? "bg-ink text-app hover:opacity-90 max-md:size-9"
             : fill
               ? "hover:brightness-110"
             : placement === "panel"
               ? unavailable ? "bg-ink/[0.06] text-ink-tertiary hover:text-ink-secondary" : "bg-ink/[0.06] text-ink hover:bg-ink/[0.11]"
-            : composer
-              ? unavailable
-                ? "bg-control text-ink-tertiary hover:text-ink-secondary"
-                : "bg-control text-ink hover:bg-raised-hover"
-              : unavailable
-                ? "text-ink-tertiary hover:bg-raised-hover hover:text-ink-secondary"
-                : "text-ink-secondary hover:bg-raised-hover hover:text-ink",
+            : unavailable
+              ? "text-ink-tertiary hover:bg-raised-hover hover:text-ink-secondary"
+              : "text-ink-secondary hover:bg-raised-hover hover:text-ink",
         )}
       >
         {active
           ? <PhoneOff size={composer || round ? 15 : 17} />
-          : composer ? fill ? <AudioLines size={15} strokeWidth={1.75} absoluteStrokeWidth aria-hidden="true" /> : <AudioLines size={16} aria-hidden="true" /> : <Phone size={round ? 15 : 17} />}
+          : composer ? <AudioLines size={15} strokeWidth={1.75} absoluteStrokeWidth aria-hidden="true" /> : <Phone size={round ? 15 : 17} />}
         {unavailable && (
           <span className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-app" aria-hidden="true" />
         )}

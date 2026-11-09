@@ -15,7 +15,7 @@ export function useMediaQuery(query: string, fallback = false): boolean {
 
 export const TWO_SIDE_PANELS_FIT = "(min-width: 1536px)";
 
-export const SIDEBAR_AND_PANEL_FIT = "(min-width: 1280px)";
+export const SIDEBAR_AND_PANEL_FIT = "(min-width: 1024px)";
 
 /** Tailwind's md breakpoint. */
 export const SIDEBAR_INLINE = "(min-width: 768px)";

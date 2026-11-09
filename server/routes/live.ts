@@ -10,7 +10,7 @@ export interface LiveRouteDeps {
   calls: Pick<LiveCallController, "start" | "end" | "current" | "deviceRevoked">;
   resolveTarget(botId: string, threadId: string | undefined): { botId: string; botName: string; threadId: string } | null;
   settings(): LiveSettings;
-  saveSettings(patch: { provider?: LiveProvider; azureEndpoint?: string; azureDeployment?: string; voice?: string; readTypedReplies?: boolean; idleMinutes?: number }): Promise<LiveSettings>;
+  saveSettings(patch: { provider?: LiveProvider; azureEndpoint?: string; azureDeployment?: string; voice?: string; voiceSpeed?: number; voiceLanguage?: "auto" | "en" | "zh"; readTypedReplies?: boolean; idleMinutes?: number }): Promise<LiveSettings>;
 }
 
 const id = z.string().regex(/^[\w-]{1,120}$/);
@@ -29,6 +29,8 @@ const settingsBody = z.object({
   azureEndpoint: z.string().trim().max(300).refine((url) => url === "" || azureOpenAiRoot(url) !== null).optional(),
   azureDeployment: z.string().trim().max(64).refine((name) => name === "" || azureLiveDeployment(name) === name).optional(),
   voice: z.string().trim().max(40).regex(/^[a-z]*$/).optional(),
+  voiceSpeed: z.number().min(0.75).max(1.5).optional(),
+  voiceLanguage: z.enum(["auto", "en", "zh"]).optional(),
   readTypedReplies: z.boolean().optional(),
   idleMinutes: z.number().int().min(1).max(60).optional(),
 }).strict();

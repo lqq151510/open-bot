@@ -29,20 +29,20 @@ describe("skins", () => {
 
   it("defines the same tokens in every skin", () => {
     const tokensOf = (id: string) => {
-      const body = css.match(new RegExp(`\\[data-skin="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+      const body = css.match(new RegExp(`(?:^|\\n)\\[data-skin="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       return new Set([...body.matchAll(/(--[\w-]+)\s*:/g)].map(([, name]) => name));
     };
-    const reference = tokensOf(PRIOR_INSTALL_SKIN);
+    const reference = tokensOf("midnight");
     expect(reference.size).toBeGreaterThan(15);
     expect(reference).toContain("--color-composer-ring");
     for (const id of SKIN_IDS) {
-      expect([...reference].filter((t) => !tokensOf(id).has(t))).toEqual([]);
+      expect([...reference].filter((t) => !tokensOf(id).has(t)), id).toEqual([]);
     }
   });
 
   it("tints a hovered menu row with ink at 6% in Midnight and Daylight, and with raised at 70% in every other skin", () => {
     for (const id of SKIN_IDS) {
-      const body = css.match(new RegExp(`\\[data-skin="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+      const body = css.match(new RegExp(`(?:^|\\n)\\[data-skin="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       const token = (name: string) => body.match(new RegExp(`(?:^|\\s)${name}:\\s*([^;]+);`))?.[1]?.trim();
       const expected = id === "midnight" || id === "daylight"
         ? `${token("--color-ink")}0f`
@@ -65,11 +65,11 @@ describe("skins", () => {
     expect(SKIN_IDS.slice(0, 8)).toEqual([
       "midnight", "atelier", "foundry", "lagoon", "graphite", "linen", "dusk", "daylight",
     ]);
-    expect(PRIOR_INSTALL_SKIN).toBe("midnight");
+    expect(PRIOR_INSTALL_SKIN).toBe("daylight");
   });
 
-  it("follows the computer between Daylight and Midnight by default", () => {
-    expect(DEFAULT_SKIN_CHOICE).toBe("system");
+  it("defaults to Daylight while keeping Follow system available", () => {
+    expect(DEFAULT_SKIN_CHOICE).toBe("daylight");
     expect(THEME_SKINS).toEqual({ light: "daylight", dark: "midnight" });
     expect(resolveSkin("system", false)).toBe("daylight");
     expect(resolveSkin("system", true)).toBe("midnight");

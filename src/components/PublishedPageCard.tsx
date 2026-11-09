@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowUpRight, Check, Copy, Globe, Loader2, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowUpRight, Check, Copy, Globe, Loader2, Share2, X } from "lucide-react";
 import type { PublishedPageCard as Card } from "../../shared/published-page";
 import { cloudPlanLabel } from "@/lib/cloud-plan";
 import { cn } from "@/lib/cn";
@@ -8,6 +9,9 @@ import { usePageOpener } from "@/lib/page-open";
 import { t } from "@/lib/i18n";
 import { api, useStore, type Message } from "@/state/store";
 import { ASK_CHIP, ASK_CHIP_IDLE, ASK_PRIMARY_BUTTON } from "./AskCard";
+import { MausAvatar } from "./Avatar";
+import type { BotBodyId } from "../../shared/bot-body";
+import type { MausColor } from "@/lib/mascot";
 
 const usageLine = (card: Card) => card.usage ? t("chat.page.usage", { pages: card.usage.pages, limit: card.usage.limit }) : null;
 
@@ -19,7 +23,7 @@ function limitLine(card: Card): string {
 
 /** A page a bot published: its link, Copy link, Open and Unpublish; or, at the plan's limit, why not and where to get more.
  * The link and Open both open the page (usePageOpener): never a message, a turn or a chat. */
-export function PublishedPageCard({ message }: { message: Message }) {
+export function PublishedPageCard({ message, threadId }: { message: Message; threadId?: string }) {
   const { dispatch } = useStore();
   const card = message.publishedPage;
   const { state: copied, copy } = useCopyFeedback(card?.url ?? "");
@@ -27,6 +31,7 @@ export function PublishedPageCard({ message }: { message: Message }) {
   const [failed, setFailed] = useState(false);
   const openPage = usePageOpener();
   if (!card) return null;
+  if (card.kind === "bot-template" && threadId) return <BotTemplateCard message={message} threadId={threadId} />;
   const bridge = window.ogb?.remoteClient?.active ? undefined : window.ogb?.cloudAccount;
   const unpublish = async () => {
     if (!card.pageId) return;
@@ -69,4 +74,64 @@ export function PublishedPageCard({ message }: { message: Message }) {
       </>}
     </div>
   );
+}
+
+function BotTemplateCard({ message, threadId }: { message: Message; threadId: string }) {
+  const card = message.publishedPage!;
+  const { state: copied, copy } = useCopyFeedback(card.url ?? "");
+  const [preview, setPreview] = useState<{ document: unknown; redacted: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [error, setError] = useState(false);
+  const openPage = usePageOpener();
+  const getPreview = async () => {
+    setBusy(true); setError(false);
+    try { setPreview(await api(`/api/threads/${threadId}/messages/${message.id}/bot-template/preview`, { method: "POST", body: "{}" })); setConfirmed(false); }
+    catch { setError(true); }
+    finally { setBusy(false); }
+  };
+  const publish = async () => {
+    setBusy(true); setError(false);
+    try { await api(`/api/threads/${threadId}/messages/${message.id}/bot-template/publish`, { method: "POST", body: JSON.stringify({ confirmed: true }) }); setPreview(null); }
+    catch { setError(true); }
+    finally { setBusy(false); }
+  };
+  const unpublish = async () => {
+    if (!card.pageId) return;
+    setBusy(true); setError(false);
+    try { await api(`/api/published-pages/${card.pageId}/unpublish`, { method: "POST", body: "{}" }); }
+    catch { setError(true); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <div data-bot-template-card={card.templateState} className="w-full max-w-[560px] overflow-hidden rounded-[22px] border border-hairline/40 bg-panel p-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-ink">{card.title}</span>
+        <span className="rounded-full bg-raised px-2.5 py-1 text-xs text-ink-secondary">{t(card.templateState === "published" ? "chat.template.published" : "chat.template.unpublished")}</span>
+      </div>
+      <div className="mt-3 flex aspect-video items-center justify-center rounded-xl border border-hairline/40 bg-gradient-to-br from-raised to-inset">
+        <MausAvatar color={(card.botColor ?? "green") as MausColor} bodyId={card.mascotBody as BotBodyId | undefined} size={88} animated={false} trackPointer={false} />
+      </div>
+      {card.description && <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-[14px] leading-6 text-ink-secondary">{card.description}</p>}
+      {card.state === "live" && card.url ? <>
+        <a href={card.url} dir="ltr" onClick={(event) => { event.preventDefault(); openPage(card.url!); }} className="mt-2 block truncate text-[13px] text-accent-text hover:underline">{card.url}</a>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <button type="button" onClick={copy} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}>{copied === "copied" ? <Check size={14} /> : <Copy size={14} />}{t(copied === "copied" ? "chat.page.copied" : "chat.page.copyLink")}</button>
+          <button type="button" onClick={() => openPage(card.url!)} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}><ArrowUpRight size={14} />{t("chat.page.open")}</button>
+          <button type="button" disabled={busy} onClick={() => void unpublish()} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}><X size={14} />{t("chat.page.unpublish")}</button>
+        </div>
+      </> : <div className="mt-3 flex gap-2">
+        <button type="button" disabled={busy} onClick={() => void getPreview()} className={cn(ASK_PRIMARY_BUTTON, "flex-1")}><Share2 size={15} />{t("chat.template.publish")}</button>
+        <button type="button" disabled={busy} onClick={() => void getPreview()} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}>{t("chat.template.details")}</button>
+      </div>}
+      {error && <p role="alert" className="mt-2 text-xs text-danger">{t("chat.template.failed")}</p>}
+    </div>
+    {preview && createPortal(<div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setPreview(null); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby={`template-title-${message.id}`} className="flex max-h-[88vh] w-full max-w-[680px] flex-col overflow-hidden rounded-2xl border border-hairline/50 bg-panel text-ink shadow-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-hairline/40 px-5 py-4"><div><h2 id={`template-title-${message.id}`} className="font-semibold">{t("chat.template.reviewTitle", { title: card.title })}</h2><p className="mt-1 text-sm text-ink-secondary">{t("chat.template.reviewHint")}</p></div><button type="button" aria-label={t("chat.template.close")} onClick={() => setPreview(null)} className="rounded-lg p-1.5 text-ink-secondary hover:bg-raised"><X size={18} /></button></header>
+        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words bg-inset p-4 text-xs leading-5">{JSON.stringify(preview.document, null, 2)}</pre>
+        <footer className="space-y-3 border-t border-hairline/40 px-5 py-4"><label className="flex gap-2 text-sm text-ink-secondary"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{t("chat.template.confirmReview", { count: preview.redacted.length })}</label>{error && <p role="alert" className="text-xs text-danger">{t("chat.template.failed")}</p>}<div className="flex justify-end gap-2"><button type="button" disabled={busy} onClick={() => setPreview(null)} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}>{t("chat.template.close")}</button><button type="button" disabled={!confirmed || busy} onClick={() => void publish()} className={cn(ASK_PRIMARY_BUTTON)}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}{t("chat.template.confirmPublish")}</button></div></footer>
+      </div>
+    </div>, document.body)}
+  </>;
 }

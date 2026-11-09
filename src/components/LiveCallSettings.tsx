@@ -5,6 +5,7 @@ import { t } from "@/lib/i18n";
 import { liveDisclosure } from "@/lib/call-mode";
 import { api, useStore, type ConfigStatus } from "@/state/store";
 import type { LiveSettings } from "../../shared/wire";
+import { setLivePlaybackRate } from "@/lib/live-call-media";
 import { LiveKeySetup } from "./LiveKeySetup";
 import { LiveProviderSettings } from "./LiveProviderSettings";
 import { KeysLink } from "./keys/KeysLink";
@@ -14,7 +15,7 @@ const IDLE_CHOICES = [1, 2, 3, 5, 10, 15, 30, 60];
 
 export function LiveCallSettings({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const live: LiveSettings = state.config?.live ?? { configured: false, voice: "", readTypedReplies: true, idleMinutes: 5 };
+  const live: LiveSettings = state.config?.live ?? { configured: false, voice: "", voiceSpeed: 1, voiceLanguage: "auto", readTypedReplies: true, idleMinutes: 5 };
   const [saving, setSaving] = useState(false);
   const [changingKey, setChangingKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,12 +28,13 @@ export function LiveCallSettings({ onClose }: { onClose: () => void }) {
   const voice = live.voice || "marin";
   const known = LIVE_VOICE_OPTIONS.some((option) => option.id === voice);
 
-  const save = async (patch: Partial<Pick<LiveSettings, "voice" | "readTypedReplies" | "idleMinutes">>) => {
+  const save = async (patch: Partial<Pick<LiveSettings, "voice" | "voiceSpeed" | "voiceLanguage" | "readTypedReplies" | "idleMinutes">>) => {
     setSaving(true);
     setError(null);
     try {
       const body = await api<{ live: LiveSettings }>("/api/live/settings", { method: "PATCH", body: JSON.stringify(patch) });
       if (state.config) dispatch({ type: "configStatus", config: { ...state.config, live: body.live } });
+      if (patch.voiceSpeed !== undefined) setLivePlaybackRate(body.live.voiceSpeed);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : String(saveError));
     } finally {
@@ -82,6 +84,20 @@ export function LiveCallSettings({ onClose }: { onClose: () => void }) {
         </Select>
       </label>
       <div className="-mt-2 text-[12px] text-ink-tertiary">{t("call.live.voiceNext")}</div>
+      <label className="flex items-center justify-between gap-2">
+        <span className="text-ink-secondary">{t("call.live.speed")}</span>
+        <Select size="sm" value={live.voiceSpeed} disabled={saving} onChange={(event) => void save({ voiceSpeed: Number(event.target.value) })}>
+          {[0.75, 1, 1.25, 1.5].map((speed) => <option key={speed} value={speed}>{speed}x</option>)}
+        </Select>
+      </label>
+      <label className="flex items-center justify-between gap-2">
+        <span className="text-ink-secondary">{t("call.live.language")}</span>
+        <Select size="sm" value={live.voiceLanguage} disabled={saving} onChange={(event) => void save({ voiceLanguage: event.target.value as LiveSettings["voiceLanguage"] })}>
+          <option value="auto">{t("call.live.languageAuto")}</option>
+          <option value="en">{t("call.live.languageEnglish")}</option>
+          <option value="zh">{t("call.live.languageChinese")}</option>
+        </Select>
+      </label>
       <label className="flex items-center justify-between gap-2">
         <span className="text-ink-secondary">{t("call.live.readTyped")}</span>
         <input

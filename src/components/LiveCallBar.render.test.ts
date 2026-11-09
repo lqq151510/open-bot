@@ -149,7 +149,7 @@ describe("LiveCallSettings", () => {
       const value = { state: { ...initialState, config: { live } as AppState["config"] }, dispatch: vi.fn(), flushBotPatches: async () => null, refreshInstances: async () => {}, refreshModels: async () => {} };
       return renderToStaticMarkup(createElement(BotEditorStore, { value, children: createElement(LiveCallSettings, { onClose: vi.fn() }) }));
     };
-    const base = { voice: "marin", readTypedReplies: true, idleMinutes: 5 };
+    const base = { voice: "marin", voiceSpeed: 1, voiceLanguage: "auto" as const, readTypedReplies: true, idleMinutes: 5 };
     const fromApiKeys = withLive({ ...base, configured: true, keySource: "openai" });
     expect(fromApiKeys).toContain("Uses your OpenAI API key from Settings → API keys.");
     expect(fromApiKeys).not.toContain("Remove key");

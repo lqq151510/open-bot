@@ -126,6 +126,31 @@ export function WherePage({ bot, derived }: { bot: Bot; derived: Derived }) {
   );
 }
 
+export function ComputerSummary({ bot }: { bot: Bot }) {
+  const openComputer = useOpenComputer(bot);
+  const screen = [...bot.messages].reverse().find((message) => message.kind === "screen" && (message.hasImage || message.png));
+  const screenSrc = screen ? screenFramePreview({ threadId: bot.threadId, messageId: screen.id }, screen.mime).src : null;
+
+  return (
+    <Card label={t("botPanel.tab.computer")} anchor="computer">
+      <NavRow
+        data-panel-action="open-computer"
+        icon={Monitor}
+        title={t("computer.screenOf", { name: bot.name })}
+        hint={bot.busy ? t("botPanel.screen.working") : t("botPanel.screen.resting")}
+        value={screenSrc ? (
+          <img src={screenSrc} alt="" className="h-10 w-14 rounded-md object-cover" />
+        ) : (
+          <span className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-md bg-ink/[0.04]">
+            <BotAvatar bot={bot} size={27} state={bot.busy ? undefined : "sleeping"} animated={false} />
+          </span>
+        )}
+        onClick={() => openComputer()}
+      />
+    </Card>
+  );
+}
+
 export function ComputerTab({ bot, derived, onOpen }: { bot: Bot; derived: Derived; onOpen: (page: SimplePageId) => void }) {
   const openComputer = useOpenComputer(bot);
   const ownerOrAdmin = useOwnerOrAdmin();

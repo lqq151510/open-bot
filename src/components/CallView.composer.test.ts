@@ -103,9 +103,10 @@ describe("composer call button", () => {
   it("is a Send-sized filled button with a waveform, labelled for the bot", () => {
     const { html, button } = render();
     expect(button.props["aria-label"]).toBe("Call Pepper");
-    expect(String(button.props.className).split(" ")).toEqual(expect.arrayContaining(["size-8", "rounded-l-3xl", "rounded-r-lg", "active:rounded-3xl", "transition-[color,background,border-radius]", "bg-control"]));
+    expect(String(button.props.className).split(" ")).toEqual(expect.arrayContaining(["size-7", "rounded-full", "bg-[#111111]", "text-white"]));
     expect(html).toContain("lucide-audio-lines");
     expect(html).not.toContain("lucide-phone");
+    expect(html).not.toContain("lucide-chevron-down");
   });
 
   it("starts the call with the same telemetry as the header button did", () => {
@@ -179,7 +180,7 @@ describe("composer call button", () => {
     }
   });
 
-  it("is a 28px circle filled with the bot's tone, its glyph in the tone's ink, in the Simple composer, the call mode left to the bot panel", () => {
+  it("is a 28px solid black circle with white waveform in the composer, the call mode left to the bot panel", () => {
     let tree: ReactNode = null;
     function Capture() {
       const element = CallButton({ bot, placement: "composer", fill: "#8057c8", ink: "#ffffff" }) as ReactElement<Parameters<typeof CallTargetButton>[0]>;
@@ -189,14 +190,12 @@ describe("composer call button", () => {
     const html = renderToStaticMarkup(createElement(Capture));
     const button = findButton(tree)!;
     const classes = String(button.props.className).split(" ");
-    expect(classes).toEqual(expect.arrayContaining(["size-7", "rounded-full"]));
-    expect(classes).not.toContain("text-white");
+    expect(classes).toEqual(expect.arrayContaining(["size-7", "rounded-full", "bg-[#111111]", "text-white"]));
     expect(classes).not.toContain("rounded-l-3xl");
     expect(classes).not.toContain("bg-control");
-    expect(button.props.style).toEqual({ backgroundColor: "#8057c8", color: "#ffffff" });
+    expect(button.props.style).toBeUndefined();
     expect(html).toContain("lucide-audio-lines");
     expect(html).not.toContain('aria-label="Call mode"');
-    expect(renderToStaticMarkup(createElement(() => CallButton({ bot, placement: "composer" })))).toContain('aria-label="Call mode"');
   });
 
   it("drops the bot's colour for the red hang-up during a call", () => {

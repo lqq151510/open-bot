@@ -360,7 +360,7 @@ describe("what counts as a key, a computer source and an app", () => {
   });
 
   it("counts a separate Live key as openai_live, and Live calls on the OpenAI key from API keys as the openai key only", () => {
-    const live = { configured: true, voice: "", readTypedReplies: true, idleMinutes: 5 };
+    const live = { configured: true, voice: "", voiceSpeed: 1, voiceLanguage: "auto" as const, readTypedReplies: true, idleMinutes: 5 };
     expect(buildUsageSnapshot(minimal({ openai: { configured: true }, live: { ...live, keySource: "openai" } })))
       .toMatchObject({ key_providers: ["openai"], key_count: 1, live_calls: true });
     expect(buildUsageSnapshot(minimal({ openai: { configured: true }, live: { ...live, keySource: "live" } })))
