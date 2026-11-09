@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, ChartNoAxesColumn, Cloud, CloudDownload, Coins, Download, FlaskConical, KeyRound, LockKeyhole, Monitor, Palette, ScrollText, Search, Settings, Sparkles, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
+import { Archive, ChartNoAxesColumn, Cloud, CloudDownload, Coins, Download, FlaskConical, KeyRound, LockKeyhole, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { skillsLibraryEnabled } from "@/lib/feature-flags";
 import { type LocaleKey } from "@/locales";
@@ -67,7 +67,7 @@ import { useAdvancedMode } from "@/lib/interface-mode";
 import { Select } from "./Select";
 import { SavedStepsRow } from "./SavedStepsRow";
 import { BrowserProfilesRow, ColorUserBubblesRow, AdvancedModeRow, ExperimentalFeaturesRow, LanguageRow, NewBotEffortRow, PinnedCirclesRow, ReplayTourRow, RunCardRow, FollowUpRow, SendKeyRow, ShowThreadsRow, ToolCallsRow, UniversalPinsRow, UpdatesRow } from "./AppSettingsRows";
-import { SIMPLE_ADVANCED_ONLY, SimpleAiPage, SimpleBillingPage, SimpleComputerPage, SimpleGeneralPage, SimpleLooksPage, SimpleUpdatesPage, type Disclose, type SimpleDisclosureId } from "./SettingsSimplePages";
+import { SIMPLE_ADVANCED_ONLY, SimpleAiPage, SimpleBillingPage, SimpleComputerPage, SimpleGeneralPage, SimpleLooksPage, SimplePermissionsPage, SimpleUpdatesPage, type Disclose, type SimpleDisclosureId } from "./SettingsSimplePages";
 
 // labelKey, not a label: t() reads the active pack when called, so a label resolved at module scope would freeze the
 // boot language.
@@ -98,6 +98,7 @@ export const SECTIONS: Array<{
   { id: "skills", group: "ai", labelKey: "settings.section.skills", icon: BookOpen, keywords: ["skills", "library", "assign", "agent skills", "skill md"] },
   { id: "desktopWorkspaces", group: "computers", labelKey: "settings.section.desktopWorkspaces", icon: Building2, keywords: ["workspace", "cloud", "hosted", "vps", "server", "servers", "connect", "pair", "switch", "local"] },
   { id: "computer", group: "computers", labelKey: "settings.section.computer", icon: Monitor, keywords: ["vm", "virtual", "desktop", "browser", "built-in browser", "profiles", "browser profiles"] },
+  { id: "permissions", group: "you", labelKey: "settings.section.permissions", icon: Shield, keywords: ["permissions", "approve", "approval", "auto", "ask", "allow", "rules", "access", "safety", "review"] },
   { id: "logins", group: "computers", labelKey: "settings.section.logins", icon: LockKeyhole, keywords: ["logins", "login", "passwords", "password", "sign in", "2fa", "one-time code", "totp", "fill_login", "1password", "vault"] },
   { id: "cloudAccount", group: "account", labelKey: "settings.section.cloudAccount", icon: Cloud, keywords: ["cloud", "my cloud", "account", "personal", "sign in", "pro", "subscription", "billing", "sync", "send", "this computer", "bots", "logins", "1password"] },
   { id: "organization", group: "account", labelKey: "settings.section.organization", icon: Building2, keywords: ["company", "organization", "organisation", "sign in", "enroll", "managed", "models", "disconnect"] },
@@ -120,11 +121,11 @@ export type SimpleSettingsPage = {
 };
 
 export const SIMPLE_PAGES: SimpleSettingsPage[] = [
-  { id: "general", labelKey: "settings.section.general", icon: Settings, sections: ["general", "appearance", "people", "import", "organization", "activity"],
-    keywords: ["account", "theme", "looks", "open at login", "startup", "analytics", "advanced mode"] },
-  { id: "botAccess", labelKey: "settings.section.botAccess", icon: Users, sections: ["botAccess"] },
-  { id: "ai", labelKey: "settings.group.ai", icon: Sparkles, sections: ["engines", "connections"] },
-  { id: "computer", labelKey: "settings.simple.page.computer", icon: Monitor, sections: ["companion", "desktopWorkspaces", "computer", "logins"] },
+  { id: "general", labelKey: "settings.section.general", icon: Settings, sections: ["general", "appearance", "people", "import", "organization", "activity", "engines", "connections", "botAccess"],
+    keywords: ["account", "theme", "looks", "open at login", "startup", "analytics", "advanced mode", "ai", "keys"] },
+  { id: "computer", labelKey: "settings.simple.page.computer", icon: Monitor, sections: ["companion", "desktopWorkspaces", "computer"] },
+  { id: "permissions", labelKey: "settings.simple.page.permissions", icon: Shield, sections: ["permissions"], keywords: ["approve", "approval", "ask", "allow", "rules"] },
+  { id: "vault", labelKey: "settings.simple.page.vault", icon: LockKeyhole, sections: ["logins"], keywords: ["logins", "passwords", "vault", "sign in"] },
   { id: "billing", labelKey: "settings.simple.page.billing", icon: ChartNoAxesColumn, sections: ["usage", "cloudAccount"], keywords: ["billing", "included", "allowance", "cloud hours", "voice"] },
   { id: "updates", labelKey: "settings.simple.page.updates", icon: CloudDownload, sections: ["updates"],
     keywords: ["update", "version", "release", "product updates", "newsletter", "email updates", "welcome", "tour", "diagnostics", "logs", "support"] },
@@ -421,6 +422,8 @@ export function SettingsModal() {
         return <><BuiltInBrowserRow /><ServerSitesRow /><BrowserProfilesRow /><AdminOnly><LocalComputerSection /></AdminOnly></>;
       case "logins":
         return <LoginsSettings />;
+      case "permissions":
+        return <SimplePermissionsPage />;
       case "usage":
         return <AdminOnly note="settings.adminOnly.usage"><UsageSection /></AdminOnly>;
       case "skills":
@@ -443,8 +446,11 @@ export function SettingsModal() {
     switch (page.id) {
       case "general": return looks
         ? <SimpleLooksPage onBack={() => { setLooks(false); setReveal("appearance"); }} />
-        : <SimpleGeneralPage has={has} peopleOpen={section === "people"} onLooks={() => setLooks(true)} />;
-      case "ai": return <SimpleAiPage has={has} disclose={disclose} connections={renderSection("connections")} />;
+        : <SimpleGeneralPage has={has} peopleOpen={section === "people"} onLooks={() => setLooks(true)}
+            ai={<SimpleAiPage has={has} disclose={disclose} connections={renderSection("connections")} />}
+            botAccess={renderSection("botAccess")} />;
+      case "permissions": return <SimplePermissionsPage />;
+      case "vault": return <div data-settings-block="logins" className="scroll-mt-4"><LoginsSettings /></div>;
       case "computer": return <SimpleComputerPage has={has} remoteAccess={remoteAccess} servers={<ConnectedWorkspacesSettings />} disclose={disclose} />;
       case "billing": return <SimpleBillingPage has={has} disclose={disclose} cloudAccount={renderSection("cloudAccount")} />;
       case "updates": return <SimpleUpdatesPage remoteActive={remoteActive} />;
@@ -515,11 +521,11 @@ export function SettingsModal() {
                   onClick={() => goTo(page.sections[0]!)}
                   aria-current={current ? "page" : undefined}
                   className={cn(
-                    "flex h-8 shrink-0 cursor-pointer items-center gap-[9px] rounded-lg px-[9px] text-left text-[13px] text-ink transition-colors motion-reduce:transition-none",
+                    "flex h-9 shrink-0 cursor-pointer items-center gap-[10px] rounded-[10px] px-2.5 text-left text-[14px] text-ink transition-colors motion-reduce:transition-none",
                     current ? "bg-ink/[0.08]" : "hover:bg-ink/[0.06]",
                   )}
                 >
-                  <Icon size={15} aria-hidden="true" className="shrink-0" />
+                  <Icon size={17} aria-hidden="true" className="shrink-0" />
                   <span className="truncate">{t(page.labelKey)}</span>
                 </button>
               );
@@ -632,11 +638,11 @@ export function SettingsModal() {
                     onClick={() => openSection(id)}
                     aria-current={section === id ? "page" : undefined}
                     className={cn(
-                      "flex h-8 shrink-0 cursor-pointer items-center gap-[9px] rounded-lg px-[9px] text-left text-[13px] text-ink transition-colors motion-reduce:transition-none",
+                      "flex h-9 shrink-0 cursor-pointer items-center gap-[10px] rounded-[10px] px-2.5 text-left text-[14px] text-ink transition-colors motion-reduce:transition-none",
                       section === id ? "bg-ink/[0.08]" : "hover:bg-ink/[0.06]",
                     )}
                   >
-                    <Icon size={15} className="shrink-0" />
+                    <Icon size={17} className="shrink-0" />
                     {t(labelKey)}
                   </button>
                 ))}

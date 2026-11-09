@@ -1,6 +1,7 @@
 import { pageIsThisComputer } from "@/lib/companion-bridge";
 import type { ReactNode } from "react";
-import type { AppSettingsSection } from "@/state/store";
+import { useStore, type AppSettingsSection } from "@/state/store";
+import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { t } from "@/lib/i18n";
 import { appVersion } from "@/lib/app-links";
 import type { LocaleKey } from "@/locales";
@@ -17,11 +18,12 @@ import { LocalComputerSection } from "./LocalComputerSection";
 import { PeopleSection } from "./PeopleSection";
 import { ActivitySection } from "./ActivitySection";
 import { BuiltInBrowserRow, ServerSitesRow } from "./BrowserSettingsRows";
-import { LoginsSettings } from "./LoginsSettings";
 import { OrganizationSettings } from "./OrganizationSettings";
 import { CloudPlanRow, CloudPlanFootnote, useCloudPlan } from "./ProIntroduction";
 import { CloudUsageDetails, CloudUsageSummaryView, useCloudUsageSettings } from "./CloudUsageMeter";
-import { SettingRow, SettingsDisclosureRow, SettingsGroup, SettingsRows } from "./SettingsPrimitives";
+import { SettingRow, SettingsDisclosureRow, SettingsGroup, SettingsRows, Switch } from "./SettingsPrimitives";
+import { BotAvatar } from "./Avatar";
+import { Select } from "./Select";
 import { UsageSection } from "./UsageSection";
 import { PlanUsageSummary } from "./PlanUsage";
 import { SkinPicker } from "./SkinPicker";
@@ -48,7 +50,7 @@ export const SIMPLE_ADVANCED_ONLY: readonly LocaleKey[] = [
 
 type Has = (id: AppSettingsSection) => boolean;
 
-export function SimpleGeneralPage({ has, peopleOpen, onLooks }: { has: Has; peopleOpen: boolean; onLooks: () => void }) {
+export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: { has: Has; peopleOpen: boolean; onLooks: () => void; ai: ReactNode; botAccess: ReactNode }) {
   return (
     <>
       {(has("general") || has("people")) && (
@@ -91,6 +93,12 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks }: { has: Has; peop
             <AttachmentStorageSettings />
             <AnalyticsRow simple />
           </SettingsRows>
+        </SettingsGroup>
+      )}
+      {(has("engines") || has("connections") || has("botAccess")) && (
+        <SettingsGroup label={t("settings.simple.group.bot")} block="bot">
+          {has("botAccess") && <div data-settings-block="botAccess" className="flex scroll-mt-4 flex-col gap-4">{botAccess}</div>}
+          {ai}
         </SettingsGroup>
       )}
       {has("import") && <SettingsGroup label={t("settings.section.import")} block="import"><AdminOnly><ImportSettings /></AdminOnly></SettingsGroup>}
@@ -146,7 +154,6 @@ export function SimpleComputerPage({ has, remoteAccess, servers, disclose }: { h
           <BrowserProfilesRow />
         </SettingsGroup>
       )}
-      {has("logins") && <div data-settings-block="logins" className="scroll-mt-4"><LoginsSettings /></div>}
       {(has("companion") || has("desktopWorkspaces")) && (
         <SettingsDisclosureRow title={t("settings.simple.computer.elsewhere")} block="elsewhere" {...disclose("computer-elsewhere")}>
           {has("desktopWorkspaces") && <div data-settings-block="desktopWorkspaces" className="flex scroll-mt-4 flex-col gap-4">{servers}</div>}
@@ -208,5 +215,58 @@ export function SimpleUpdatesPage({ remoteActive }: { remoteActive: boolean }) {
         <DiagnosticsRow simple />
       </SettingsRows>
     </SettingsGroup>
+  );
+}
+
+const permissionLevel = (bot: Parameters<typeof approvalModeFor>[0]): "ask" | "auto" | "full" => {
+  const mode = approvalModeFor(bot);
+  return mode === "ask" || mode === "edits" ? "ask" : mode === "auto" ? "auto" : "full";
+};
+
+export function SimplePermissionsPage() {
+  const { state, dispatch } = useStore();
+  const bots = state.bots.filter((bot) => !bot.hidden);
+  const autoReview = bots.length > 0 && bots.every((bot) => permissionLevel(bot) !== "ask");
+  const setAll = (mode: "ask" | "auto") => {
+    for (const bot of bots) dispatch({ type: "updateBot", botId: bot.id, patch: { approvalMode: mode, applyToAllThreads: true } });
+  };
+  return (
+    <div data-settings-block="permissions" className="flex scroll-mt-4 flex-col gap-7">
+      <SettingsRows>
+        <SettingRow title={t("settings.permissions.autoReview.title")} subtitle={t("settings.permissions.autoReview.subtitle")}>
+          <Switch
+            checked={autoReview}
+            aria-label={t("settings.permissions.autoReview.title")}
+            onChange={() => setAll(autoReview ? "ask" : "auto")}
+          />
+        </SettingRow>
+      </SettingsRows>
+      <SettingsGroup label={t("settings.permissions.modes.title")} footnote={t("settings.permissions.modes.subtitle")}>
+        <SettingsRows>
+          {bots.map((bot) => (
+            <div key={bot.id} data-permission-bot={bot.id} className="flex items-center gap-3 px-4 py-2">
+              <BotAvatar bot={bot} size={28} />
+              <span className="min-w-0 flex-1 truncate text-[14px] leading-5 text-ink">{bot.name}</span>
+              <Select
+                size="sm"
+                variant="ghost"
+                value={permissionLevel(bot)}
+                aria-label={t("settings.permissions.botAria", { name: bot.name })}
+                onChange={(event) => dispatch({
+                  type: "updateBot",
+                  botId: bot.id,
+                  patch: { approvalMode: event.target.value as ApprovalMode, applyToAllThreads: true },
+                })}
+              >
+                <option value="ask">{t("settings.permissions.alwaysAsk")}</option>
+                <option value="auto">{t("settings.permissions.auto")}</option>
+                <option value="full">{t("settings.permissions.full")}</option>
+              </Select>
+            </div>
+          ))}
+          {bots.length === 0 && <div className="px-4 py-2 text-[13px] text-ink-secondary">{t("settings.permissions.noBots")}</div>}
+        </SettingsRows>
+      </SettingsGroup>
+    </div>
   );
 }

@@ -128,31 +128,32 @@ const placement = (html: string, needle: string): "shown" | "folded" | "missing"
 const open = (section: AppSettingsSection) => { fixture.section = section; return render(); };
 
 describe("Settings in Simple mode", () => {
-  it("draws five pages on the desktop, General, AI, Computer, Usage & billing and Updates, and none of the Advanced-only ones", () => {
+  it("draws six pages on the desktop, General, Computer, Permissions, Vault, Usage & billing and Updates, and none of the Advanced-only ones", () => {
     const html = render();
-    expect(pages(html)).toEqual(["general", "ai", "computer", "billing", "updates"]);
-    expect(SIMPLE_PAGES.map((page) => page.id)).toEqual(["general", "botAccess", "ai", "computer", "billing", "updates"]);
-    expect(html).toMatch(/General<\/span>[\s\S]*AI<\/span>[\s\S]*Computer<\/span>[\s\S]*Usage &amp; billing<\/span>[\s\S]*Updates<\/span>/);
+    expect(pages(html)).toEqual(["general", "computer", "permissions", "vault", "billing", "updates"]);
+    expect(SIMPLE_PAGES.map((page) => page.id)).toEqual(["general", "computer", "permissions", "vault", "billing", "updates"]);
+    expect(html).toMatch(/General<\/span>[\s\S]*Computer<\/span>[\s\S]*Permissions<\/span>[\s\S]*Vault<\/span>[\s\S]*Usage &amp; billing<\/span>[\s\S]*Updates<\/span>/);
     expect(html).not.toContain("data-settings-group=");
     expect(html).not.toContain("data-settings-section=");
     expect(html).not.toMatch(/class="(?:[^"]*\s)?uppercase(?:\s[^"]*)?"/);
     for (const hidden of ["backups", "experimental", "workspaces", "skills"]) expect(html).not.toContain(`value="${hidden}"`);
     const picker = html.match(/<select aria-label="Settings"[\s\S]*?<\/select>/)![0];
-    expect([...picker.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1])).toEqual(["general", "ai", "computer", "billing", "updates"]);
+    expect([...picker.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1])).toEqual(["general", "computer", "permissions", "vault", "billing", "updates"]);
     expect(html).toContain('data-settings-look="simple"');
   });
 
-  it("gives a team's admins Bot access as its own page, found by its search words, and nobody else", () => {
+  it("puts a team's admins Bot access inside General's Bot group, and nobody else", () => {
     fixture.config = { ...fixture.config, team: { id: "team-acme", name: "Acme" }, cloudHome: true };
     fixture.ownerOrAdmin = true;
-    expect(pages(render())).toContain("botAccess");
-    expect(pages(render())[1]).toBe("botAccess");
-    expect(blocks(render())).not.toContain("botAccess");
+    expect(pages(render())).not.toContain("botAccess");
+    expect(blocks(render())).toContain("botAccess");
     fixture.section = "botAccess";
-    expect(currentPage(render())).toBe("botAccess");
+    const html = render();
+    expect(currentPage(html)).toBe("general");
+    expect(blocks(html)).toContain("botAccess");
     fixture.section = "general";
     fixture.ownerOrAdmin = false;
-    expect(pages(render())).not.toContain("botAccess");
+    expect(blocks(render())).not.toContain("botAccess");
   });
 
   it("files every Advanced page under one Simple page, or hides it", () => {
@@ -163,10 +164,10 @@ describe("Settings in Simple mode", () => {
     for (const id of hidden) expect(SIMPLE_HIDDEN_SECTIONS).toContain(id);
   });
 
-  it("opens General on Account, then Appearance, Notifications, System and Import, with Advanced mode last as a plain row", () => {
+  it("opens General on Account, then Appearance, Notifications, System, Bot and Import, with Advanced mode last as a plain row", () => {
     const html = render();
     expect(currentPage(html)).toBe("general");
-    expect(groupLabels(html)).toEqual(["Account", "Appearance", "Notifications", "System", "Import", "Organization"]);
+    expect(groupLabels(html)).toEqual(["Account", "Appearance", "Notifications", "System", "Bot", "Import", "Organization"]);
     expect(blocks(html).at(-1)).toBe("advanced-mode");
     expect([...html.matchAll(/<button[^>]*role="switch"[^>]*>/g)].at(-1)?.[0]).toContain('aria-label="Advanced mode"');
     expect(html).toContain("Show every control, including tools for builders. Nothing is deleted either way.");
@@ -179,7 +180,7 @@ describe("Settings in Simple mode", () => {
     fixture.rail = { available: true, hidden: false };
     const html = render();
     const appearance = html.slice(html.indexOf('data-settings-block="appearance"'), html.indexOf(">Notifications<"));
-    const order = ['role="radiogroup" aria-label="Theme"', ">Sidebar picture<", 'aria-label="Show your computers"', 'aria-label="Color my messages with the bot&#x27;s color"', ">More looks<"]
+    const order = ['aria-label="Theme"', ">Sidebar picture<", 'aria-label="Show your computers"', 'aria-label="Color my messages with the bot&#x27;s color"', ">More looks<"]
       .map((needle) => appearance.indexOf(needle));
     expect(order.every((at) => at > -1), String(order)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
@@ -206,7 +207,7 @@ describe("Settings in Simple mode", () => {
   it("keeps the everyday rows and leaves the fourteen builder controls to Advanced, where search still points", () => {
     const general = open("general");
     for (const shown of ['aria-label="Send usage analytics"', 'aria-label="Color my messages with the bot&#x27;s color"', 'aria-label="Send messages with"',
-      'aria-label="Notification sounds"', 'aria-label="Show the notification feed"', 'aria-label="App language"', 'role="radiogroup" aria-label="Theme"']) {
+      'aria-label="Notification sounds"', 'aria-label="Show the notification feed"', 'aria-label="App language"', 'aria-label="Theme"']) {
       expect(placement(general, shown), shown).toBe("shown");
     }
     expect(placement(open("updates"), "MARKER:updatesConsent;")).toBe("shown");
@@ -246,21 +247,21 @@ describe("Settings in Simple mode", () => {
     expect(SIMPLE_FOLDED).toEqual({ connections: "ai-keys", remote: "computer-elsewhere", desktopWorkspaces: "computer-elsewhere" });
   });
 
-  it("shows the AI page as Your AI, then API keys", () => {
+  it("shows the Bot group on General as engines, then API keys", () => {
     fixture.section = "engines";
     const html = render();
-    expect(currentPage(html)).toBe("ai");
-    expect(blocks(html)).toEqual(["engines", "connections"]);
+    expect(currentPage(html)).toBe("general");
+    expect(blocks(html)).toEqual(["general", "appearance", "bot", "engines", "connections", "import", "organization", "advanced-mode"]);
     expect(markers(html).filter((name) => name === "engines" || name === "decisionModel")).toEqual(["engines"]);
     expect(html).toMatch(/aria-expanded="false"[^>]*>[\s\S]*?>API keys</);
     expect(html).not.toContain("API keys and connections");
   });
 
-  it("orders Computer as your bots' computers, Phone & devices, the browser, logins, then Connect from elsewhere", () => {
+  it("orders Computer as your bots' computers, Phone & devices, the browser, then Connect from elsewhere", () => {
     fixture.section = "companion";
     const html = render();
     expect(currentPage(html)).toBe("computer");
-    expect(blocks(html)).toEqual(["computer", "companion", "browser", "logins", "elsewhere", "desktopWorkspaces", "remote"]);
+    expect(blocks(html)).toEqual(["computer", "companion", "browser", "elsewhere", "desktopWorkspaces", "remote"]);
     expect(groupLabels(html)).toEqual(["Your bots’ computers", "Phone &amp; devices", "Built-in browser"].map((label) => label.replace("’", "&#x27;")));
     expect(html).toContain('aria-label="Enable the built-in browser"');
   });
@@ -280,7 +281,7 @@ describe("Settings in Simple mode", () => {
     fixture.ownerOrAdmin = true;
     fixture.section = "people";
     const html = render();
-    expect(pages(html)).toEqual(["general", "ai", "computer", "billing", "updates"]);
+    expect(pages(html)).toEqual(["general", "computer", "permissions", "vault", "billing", "updates"]);
     expect(currentPage(html)).toBe("general");
     expect(placement(html, "MARKER:people;")).toBe("shown");
     expect(placement(html, "MARKER:activity;")).toBe("shown");
@@ -308,13 +309,14 @@ describe("Settings in Simple mode", () => {
     ["appearance", "general"],
     ["import", "general"],
     ["organization", "general"],
-    ["engines", "ai"],
-    ["connections", "ai"],
+    ["engines", "general"],
+    ["connections", "general"],
+    ["permissions", "permissions"],
     ["companion", "computer"],
     ["remote", "computer"],
     ["desktopWorkspaces", "computer"],
     ["computer", "computer"],
-    ["logins", "computer"],
+    ["logins", "vault"],
     ["usage", "billing"],
     ["cloudAccount", "billing"],
     ["updates", "updates"],
@@ -333,7 +335,7 @@ describe("Settings in Simple mode", () => {
   ])("opens a hidden page (%s) for as long as it is the open one", (section, content) => {
     fixture.section = section;
     const html = render();
-    expect(pages(html)).toEqual(["general", "ai", "computer", "billing", "updates", section]);
+    expect(pages(html)).toEqual(["general", "computer", "permissions", "vault", "billing", "updates", section]);
     expect(currentPage(html)).toBe(section);
     if (content === "skillAuthoring") expect(html).toContain("Bots may write their own skills");
     else expect(markers(html)).toContain(content);

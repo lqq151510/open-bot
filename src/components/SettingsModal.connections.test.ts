@@ -14,7 +14,7 @@ vi.mock("@/lib/analytics", () => ({ analyticsEnabled: () => false, setAnalyticsE
 
 beforeEach(() => {
   fixture.config = undefined;
-  vi.stubGlobal("window", {});
+  vi.stubGlobal("window", { location: { origin: "http://localhost" } });
   vi.stubGlobal("document", { documentElement: { dataset: {} } });
   setLocale("en");
 });
