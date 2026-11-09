@@ -1136,7 +1136,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
           </button>}
           {phoneMenu ? <ChatMoreMenu bot={bot} phoneHeader /> : (advanced || remoteClient)
             ? <ChatHeaderMenu key={`menu:${bot.threadId}`} bot={bot} />
-            : !phone && <ChatShareMenu bot={bot} className="flex size-8 items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-ink/[0.06] hover:text-ink" />}
+            : !phone && <ChatShareMenu bot={bot} className={cn("flex size-9 items-center justify-center rounded-full text-ink", ELEVATED_FLOAT, ELEVATED_HOVER)} />}
         </div>
         </div>
       </div>
