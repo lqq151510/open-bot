@@ -69,12 +69,12 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
           <SettingsRows>
             <ThemeRow simple />
             <AccentRow />
+            <LanguageRow simple />
+            <SpellCheckRow />
             <PlaceLookRows />
             <ChromeRailRow />
             <WindowFrameRow />
             <ColorUserBubblesRow simple />
-            <LanguageRow simple />
-            <SpellCheckRow />
             <SendKeyRow simple />
             <FollowUpRow simple />
             <SettingRow title={t("settings.simple.looks.title")}>
