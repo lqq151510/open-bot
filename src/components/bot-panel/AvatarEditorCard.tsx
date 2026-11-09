@@ -14,7 +14,7 @@ import { useHalloweenDressed, wornBody } from "@/lib/halloween-dress";
 import { clipboardImageFiles, IMAGE_MAX_BYTES, isImageFile } from "@/lib/composer-attachments";
 import { MausAvatar } from "../Avatar";
 import { AvatarImageGenerator } from "../AvatarImageGenerator";
-import { AvatarFraming, OrganizationAvatarIcons, RESET_MASCOT_PATCH, useAvatarImage, type AvatarPatch } from "../avatar-editing";
+import { AvatarFraming, RESET_MASCOT_PATCH, useAvatarImage, type AvatarPatch } from "../avatar-editing";
 import { Segmented } from "./rows";
 import { MascotFaceColorPicker } from "../MascotFaceColorPicker";
 
@@ -232,7 +232,6 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
 
         {tab === "upload" && (
           <>
-            <OrganizationAvatarIcons busy={busy} onUpload={stage} />
             {pending ? <>
               <AvatarFraming bot={{ ...bot, ...pending.framing }} previewUrl={pending.url} previewName={`${pending.file.name}${pending.size ? ` · ${pending.size.width}×${pending.size.height}` : ""}`} disabled={busy} onPatch={(patch) => setPending((current) => current ? { ...current, framing: { ...current.framing, ...patch } } : current)}
                 onPreviewLoad={(size) => setPending((current) => current?.url === pending.url ? { ...current, decoded: true, size } : current)}
@@ -264,32 +263,33 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
             >
               {uploading && <Loader2 size={22} className="animate-spin" />}
               <span>{t("botPanel.avatar.drop")}</span>
-              <span className="rounded-lg bg-ink/[0.06] px-3 py-1.5 font-medium text-ink">{t("botPanel.avatar.chooseLocal")}</span>
-              <span className="text-[12px] text-ink-tertiary">{t("botPanel.avatar.types")}</span>
+              <span className="text-[12px] text-ink-tertiary">{t("botPanel.avatar.or")}</span>
+              <span className="rounded-lg bg-ink/[0.06] px-3.5 py-1.5 font-medium text-ink">{t("botPanel.avatar.chooseLocal")}</span>
             </button>
-            <div className="mt-2.5 flex items-center gap-2.5">
-              <span className="shrink-0 text-[12px] text-ink-secondary">{t("botPanel.avatar.shape")}</span>
-              <Segmented
-                attr="data-avatar-crop"
-                label={t("botPanel.avatar.shape")}
-                value={showsImage ? crop : null}
-                onChange={(next) => onPatch({ avatarCrop: next })}
-                options={IMAGE_CROPS.map((value) => ({ value, label: t(CROP_KEY[value]), disabled: busy || !bot.avatarUrl }))}
-              />
-              {bot.avatarUrl && (
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  disabled={busy}
-                  aria-label={t("botIdentity.removeAvatar")}
-                  title={t("botPanel.avatar.remove")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-secondary hover:bg-control hover:text-danger disabled:opacity-50"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-            {!showsImage && <p className="mt-2 text-[12px] text-ink-tertiary">{t("botPanel.avatar.uploadHint")}</p>}
+            {showsImage && (
+              <div className="mt-2.5 flex items-center gap-2.5">
+                <span className="shrink-0 text-[12px] text-ink-secondary">{t("botPanel.avatar.shape")}</span>
+                <Segmented
+                  attr="data-avatar-crop"
+                  label={t("botPanel.avatar.shape")}
+                  value={crop}
+                  onChange={(next) => onPatch({ avatarCrop: next })}
+                  options={IMAGE_CROPS.map((value) => ({ value, label: t(CROP_KEY[value]), disabled: busy || !bot.avatarUrl }))}
+                />
+                {bot.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    disabled={busy}
+                    aria-label={t("botIdentity.removeAvatar")}
+                    title={t("botPanel.avatar.remove")}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-secondary hover:bg-control hover:text-danger disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            )}
             </>}
           </>
         )}
