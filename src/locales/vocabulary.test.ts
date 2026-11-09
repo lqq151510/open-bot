@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,7 +10,7 @@ import { locales } from "./index";
 
 const RETIRED: ReadonlyArray<readonly [string, RegExp, string]> = [
   ["OMB Cloud", /OMB Cloud/i, "OpenBot Cloud"],
-  ["OpenBot Cloud", /OpenBot Cloud/i, "OpenBot Cloud"],
+  ["OpenMausBot Cloud", /OpenMausBot Cloud/i, "OpenBot Cloud"],
   ["OpenBot Pro", /OpenBot Pro\b/, "OpenBot Cloud"],
   // \b before "_" fails, so environment names such as OMB_PUBLIC_IPV4 pass.
   ["OMB", /\bOMB\b/, "OpenBot"],
@@ -49,6 +49,8 @@ const EN_ALLOWED: Record<string, string> = {
 };
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+// The docs site is its own checkout, so a clone without it still runs the other guards.
+const DOCS = join(ROOT, "apps/docs/content");
 const SCANNED = ["src", "server", "electron", "shared"];
 // Test fixtures and generated output are not copy anyone reads.
 const SKIPPED_DIRS = new Set(["node_modules", "resources", "testing", "dist"]);
@@ -137,14 +139,14 @@ describe("one name per thing", () => {
     expect(staleKeys).toEqual([]);
   });
 
-  it("the public docs name OpenBot Cloud and the Cloud as the app does", () => {
+  it.skipIf(!existsSync(DOCS))("the public docs name OpenBot Cloud and the Cloud as the app does", () => {
     const names = new Set(["OMB Cloud", "OpenBot Cloud", "OpenBot Pro", "Connect to my Cloud", "your Cloud", "my Cloud"]);
     const cloudNames = RETIRED.filter(([word]) => names.has(word));
     const pages = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
       const path = join(dir, name);
       return statSync(path).isDirectory() ? pages(path) : /\.mdx?$/.test(name) ? [path] : [];
     });
-    const offending = pages(join(ROOT, "apps/docs/content")).flatMap((path) =>
+    const offending = pages(DOCS).flatMap((path) =>
       readFileSync(path, "utf8").split("\n").flatMap((text, index) => cloudNames
         .filter(([, pattern]) => pattern.test(text))
         .map(([word, , use]) => `${relative(ROOT, path).split("\\").join("/")}:${index + 1}: "${word}" (say ${use})`)));
@@ -188,7 +190,7 @@ describe("one name per thing", () => {
 
   it("the check catches each retired word, and lets own-key Boat and env names through", () => {
     for (const bad of [
-      "Sign in to OMB Cloud", "Sign in to OpenBot Cloud", "Get OpenBot Pro", "OpenBot Pro plans",
+      "Sign in to OMB Cloud", "Sign in to OpenMausBot Cloud", "Get OpenBot Pro", "OpenBot Pro plans",
       "restart OMB", "Cloud box", "Hosted desktop", "Run it in its cloud VM", "Boat cloud runner",
       "Open your Cloud dashboard", "Connect to my Cloud", "Your Cloud is ready", "Let my Cloud use this Mac",
       "Local (this computer)", "Choose Cloud to wake", "Auto, Cloud or Browser", "including one from T3",
