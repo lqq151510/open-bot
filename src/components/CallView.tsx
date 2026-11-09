@@ -47,7 +47,7 @@ export function CallButton({ bot, placement = "header", fill, ink, inverse }: { 
   return (
     <CallTargetButton
       placement={placement}
-      fill={fill}
+      fill={placement === "composer" ? undefined : fill}
       ink={ink}
       inverse={inverse}
       targetId={bot.id}
