@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseCleanJsonRpcLine } from "./host.ts";
-import { sanitizeAcpToolArguments } from "./core.ts";
+import { sanitizeAcpToolArguments } from "./tool-input.ts";
 import { GrokAgentDriver } from "./grok.ts";
 
 describe("Grok ACP: JSON-RPC Sanitizer", () => {

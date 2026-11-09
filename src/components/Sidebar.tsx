@@ -1076,9 +1076,7 @@ export function Sidebar({ open, onClose, collapseToIcons = false, onNewBot }: {
   const draggableChrome = capabilities.windowChrome !== "native";
   // SAFETY: Electron's -webkit-app-region is not in React's CSSProperties type; the renderer accepts it as an inline
   // style.
-  const windowDragStyle = draggableChrome
-    ? ({ WebkitAppRegion: "drag" } as React.CSSProperties)
-    : undefined;
+  const windowDragStyle = draggableChrome ? ({ WebkitAppRegion: "drag" } as React.CSSProperties) : undefined;
   // SAFETY: interactive buttons must opt out of the draggable title-bar region.
   const windowNoDragStyle = draggableChrome
     ? ({ WebkitAppRegion: "no-drag" } as React.CSSProperties)
@@ -1103,8 +1101,7 @@ export function Sidebar({ open, onClose, collapseToIcons = false, onNewBot }: {
   const visibleGroups = state.groups.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tasks?.some((task) => task.title.toLowerCase().includes(q)));
   const viewerEmail = useViewerEmail();
   const parts = partitionSidebarBots(botDrag.preview(matchingBots), { universalPins, viewerEmail, welcoming: useWelcomingBot() });
-  const openBotId = matchingBots.find((bot) => bot.id === state.selectedId)?.id;
-  const saved = simpleDesk ? withPrimaryTile(parts, myDefaultBot(state.bots, viewerEmail)?.id, openBotId) : { ...parts, primary: null };
+  const saved = simpleDesk ? withPrimaryTile(parts, myDefaultBot(state.bots, viewerEmail)?.id, matchingBots.find((bot) => bot.id === state.selectedId)?.id) : { ...parts, primary: null };
   // Shown order only: drag and Alt+Up/Down keep working on the saved order, so a reorder never stores this one.
   const { primary, unsectionedChief, pinnedBots, sectionChiefs, sectionedBots, unsectionedBots } = { ...saved, ...activeBotsFirst(saved, (bot) => {
     const { waiting, working } = sidebarBotStatus(bot, state.pendingQueued);

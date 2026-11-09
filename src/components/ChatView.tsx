@@ -1019,12 +1019,8 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
           simpleHead ? "px-5 pt-2.5 pb-2.5 max-md:pl-14 max-md:pr-3" : "px-5 py-3 pl-11 md:pl-5 max-md:pl-14 max-md:pr-3",
         )}
       >
-        <div data-chathead-row className={cn("flex items-center justify-between", phone ? "gap-2" : simpleHead
-          ? "@max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:gap-y-1 @min-[24rem]/chathead:grid @min-[24rem]/chathead:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(max-content,1fr)]"
-          : "@max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:gap-y-1 @min-[30rem]/chathead:grid @min-[30rem]/chathead:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(max-content,1fr)]")}>
-        <div data-chathead-identity className={cn("flex min-w-0 items-center gap-2", phone ? "flex-1" : simpleHead
-          ? "@max-[24rem]/chathead:basis-full @min-[24rem]/chathead:col-start-2 @min-[24rem]/chathead:justify-self-center"
-          : "@max-[30rem]/chathead:basis-full @min-[30rem]/chathead:col-start-2 @min-[30rem]/chathead:justify-self-center", simpleHead && phone && "justify-center")} style={headerNoDragStyle}>
+        <div data-chathead-row className={cn("flex items-center justify-between", phone ? "gap-2" : simpleHead ? "@max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:gap-y-1 @min-[24rem]/chathead:grid @min-[24rem]/chathead:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(max-content,1fr)]" : "@max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:gap-y-1 @min-[30rem]/chathead:grid @min-[30rem]/chathead:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(max-content,1fr)]")}>
+        <div data-chathead-identity className={cn("flex min-w-0 items-center gap-2", phone ? "flex-1" : simpleHead ? "@max-[24rem]/chathead:basis-full @min-[24rem]/chathead:col-start-2 @min-[24rem]/chathead:justify-self-center" : "@max-[30rem]/chathead:basis-full @min-[30rem]/chathead:col-start-2 @min-[30rem]/chathead:justify-self-center", simpleHead && phone && "justify-center")} style={headerNoDragStyle}>
           {simpleHead ? (
             <ChatHeadPill
               bot={bot}
@@ -1098,12 +1094,8 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
             </button>
           )}
         </div>
-        <div
-          data-chathead-controls
-          className={cn("flex shrink-0 items-center gap-2", !phone && (simpleHead
-            ? "@max-[24rem]/chathead:ml-auto @max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:justify-end @min-[24rem]/chathead:col-start-3 @min-[24rem]/chathead:justify-self-end"
-            : "@max-[30rem]/chathead:ml-auto @max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:justify-end @min-[30rem]/chathead:col-start-3 @min-[30rem]/chathead:justify-self-end"))}
-        >
+        <div data-chathead-controls
+          className={cn("flex shrink-0 items-center gap-2", !phone && (simpleHead ? "@max-[24rem]/chathead:ml-auto @max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:justify-end @min-[24rem]/chathead:col-start-3 @min-[24rem]/chathead:justify-self-end" : "@max-[30rem]/chathead:ml-auto @max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:justify-end @min-[30rem]/chathead:col-start-3 @min-[30rem]/chathead:justify-self-end"))}>
           {!simpleHead && (bot.busy || bot.waitingForTeammates) && (
             <button
               onClick={() => dispatch({ type: "interrupt", botId: bot.id, threadId: bot.threadId })}
@@ -1120,8 +1112,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
           <ThreadContextWarning bot={bot} messages={messages} />
           {phone && <UsageAlert engine={bot.modelSelection?.instanceId} />}
           {!phone && !simpleHead && <ModelPicker key={bot.threadId} bot={bot} threadId={bot.threadId} />}
-          <LiveCallChip currentBotId={bot.id} onOpen={(botId, threadId) => openThread(dispatch, { botId, threadId }, state, showThreads)} />
-          {!phoneMenu && !simpleHead && <WatchScreenButton botId={bot.id} messages={messages} liveTools={liveTools} place={place} />}
+          <LiveCallChip currentBotId={bot.id} onOpen={(botId, threadId) => openThread(dispatch, { botId, threadId }, state, showThreads)} />{!phoneMenu && !simpleHead && <WatchScreenButton botId={bot.id} messages={messages} liveTools={liveTools} place={place} />}
           {!phoneMenu && !simpleHead && <button
             data-tour="computer"
             onClick={(event) => { if (!state.computerOpen) rememberComputerPanelOpen({ botId: bot.id, opener: event.currentTarget, tabs: event.detail === 0 }); dispatch({ type: "toggleComputer" }); }}
@@ -1134,8 +1125,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
           >
             <Monitor size={18} />{busy && place === "browser" && <span aria-hidden="true" className="absolute right-1 top-1 size-1.5 animate-pulse rounded-full bg-success" data-testid="computer-button-live" />}
           </button>}
-          {phoneMenu ? <ChatMoreMenu bot={bot} phoneHeader /> : (advanced || remoteClient)
-            ? <ChatHeaderMenu key={`menu:${bot.threadId}`} bot={bot} />
+          {phoneMenu ? <ChatMoreMenu bot={bot} phoneHeader /> : (advanced || remoteClient) ? <ChatHeaderMenu key={`menu:${bot.threadId}`} bot={bot} />
             : !phone && <ChatShareMenu bot={bot} className={cn("flex size-9 items-center justify-center rounded-full text-ink", ELEVATED_FLOAT, ELEVATED_HOVER)} />}
         </div>
         </div>

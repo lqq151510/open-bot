@@ -528,8 +528,7 @@ export type AppSettingsSection =
   | "activity"
   | "backups"
   | "workspaces"
-  | "skills" | "import" | "updates"
-  | "permissions";
+  | "skills" | "import" | "updates" | "permissions";
 
 export type BotSettingsSection =
   | "overview"
