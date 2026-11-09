@@ -6,11 +6,13 @@ import { t } from "@/lib/i18n";
 import { appendComposerDraft } from "@/lib/drafts";
 import { routineFinished, routineNextLabel } from "@/lib/routine-display";
 import { useStore, type Bot } from "@/state/store";
+import { BotAvatar } from "../Avatar";
 import { useChatMoreItems } from "../ChatMoreMenu";
+import { screenFramePreview } from "../ScreenFrame";
 import type { SidebarMenuItem } from "../SidebarPopoverMenu";
 import type { useBotSettingsDerived } from "../bot-settings/useBotSettingsDerived";
 import { BotConversations } from "./Conversations";
-import { ComputerSummary } from "./ComputerTab";
+import { useOpenComputer } from "./ComputerTab";
 import { VoiceChatSummary } from "./VoiceChatSummary";
 import { Switch } from "../SettingsPrimitives";
 import type { SimplePageId } from "./page-registry";
@@ -52,6 +54,9 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
   const [hiddenSuggestions, setHiddenSuggestions] = useState<string[]>([]);
   const { items } = useChatMoreItems(bot);
   const { dispatch } = useStore();
+  const openComputer = useOpenComputer(bot);
+  const screen = [...bot.messages].reverse().find((message) => message.kind === "screen" && (message.hasImage || message.png));
+  const screenSrc = screen ? screenFramePreview({ threadId: bot.threadId, messageId: screen.id }, screen.mime).src : null;
   const routinesOn = derived.botRoutines.filter((routine) => routine.enabled).length;
   const conversationItems = CONVERSATION_ITEMS.flatMap((key) => items.filter((item) => item.key === key));
 
@@ -113,7 +118,22 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
         </Card>
       )}
 
-      <ComputerSummary bot={bot} />
+      <Card label={t("botPanel.tab.computer")} anchor="computer">
+        <NavRow
+          data-panel-action="open-computer"
+          drill={false}
+          title={t("botPanel.computer.title")}
+          hint={bot.busy ? t("botPanel.computer.running") : t("botPanel.computer.idle")}
+          value={screenSrc ? (
+            <img src={screenSrc} alt="" className="h-10 w-14 rounded-md object-cover ring-1 ring-black/10" />
+          ) : (
+            <span className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-md bg-ink/[0.08] ring-1 ring-black/5">
+              <BotAvatar bot={bot} size={24} state={bot.busy ? undefined : "sleeping"} animated={false} />
+            </span>
+          )}
+          onClick={() => openComputer()}
+        />
+      </Card>
 
       <VoiceChatSummary />
 
