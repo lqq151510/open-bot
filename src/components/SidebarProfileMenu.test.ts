@@ -200,7 +200,7 @@ describe("updateNoteworthy", () => {
 describe("outward links", () => {
   it("sends Help Center to the docs the website also links to", () => {
     expect(HELP_CENTER_URL).toBe(DOCS_URL);
-    expect(DOCS_URL).toBe("https://github.com/milind-soni/OpenBot/tree/main/docs");
+    expect(DOCS_URL).toBe("https://github.com/lqq151510/open-bot/tree/main/docs");
   });
 
   it("sends Send Feedback to the Discord community", () => {
@@ -331,7 +331,7 @@ describe("Get the phone app", () => {
   it("offers iPhone and Android with the links the website and Cloud page use", () => {
     expect(PHONE_APPS.map((app) => [app.id, app.url])).toEqual([["ios", IOS_APP_STORE_URL], ["android", ANDROID_APK_URL]]);
     expect(IOS_APP_STORE_URL).toBe("https://apps.apple.com/in/app/openbot/id6803387923");
-    expect(ANDROID_APK_URL).toBe("https://github.com/milind-soni/OpenBot/releases/download/android-v1.5.0/OpenBot.apk");
+    expect(ANDROID_APK_URL).toBe("https://github.com/lqq151510/open-bot/releases/download/android-v1.5.0/OpenBot.apk");
   });
 
   const render = (connect?: PhoneAppConnect[]) => {

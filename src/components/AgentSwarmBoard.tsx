@@ -195,11 +195,11 @@ export const AgentSwarmBoard = memo(function AgentSwarmBoard({
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <span className="truncate text-[12.5px] font-semibold text-ink">
+                            <span className="truncate text-[13px] font-semibold text-ink">
                               {agent.name}
                             </span>
                             {agent.isCoordinator && (
-                              <span className="shrink-0 rounded bg-accent/15 px-1 py-0.2 text-[9.5px] font-bold text-accent">
+                              <span className="shrink-0 rounded bg-accent/15 px-1 py-0.2 text-[10px] font-bold text-accent">
                                 参谋长
                               </span>
                             )}
@@ -213,7 +213,7 @@ export const AgentSwarmBoard = memo(function AgentSwarmBoard({
                       {/* State badge */}
                       <span
                         className={cn(
-                          "shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-medium",
+                          "shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium",
                           isWorking && "bg-accent/15 text-accent animate-pulse",
                           isDone && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
                           agent.status === "thinking" && "bg-amber-500/15 text-amber-600 dark:text-amber-400",
@@ -311,7 +311,7 @@ export const AgentSwarmBoard = memo(function AgentSwarmBoard({
 
           {/* Tab 3: Swarm Communication Logs */}
           {activeTab === "logs" && (
-            <div className="max-h-52 overflow-y-auto space-y-1.5 font-mono text-[11.5px] pr-1">
+            <div className="max-h-52 overflow-y-auto space-y-1.5 font-mono text-[12px] pr-1">
               {logs.length === 0 ? (
                 <div className="py-4 text-center text-ink-tertiary font-sans">
                   暂无通信流水记录
@@ -324,7 +324,7 @@ export const AgentSwarmBoard = memo(function AgentSwarmBoard({
                   >
                     <span className="text-accent shrink-0 font-bold">[{log.action}]</span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 text-[10.5px] text-ink-tertiary">
+                      <div className="flex items-center gap-1 text-[11px] text-ink-tertiary">
                         <span className="font-semibold text-ink">{log.fromAgent}</span>
                         <ArrowRight size={10} className="shrink-0" />
                         <span className="font-semibold text-ink">{log.toAgent}</span>

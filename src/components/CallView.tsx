@@ -257,7 +257,7 @@ export function CallTargetButton({
         aria-label={label}
         title={label}
         data-call-button={placement}
-        style={!composer && fill && !active ? { backgroundColor: fill, color: ink } : undefined}
+        style={fill && !active ? { backgroundColor: fill, color: ink } : undefined}
         className={cn(
           "relative flex shrink-0 items-center justify-center disabled:opacity-60",
           round ? "rounded-full transition-[color,background,filter]" : "rounded-l-3xl rounded-r-lg active:rounded-3xl transition-[color,background,border-radius]",

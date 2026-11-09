@@ -185,7 +185,7 @@ export const HelperPresencePills = memo(function HelperPresencePills({
           <button
             type="button"
             onClick={() => setShowSwarmBoard(!showSwarmBoard)}
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium bg-raised/80 hover:bg-raised border border-hairline/60 hover:border-accent/40 text-ink-secondary hover:text-ink cursor-pointer transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium bg-raised/80 hover:bg-raised border border-hairline/60 hover:border-accent/40 text-ink-secondary hover:text-ink cursor-pointer transition-colors shadow-xs"
             data-testid="toggle-swarm-board-btn"
           >
             <Sparkles size={11} className="text-accent" />

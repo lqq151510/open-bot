@@ -80,7 +80,7 @@ export function GrokThinkingBubble({
       </button>
 
       {expanded && (
-        <div className="border-t border-hairline/30 bg-inset/30 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-secondary">
+        <div className="border-t border-hairline/30 bg-inset/30 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-secondary">
           <div className="max-h-80 overflow-y-auto font-mono whitespace-pre-wrap break-words opacity-90">
             {cleanThought || (inProgress ? "Synthesizing thoughts..." : "")}
           </div>
