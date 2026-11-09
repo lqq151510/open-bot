@@ -7,6 +7,7 @@ import { shortPath } from "@/lib/short-path";
 import { SIDEBAR_INLINE, useMediaQuery } from "@/lib/use-media-query";
 import { useStore, visibleMessages, type Bot, type Message } from "@/state/store";
 import { AttachedFileChip } from "../AttachmentPreview";
+import { isAudioAttachment, isVideoAttachment } from "../AttachmentGallery";
 import { recentChangedFiles, sharedFileReferences } from "../ComputerFilesPane";
 import { useDesktopCapabilities } from "../DesktopCapabilities";
 import { useManagedSkills } from "../bot-settings/SkillsSection";
@@ -19,6 +20,7 @@ export interface LibraryItems {
   pages: Array<{ messageId: string; title: string; url: string }>;
   apps: Array<{ messageId: string; title: string }>;
   images: Array<{ messageId: string; path: string; title: string }>;
+  mediaFiles: Array<NonNullable<ReturnType<ReturnType<typeof sharedFileReferences>["get"]>>>;
   shared: Array<NonNullable<ReturnType<ReturnType<typeof sharedFileReferences>["get"]>>>;
   unshared: string[];
 }
@@ -47,14 +49,16 @@ export function libraryItems(bot: Bot, messages: readonly Message[] = visibleMes
   }
   const references = sharedFileReferences(bot);
   const shared: LibraryItems["shared"] = [];
+  const mediaFiles: LibraryItems["mediaFiles"] = [];
   const seenFiles = new Set<string>();
   for (const reference of references.values()) {
     if (seenFiles.has(reference.file.path)) continue;
     seenFiles.add(reference.file.path);
-    shared.push(reference);
+    if (isVideoAttachment(reference.file.path) || isAudioAttachment(reference.file.path)) mediaFiles.push(reference);
+    else shared.push(reference);
   }
   const unshared = recentChangedFiles(bot).filter((path) => !references.has(path));
-  return { pages, apps, images, shared, unshared };
+  return { pages, apps, images, mediaFiles, shared, unshared };
 }
 
 const fileName = (path: string) => path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
@@ -66,12 +70,12 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const phone = !useMediaQuery(SIDEBAR_INLINE, true);
   const skills = useManagedSkills(bot);
   const memory = useMemoryDoc(bot);
-  const { pages, apps, images, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
+  const { pages, apps, images, mediaFiles, shared, unshared } = useMemo(() => libraryItems(bot), [bot]);
   const [selection, setSelection] = useState<{ botId: string; category: "all" | "pages" | "apps" | "images" | "files" }>({ botId: bot.id, category: "all" });
   const categories = [
     { id: "pages", label: t("botPanel.library.pages"), count: pages.length },
     { id: "apps", label: t("botPanel.library.apps"), count: apps.length },
-    { id: "images", label: t("activity.tool.generatedMedia"), count: images.length },
+    { id: "images", label: t("activity.tool.generatedMedia"), count: images.length + mediaFiles.length },
     { id: "files", label: t("botPanel.library.files"), count: shared.length + unshared.length },
   ] as const;
   const selected = selection.botId === bot.id && (selection.category === "all" || categories.some((category) => category.id === selection.category && category.count > 0)) ? selection.category : "all";
@@ -105,7 +109,7 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
     </Card>
   );
 
-  if (pages.length + apps.length + images.length + shared.length + unshared.length === 0) {
+  if (pages.length + apps.length + images.length + mediaFiles.length + shared.length + unshared.length === 0) {
     return (
       <div data-panel-tabpanel="library">
         <p data-panel-empty="library" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
@@ -139,10 +143,15 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
           ))}
         </Card>
       )}
-      {(selected === "all" || selected === "images") && images.length > 0 && (
+      {(selected === "all" || selected === "images") && images.length + mediaFiles.length > 0 && (
         <Card label={t("activity.tool.generatedMedia")} anchor="images">
           {images.map((image) => (
             <NavRow key={image.path} data-panel-row="image" icon={Image} title={<span className="block truncate">{image.title}</span>} onClick={() => showInChat(image.messageId)} />
+          ))}
+          {mediaFiles.map((reference) => (
+            <div key={`${reference.message.messageId}:${reference.file.path}`} data-panel-row="media-file" className="px-2 py-1">
+              <AttachedFileChip file={reference.file} message={reference.message} linked={reference.file.linked} className="w-full max-w-none" />
+            </div>
           ))}
         </Card>
       )}

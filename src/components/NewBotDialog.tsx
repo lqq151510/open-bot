@@ -32,6 +32,11 @@ import { LocalComputerAutoWarning } from "./LocalComputerAutoWarning";
 import { SharePresetDialog } from "./SharePresetDialog";
 import { SettingRow } from "./SettingsPrimitives";
 import { Select } from "./Select";
+import { BotAvatar, MausAvatar } from "./Avatar";
+import { MAUS_COLOR_LABEL, MAUS_COLOR_NAMES, colorSwatch } from "@/lib/mascot";
+import { bodyName, colorName } from "@/lib/mascot-names";
+import { MASCOT_BODY_IDS } from "../../shared/mascot-bodies";
+import { BOT_PROFILE_LIMITS } from "../../shared/bot-profile";
 
 const SECTIONS = ["Identity", "Soul", "Skills", "Memory", "Routines", "Access", "Model", "Permissions", "Voice & alerts"] as const;
 type Section = typeof SECTIONS[number];
@@ -66,7 +71,11 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
   const [chosenOwner, setChosenOwner] = useState<string | null>(null);
   const ownerOrAdmin = useOwnerOrAdmin();
   const showThreads = useShowThreads();
-  const sections = useAdvancedMode() ? SECTIONS : SECTIONS.filter((section) => section !== "Model");
+  const advanced = useAdvancedMode();
+  const sections = advanced ? SECTIONS : SECTIONS.filter((section) => section !== "Model");
+  const [showFullEditor, setShowFullEditor] = useState(false);
+  const quick = !advanced && !defaultsMode && !readyBotId && !showFullEditor;
+  const startsQuick = useRef(quick);
   const choosesVisibility = !defaultsMode && typeof window !== "undefined" && !window.ogb && ownerOrAdmin === true;
   const dialog = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -77,6 +86,7 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
       .then(result => {
         if (cancelled) return;
         const defaults = startingTemplate(result, !defaultsMode);
+        if (startsQuick.current) defaults.profile.name = "";
         const ready = defaultsMode || !readyBotId ? undefined : readyBot(readyBotId);
         const next = new BotCreationDraft(ready ? readyBotTemplate(defaults, ready) : defaults, () => render(value => value + 1));
         if (ready) next.role = ready.id;
@@ -156,7 +166,7 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
   const title = defaultsMode ? t("newBot.defaults") : t("sidebar.newBot");
   return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-5" hidden={!defaultsMode && parent.state.appSettingsOpen}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={title} aria-busy={saving} tabIndex={-1}
-      className="flex h-[min(760px,94dvh)] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl border border-hairline/50 bg-panel shadow-2xl outline-none">
+      className={cn("flex w-full flex-col overflow-hidden rounded-2xl border border-hairline/50 bg-panel shadow-2xl outline-none", quick ? "h-[min(580px,94dvh)] max-w-[440px]" : "h-[min(760px,94dvh)] max-w-[900px]")}>
       <div className="flex shrink-0 items-center justify-between border-b border-hairline/40 px-5 py-4">
         <h2 className="text-[17px] font-semibold text-ink">{title}</h2>
         <button type="button" onClick={() => closeRef.current()} aria-label={t("common.close")}
@@ -189,8 +199,13 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
             )}
           </div>
         )}
-      <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+      {quick ? <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        {ready ? <fieldset disabled={saving}><QuickBotIdentity draft={draft} /></fieldset>
+          : !error && <div role="status" className="text-[13px] text-ink-secondary">{t("newBot.loading")}</div>}
+        <div className="mt-4 text-center"><button type="button" onClick={() => setShowFullEditor(true)} className="rounded-lg px-3 py-2 text-[13px] text-ink-secondary hover:bg-control hover:text-ink">{t("botPanel.page.settings")}</button></div>
+      </div> : <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav aria-label={t("newBot.sections")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-hairline/40 p-2 sm:w-40 sm:flex-col sm:border-b-0 sm:border-r">
+          {!advanced && !defaultsMode && !readyBotId && <button type="button" onClick={() => setShowFullEditor(false)} className="shrink-0 rounded-lg px-3 py-2 text-left text-[13px] text-ink-secondary hover:bg-control/50">{t("rail.back")}</button>}
           {sections.map(label => <button key={label} type="button" onClick={() => setActive(label)} aria-current={active === label ? "page" : undefined}
             className={cn("shrink-0 rounded-lg px-3 py-2 text-left text-[13px]", active === label ? "bg-control text-ink" : "text-ink-secondary hover:bg-control/50")}>{t(SECTION_KEYS[label])}</button>)}
         </nav>
@@ -203,7 +218,7 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
             </BotEditorContext.Provider></BotEditorStore>
           </fieldset>}
         </div>
-      </div>
+      </div>}
       {error && <p role="alert" className="max-h-24 overflow-y-auto border-t border-hairline/40 px-5 py-3 text-[13px] text-danger">{error}</p>}
       <div className="flex shrink-0 justify-end gap-2 border-t border-hairline/40 px-5 py-3">
         <button type="button" onClick={() => closeRef.current()} className="rounded-lg px-4 py-2 text-[13px] text-ink-secondary hover:bg-control">{t("common.cancel")}</button>
@@ -213,6 +228,30 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
         </button>
       </div>
       <LocalComputerAutoWarning open={warning === "local"} onCancel={() => setWarning(null)} onConfirm={() => { draft.consent.acknowledgeLocalAuto = true; setWarning(null); void save(); }} />
+    </div>
+  </div>;
+}
+
+function QuickBotIdentity({ draft }: { draft: BotCreationDraft }) {
+  const bot = draft.bot;
+  return <div data-quick-bot-identity className="mx-auto flex max-w-[480px] flex-col items-center">
+    <BotAvatar bot={bot} size={96} animated={false} />
+    <label htmlFor={`bot-name-${bot.id}`} className="sr-only">{t("botSettings.identity.name")}</label>
+    <input id={`bot-name-${bot.id}`} value={bot.name} maxLength={BOT_PROFILE_LIMITS.name} onChange={event => draft.patch({ name: event.target.value })}
+      placeholder={t("botSettings.identity.name")} className={cn(inputCls, "mt-4 text-center")} />
+    <div role="group" aria-label={t("botIdentity.body")} className="mt-6 grid grid-cols-5 gap-2">
+      {MASCOT_BODY_IDS.map(id => <button key={id} type="button" aria-pressed={(bot.mascotBody ?? "cursor") === id && (bot.avatarCrop ?? "mascot") === "mascot"}
+        aria-label={t("mascot.useBody", { name: bodyName(id) })} onClick={() => draft.patch({ mascotBody: id, avatarCrop: "mascot" })}
+        className="flex size-14 items-center justify-center rounded-xl hover:bg-control focus-visible:outline-2 focus-visible:outline-focus aria-pressed:ring-2 aria-pressed:ring-accent-border">
+        <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={id} size={42} animated={false} trackPointer={false} />
+      </button>)}
+    </div>
+    <div role="group" aria-label={t("botIdentity.color")} className="mt-6 flex max-w-[240px] flex-wrap justify-center gap-2">
+      {MAUS_COLOR_NAMES.map(color => <button key={color} type="button" aria-pressed={bot.color === color} title={t(MAUS_COLOR_LABEL[color])}
+        aria-label={t("mascot.useColor", { color: colorName(color) })} onClick={() => draft.patch({ color, avatarCrop: "mascot" })}
+        className="flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-focus aria-pressed:ring-2 aria-pressed:ring-accent-border">
+        <span aria-hidden="true" className="size-6 rounded-full" style={{ background: colorSwatch(color) }} />
+      </button>)}
     </div>
   </div>;
 }

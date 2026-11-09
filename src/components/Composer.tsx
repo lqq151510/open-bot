@@ -40,6 +40,7 @@ import { takePointedChips } from "@/lib/pointed-chips";
 import { splitTranscriptCitations, type CitationAttachment } from "@/lib/citations";
 import { PlaceChip } from "./PlaceChip";
 import { HelperPresencePills, useActiveHelpers } from "./HelperPresencePills";
+import { useAgentSwarm } from "@/lib/agent-swarm";
 import { ApprovalModeSelector } from "./ApprovalModeSelector";
 import { approvalModeFor } from "../../shared/approval-mode";
 import { useOnCall } from "@/lib/call";
@@ -159,6 +160,11 @@ export function Composer({
   const threadMessages = group ? group.messages : bot ? visibleMessages(bot) : [];
   const approvals = pendingApprovals(threadMessages);
   const activeHelpers = useActiveHelpers({
+    currentBot: bot,
+    allBots: state.bots,
+    messages: threadMessages,
+  });
+  const swarmState = useAgentSwarm({
     currentBot: bot,
     allBots: state.bots,
     messages: threadMessages,
@@ -744,7 +750,7 @@ export function Composer({
           onPick={pickCommand} onHighlight={setHighlight} />
         <MentionMenu listRef={mentionListRef} motion={mentionMotion} choices={candidates} highlight={highlight}
           everyoneCount={mentionEveryoneCount} onPick={pickMention} onHighlight={setHighlight} />
-        <HelperPresencePills helpers={activeHelpers} />
+        <HelperPresencePills helpers={activeHelpers} swarm={swarmState} />
         {approval && (
           <div className={cn("mb-2 overflow-hidden rounded-[24px]", ELEVATED_CARD)}>
             <PendingApprovalPanel

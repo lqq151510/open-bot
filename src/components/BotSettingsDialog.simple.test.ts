@@ -602,6 +602,13 @@ describe("the avatar editor", () => {
 
 
 describe("the Details tab", () => {
+  it("opens the bot's computer from its details", () => {
+    const rendered = botTab(makeBot());
+    click(find(rendered, "data-panel-action", "open-computer"));
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleSettings", open: false });
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleComputer", open: true });
+  });
+
   it("holds the model, the conversations, routines and this conversation's rows, in that order, with no switch or Thinking row", () => {
     const rendered = botTab(makeBot());
     expect(ofType(rendered, ModelPicker)!.props).toMatchObject({ bot: expect.objectContaining({ id: "scout" }), threadId: "thread-scout", contained: true });
@@ -641,6 +648,18 @@ describe("the Details tab", () => {
     expect(onOpen).toHaveBeenLastCalledWith("routines");
     fixture.derived.botRoutines = [routine({ enabled: false })];
     expect(rowValue(botTab(makeBot()), "routines")).toBe("None");
+  });
+
+  it("shows routine status and dispatches the existing schedule toggle", () => {
+    fixture.derived.botRoutines = [routine({ enabled: false }), routine({ id: "finished", name: "Finished", schedule: { type: "once", at: 1 }, nextRunAt: null })];
+    const rendered = botTab(makeBot());
+    expect(rendered.html).toContain("Morning brief");
+    expect(rendered.html).toContain("Paused");
+    const toggle = rendered.nodes.find((node) => node.type === Switch && node.props["aria-label"] === "Run Morning brief on its schedule");
+    expect(toggle).toBeDefined();
+    click(toggle!);
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "updateRoutine", routineId: "r1", patch: { enabled: true } });
+    expect(rendered.nodes.some((node) => node.type === Switch && node.props["aria-label"] === "Run Finished on its schedule")).toBe(false);
   });
 
   it("lists Find and Activity for this conversation as rows that run them, leaving Copy and Download to Share", () => {
@@ -798,6 +817,26 @@ describe("the Bot settings page", () => {
 });
 
 describe("the Library tab", () => {
+  it("separates shared audio and video from ordinary files without losing their message grants", () => {
+    const bot = makeBot({ messages: [{ id: "reply", role: "bot", kind: "text", at: 1, attachments: [
+      { kind: "file", path: "/api/attachments/demo.mp4", mime: "video/mp4", name: "demo.mp4" },
+      { kind: "file", path: "/api/attachments/music.mp3", mime: "audio/mpeg", name: "music.mp3" },
+      { kind: "file", path: "/api/attachments/report.pdf", mime: "application/pdf", name: "report.pdf" },
+    ] }] });
+    const items = libraryItems(bot);
+    expect(items.mediaFiles.map((item) => item.file.name)).toEqual(["demo.mp4", "music.mp3"]);
+    expect(items.mediaFiles.every((item) => item.message.messageId === "reply" && item.message.threadId === bot.threadId)).toBe(true);
+    expect(items.shared.map((item) => item.file.name)).toEqual(["report.pdf"]);
+    const rendered = library(bot);
+    const filter = rendered.nodes.find((node) => node.type === "button" && node.props.children === "Generated media");
+    expect(filter).toBeDefined();
+    click(filter!);
+    const filtered = library(bot);
+    expect(filtered.html).toContain("demo.mp4");
+    expect(filtered.html).toContain("music.mp3");
+    expect(filtered.html).not.toContain("report.pdf");
+  });
+
   it("lists bot images from the visible conversation and opens their latest message", () => {
     const image = { kind: "image" as const, path: "/api/attachments/chart.png", mime: "image/png", name: "chart.png" };
     const bot = makeBot({ messages: [

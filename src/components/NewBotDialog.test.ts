@@ -74,6 +74,25 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); setTeamChats(null); });
 
 describe("bot draft dialog", () => {
+  it("offers name, body and color choices in the simple creation view", () => {
+    fixture.ready = true;
+    fixture.advanced = false;
+    const rendered = render();
+    expect(rendered.html).toContain('data-quick-bot-identity');
+    const quick = rendered.nodes.find(named("QuickBotIdentity"))!;
+    const draft = (quick.props as unknown as { draft: BotCreationDraft }).draft;
+    const options = output(quick);
+    const body = options.find(node => node.props["aria-label"] === "Use the Star body");
+    expect(body).toBeDefined();
+    body!.props.onClick!();
+    expect(draft.bot.mascotBody).toBe("star");
+    expect(draft.bot.avatarCrop).toBe("mascot");
+    const color = options.find(node => node.props["aria-label"] === "Use blue mascot color");
+    expect(color).toBeDefined();
+    color!.props.onClick!();
+    expect(draft.bot.color).toBe("blue");
+  });
+
   it("preserves upstream audience selection for browser admins before creation", () => {
     fixture.admin = true;
     vi.stubGlobal("window", {});
@@ -127,7 +146,7 @@ describe("bot draft dialog", () => {
     fixture.advanced = false;
     const simple = render().html;
     expect(simple, "Simple mode picks no model: new bots use the default").not.toContain(">Model<");
-    expect(simple).toContain(">Permissions<");
+    expect(simple).toContain(">Bot settings<");
     fixture.effects[0]();
     expect(fixture.api).toHaveBeenCalledExactlyOnceWith("/api/bot-defaults");
     expect(fixture.dispatch).not.toHaveBeenCalled();

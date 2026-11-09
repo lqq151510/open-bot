@@ -920,10 +920,11 @@ export const BotListItem = memo(function BotListItem(props: BotRowProps) {
   );
 });
 
-export function Sidebar({ open, onClose, collapseToIcons = false }: {
+export function Sidebar({ open, onClose, collapseToIcons = false, onNewBot }: {
   open: boolean;
   onClose: () => void;
   collapseToIcons?: boolean;
+  onNewBot?: () => void;
 }) {
   const { state, dispatch } = useStore();
   const now = useRelativeNow();
@@ -1178,7 +1179,7 @@ export function Sidebar({ open, onClose, collapseToIcons = false }: {
             {t("sidebar.newChat.title")}
           </button>}
           {teamSettingsAllowed !== false && <button
-            onClick={() => { setPlusOpen(false); dispatch({ type: "newBot" }); }}
+            onClick={() => { setPlusOpen(false); if (onNewBot) onNewBot(); else dispatch({ type: "newBot" }); }}
             role="menuitem"
             className={plusItem}
           >
@@ -1623,7 +1624,7 @@ export function Sidebar({ open, onClose, collapseToIcons = false }: {
           anchor={sidebarRef.current}
           style={windowNoDragStyle}
           onClose={() => setNewChatOpen(false)}
-          onNewBot={teamSettingsAllowed === false ? undefined : () => { setNewChatOpen(false); dispatch({ type: "newBot" }); }}
+          onNewBot={teamSettingsAllowed === false ? undefined : () => { setNewChatOpen(false); if (onNewBot) onNewBot(); else dispatch({ type: "newBot" }); }}
           onNewGroup={() => { setNewChatOpen(false); setNewRoom(true); }}
         />,
         document.body,

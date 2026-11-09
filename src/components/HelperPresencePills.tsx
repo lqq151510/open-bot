@@ -1,7 +1,10 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { BotAvatar } from "@/components/Avatar";
+import { AgentSwarmBoard } from "./AgentSwarmBoard";
+import type { SwarmState } from "@/lib/agent-swarm";
 import type { Bot, Message } from "@/state/store";
 
 export interface ActiveHelperBot {
@@ -108,65 +111,97 @@ export function useActiveHelpers({
   }, [currentBot, allBots, messages]);
 }
 
+export interface HelperPresencePillsProps {
+  helpers: readonly ActiveHelperBot[];
+  swarm?: SwarmState;
+  className?: string;
+}
+
 export const HelperPresencePills = memo(function HelperPresencePills({
   helpers,
+  swarm,
   className,
-}: {
-  helpers: readonly ActiveHelperBot[];
-  className?: string;
-}) {
-  if (!helpers || helpers.length === 0) return null;
+}: HelperPresencePillsProps) {
+  const [showSwarmBoard, setShowSwarmBoard] = useState(false);
+
+  const hasHelpers = helpers && helpers.length > 0;
+  const hasSwarm = Boolean(swarm?.active && swarm.agents.length > 1);
+
+  if (!hasHelpers && !hasSwarm) return null;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={cn(
-        "flex flex-wrap items-center gap-2 mb-2 px-1 py-0.5 pointer-events-auto transition-all duration-300 ease-out",
-        className,
-      )}
-      data-testid="helper-presence-pills"
-    >
-      {helpers.map((helper) => {
-        const icon = helper.icon || deriveHelperIcon(helper.name, helper.statusText);
-        return (
-          <div
-            key={helper.id}
-            onClick={helper.onClick}
-            className={cn(
-              "group inline-flex items-center gap-2 rounded-full px-3 py-1.5",
-              "bg-panel/85 backdrop-blur-md border border-hairline/60 shadow-sm hover:shadow-md",
-              "text-[12px] text-ink transition-all duration-300 ease-out select-none",
-              helper.onClick && "cursor-pointer hover:border-accent/40",
-            )}
+    <div className={cn("w-full mb-2 pointer-events-auto", className)} data-testid="helper-presence-container">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-wrap items-center gap-2 px-1 py-0.5 transition-all duration-300 ease-out"
+        data-testid="helper-presence-pills"
+      >
+        {helpers.map((helper) => {
+          const icon = helper.icon || deriveHelperIcon(helper.name, helper.statusText);
+          return (
+            <div
+              key={helper.id}
+              onClick={() => {
+                if (hasSwarm) setShowSwarmBoard(true);
+                helper.onClick?.();
+              }}
+              className={cn(
+                "group inline-flex items-center gap-2 rounded-full px-3 py-1.5",
+                "bg-panel/85 backdrop-blur-md border border-hairline/60 shadow-sm hover:shadow-md",
+                "text-[12px] text-ink transition-all duration-300 ease-out select-none",
+                (helper.onClick || hasSwarm) && "cursor-pointer hover:border-accent/40",
+              )}
+            >
+              <span className="relative flex size-2 shrink-0" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent/60 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-accent" />
+              </span>
+
+              {helper.bot ? (
+                <span className="shrink-0 size-4 flex items-center justify-center">
+                  <BotAvatar bot={helper.bot} size={16} motion="none" animated={false} />
+                </span>
+              ) : (
+                <span className="text-[13px] leading-none shrink-0" aria-hidden="true">
+                  {icon}
+                </span>
+              )}
+
+              <span className="font-semibold tracking-tight text-ink min-w-0 truncate max-w-[120px]">
+                {helper.name}
+              </span>
+
+              <span className="text-ink-tertiary">·</span>
+
+              <span className="relative overflow-hidden font-medium text-ink-secondary/90 min-w-0 truncate max-w-[200px]">
+                {helper.statusText}
+              </span>
+            </div>
+          );
+        })}
+
+        {hasSwarm && (
+          <button
+            type="button"
+            onClick={() => setShowSwarmBoard(!showSwarmBoard)}
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium bg-raised/80 hover:bg-raised border border-hairline/60 hover:border-accent/40 text-ink-secondary hover:text-ink cursor-pointer transition-colors shadow-xs"
+            data-testid="toggle-swarm-board-btn"
           >
-            <span className="relative flex size-2 shrink-0" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent/60 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-accent" />
-            </span>
-
-            {helper.bot ? (
-              <span className="shrink-0 size-4 flex items-center justify-center">
-                <BotAvatar bot={helper.bot} size={16} motion="none" animated={false} />
-              </span>
-            ) : (
-              <span className="text-[13px] leading-none shrink-0" aria-hidden="true">
-                {icon}
+            <Sparkles size={11} className="text-accent" />
+            <span>{showSwarmBoard ? "收起看板" : "协同看板"}</span>
+            {swarm && (
+              <span className="rounded-full bg-accent/15 px-1.5 py-0.2 text-[10px] font-bold text-accent">
+                {swarm.progress.percentage}%
               </span>
             )}
+          </button>
+        )}
+      </div>
 
-            <span className="font-semibold tracking-tight text-ink min-w-0 truncate max-w-[120px]">
-              {helper.name}
-            </span>
-
-            <span className="text-ink-tertiary">·</span>
-
-            <span className="relative overflow-hidden font-medium text-ink-secondary/90 min-w-0 truncate max-w-[200px]">
-              {helper.statusText}
-            </span>
-          </div>
-        );
-      })}
+      {hasSwarm && showSwarmBoard && swarm && (
+        <AgentSwarmBoard swarm={swarm} defaultExpanded={true} />
+      )}
     </div>
   );
 });

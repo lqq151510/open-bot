@@ -31,6 +31,7 @@ import { appCategoryLabel, CATEGORY_SECTION_SIZE, catalogSections, connectorDesc
 import { McpServersPanel } from "./McpServersPanel";
 import { McpAppSummary } from "./McpAppSummary";
 import { LocalAppDirectory } from "./LocalAppDirectory";
+import { LOCAL_APP_DIRECTORY } from "@/lib/local-app-directory";
 import { HOSTED_MCP_APPS, type HostedApp, type HostedConnections } from "@/lib/hosted-mcp-apps";
 import { EmailCard } from "./EmailCard";
 import { PostizCard } from "./PostizCard";
@@ -430,6 +431,10 @@ export function PluginsPanel() {
   };
 
   const ranked = rankCategories([...(cards ?? []), POSTIZ_CATALOG_CARD], undefined, POSTIZ_CATALOG_CARD.categories);
+  const catalogCategories = new Set([...ranked.inline, ...ranked.more]);
+  for (const group of LOCAL_APP_DIRECTORY) {
+    if (!catalogCategories.has(group.category)) ranked.more.push(group.category);
+  }
   const moreCategories = ranked.more;
   const categoryInMore = category !== null && moreCategories.includes(category);
   const inCategoryView = filter === "all" && category !== null;
@@ -594,7 +599,7 @@ export function PluginsPanel() {
             </div>
           )}
           {filter === "all" && category === null && <McpAppSummary search={search} onManage={() => chooseFilter("mcp")} />}
-          {filter === "all" && <LocalAppDirectory search={search} externalCategory={category} onManage={() => chooseFilter("mcp")} />}
+          {filter === "all" && <LocalAppDirectory search={search} externalCategory={category} onCategoryChange={pickCategory} onManage={() => chooseFilter("mcp")} />}
           {setupNotice && filter !== "mcp" && (
             <div
               className={cn(
