@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, ChevronRight, Slack } from "lucide-react";
+import { Calendar, ChevronRight, Clock, Slack } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -76,7 +76,7 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
             .slice(0, 3)
             .map((routine) => (
               <div key={routine.id} data-panel-routine={routine.id} className={cn(rowCls, "min-w-0")}>
-                <RowIcon icon={Calendar} />
+                <RowIcon icon={Clock} />
                 <button type="button" onClick={() => onOpen("routines")} className="min-w-0 flex-1 text-left hover:text-accent-text">
                   <span className="block truncate text-[14px] font-medium">{routine.name}</span>
                   <span className="block text-[12px] text-ink-secondary">{routineNextLabel(routine)}</span>
@@ -101,7 +101,7 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
             <RowIcon icon={Slack} />
             <RowText title={t("botPanel.suggestions.slack")} />
             <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </a> : <button type="button" data-panel-action="manage-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+          </a> : <button type="button" data-panel-action="suggest-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
             <RowIcon icon={Slack} />
             <RowText title={t("botPanel.suggestions.slack")} />
             <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />

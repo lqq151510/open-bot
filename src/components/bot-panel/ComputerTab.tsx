@@ -135,14 +135,14 @@ export function ComputerSummary({ bot }: { bot: Bot }) {
     <Card label={t("botPanel.tab.computer")} anchor="computer">
       <NavRow
         data-panel-action="open-computer"
-        icon={Monitor}
-        title={t("computer.screenOf", { name: bot.name })}
-        hint={bot.busy ? t("botPanel.screen.working") : t("botPanel.screen.resting")}
+        drill={false}
+        title={t("botPanel.computer.title")}
+        hint={bot.busy ? t("botPanel.computer.running") : t("botPanel.computer.idle")}
         value={screenSrc ? (
-          <img src={screenSrc} alt="" className="h-10 w-14 rounded-md object-cover" />
+          <img src={screenSrc} alt="" className="h-10 w-14 rounded-md object-cover ring-1 ring-black/10" />
         ) : (
-          <span className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-md bg-ink/[0.04]">
-            <BotAvatar bot={bot} size={27} state={bot.busy ? undefined : "sleeping"} animated={false} />
+          <span className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-md bg-ink/[0.08] ring-1 ring-black/5">
+            <BotAvatar bot={bot} size={24} state={bot.busy ? undefined : "sleeping"} animated={false} />
           </span>
         )}
         onClick={() => openComputer()}
