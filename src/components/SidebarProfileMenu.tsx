@@ -642,7 +642,7 @@ export function SidebarProfileMenu({ iconOnly = false, rail = false, circle = fa
         items={items}
         ariaLabel={name}
         onOpenChange={simple ? setMenuOpen : undefined}
-        triggerClassName={iconOnly || simple ? cn("shrink-0", circle || simple ? "rounded-full" : "rounded-xl") : "w-full"}
+        triggerClassName={simple ? cn(iconOnly ? "shrink-0" : "min-w-0 w-full", "rounded-full") : iconOnly ? cn("shrink-0", circle ? "rounded-full" : "rounded-xl") : "w-full"}
         triggerTitle={iconOnly || simple ? label : undefined}
         triggerLabel={label}
         triggerTour={account?.place.switchable ? "server-switcher" : undefined}
@@ -650,9 +650,10 @@ export function SidebarProfileMenu({ iconOnly = false, rail = false, circle = fa
           <span
             ref={triggerRef}
             data-sidebar-account=""
-            className={cn("relative flex size-9 items-center justify-center rounded-full ring-2 transition-shadow", open ? "ring-ink/15" : "ring-transparent hover:ring-ink/10")}
+            className={cn("relative flex min-w-0 items-center rounded-full transition-colors", iconOnly ? "size-9 justify-center" : "gap-2.5 py-1 pl-1 pr-2.5", open ? "bg-ink/[0.05]" : "hover:bg-ink/[0.04]")}
           >
-            <InitialsAvatar initials={initials} avatarUrl={profile?.avatarUrl} size={36} fallback={nameless} fontSize={14} className="ring-1 ring-inset ring-ink/[0.04]" />
+            <InitialsAvatar initials={initials} avatarUrl={profile?.avatarUrl} size={36} fallback={nameless} fontSize={14} className="shrink-0 ring-1 ring-inset ring-ink/[0.04]" />
+            {!iconOnly && <span className="min-w-0 truncate text-[14px] font-medium leading-5 text-ink">{name}</span>}
             {dot && <span aria-hidden data-account-dot={dot} className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-panel", DOT_COLOR[dot])} />}
           </span>
         ) : iconOnly ? (

@@ -1,6 +1,8 @@
+import { Grid2X2Plus } from "lucide-react";
 import { useRef } from "react";
 
 import { cn } from "@/lib/cn";
+import { t } from "@/lib/i18n";
 import type { SidebarDensity } from "@/lib/sidebar-preferences";
 import { useStore } from "@/state/store";
 
@@ -8,8 +10,8 @@ import { AccountMoveStatus, useAccountMoveLine } from "./AccountMove";
 import { CloudRoomCard } from "./CloudRoomCard";
 import { CloudUsageCard } from "./CloudUsageMeter";
 import { endCloudHowTo, useWorkspacePlace, type WorkspacePlace } from "./DesktopWorkspaceSwitcher";
-import { SidebarConnectApps } from "./SidebarConnectApps";
 import { SidebarBottomButtons, SidebarFooterNav } from "./SidebarFooterNav";
+import { SIMPLE_TOP_BUTTON } from "./SidebarSimpleTop";
 import { phoneSettingsAction, SidebarPhoneButton } from "./SidebarPhoneButton";
 import { SidebarProfileMenu, useSimpleAccount, type ArchivedBots } from "./SidebarProfileMenu";
 import { UpdateIndicator } from "./UpdateIndicator";
@@ -23,6 +25,26 @@ export function SidebarPlaceStatus({ place, className }: { place: WorkspacePlace
   if (place.error) return <p role="alert" className={cn("text-[12px] text-danger", className)}>{place.error}</p>;
   if (place.waking) return <p role="status" data-cloud-waking className={cn("text-[12px] text-ink-secondary", className)}>{place.waking}</p>;
   return null;
+}
+
+/** The round button that opens the app grid, beside the account at the foot of Simple's sidebar. */
+function SimpleAppsButton() {
+  const { state, dispatch } = useStore();
+  const label = t("sidebar.nav.apps");
+  return (
+    <button
+      type="button"
+      data-tour="nav-apps"
+      data-sidebar-nav="apps"
+      aria-pressed={state.pluginsOpen}
+      aria-label={label}
+      title={label}
+      onClick={() => dispatch({ type: "togglePlugins", open: true })}
+      className={cn(SIMPLE_TOP_BUTTON, state.pluginsOpen && "text-accent")}
+    >
+      <Grid2X2Plus size={18} strokeWidth={1.5} aria-hidden="true" />
+    </button>
+  );
 }
 
 function SimpleSidebarFooter({ owner, archived }: { owner: string | null; archived?: ArchivedBots }) {
@@ -40,9 +62,9 @@ function SimpleSidebarFooter({ owner, archived }: { owner: string | null; archiv
       <SidebarPlaceStatus place={place} className="mb-2 px-1" />
       <AccountMoveStatus kind={move.kind} place={move.place} retry={move.retry} onOpen={openAccount} className="ps-1" />
       <div className="flex items-center gap-2 not-first:mt-2">
-        <SidebarProfileMenu simple={account} />
-        <SidebarConnectApps />
+        <div className="min-w-0 flex-1"><SidebarProfileMenu simple={account} /></div>
         <UpdateIndicator className="size-9" />
+        <SimpleAppsButton />
       </div>
     </div>
   );
