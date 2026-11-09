@@ -96,8 +96,8 @@ export function BotPanel({ bot, derived, linkedSection, onClose, slackUrl }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
-      <div {...dragProps} className="flex h-[50px] shrink-0 items-start justify-end gap-2.5 px-[13px] pt-[13px]">
-        <ChatShareMenu bot={bot} className={roundButtonCls} />
+      <div {...dragProps} className="group flex h-[50px] shrink-0 items-start justify-end gap-2.5 px-[13px] pt-[13px]">
+        <ChatShareMenu bot={bot} className={cn(roundButtonCls, "opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 motion-reduce:transition-none")} />
         <button
           type="button"
           data-panel-gear
@@ -105,7 +105,7 @@ export function BotPanel({ bot, derived, linkedSection, onClose, slackUrl }: {
           title={t("botPanel.page.settings")}
           aria-current={page === "settings" ? "page" : undefined}
           onClick={() => go({ tab: "details", page: "settings" })}
-          className={roundButtonCls}
+          className={cn(roundButtonCls, "opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 motion-reduce:transition-none")}
         >
           <Settings size={16} className="pointer-events-none" />
         </button>
