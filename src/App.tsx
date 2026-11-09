@@ -31,6 +31,7 @@ import { UpdateBanner } from "@/components/UpdateBanner";
 import { AppNotices } from "@/components/AppNotices";
 import { BotLimitPopup } from "@/components/BotLimitPopup";
 import { stoppedAtBotLimit } from "@/lib/bot-limit";
+import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { CloudAsleepStrip } from "@/components/CloudAsleepStrip";
 import { LiveConnectionStrip } from "@/components/LiveConnectionStrip";
 import { CloudSendStrip } from "@/components/CloudSendStrip";
@@ -150,11 +151,12 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
   const bot = group || chiefStep ? undefined : (state.bots.find((b) => b.id === state.selectedId) ?? state.bots[0]);
   const notificationFeed = useNotificationFeed() && !remoteClient;
   const advanced = useAdvancedMode();
+  const canCreateBots = useOwnerOrAdmin();
   const requestNewBot = useCallback(() => {
-    if (state.botCreationPending || stoppedAtBotLimit(state)) return;
+    if (canCreateBots === false || state.botCreationPending || stoppedAtBotLimit(state)) return;
     if (advanced) dispatch({ type: "newBot" });
     else setNewBotOpen(true);
-  }, [advanced, dispatch, state.botCreationPending, state.bots, state.config]);
+  }, [advanced, canCreateBots, dispatch, state.botCreationPending, state.bots, state.config]);
   const roomPanelOpen = useRoomPanelShown({ group, state, simple: !advanced && !remoteClient });
   const sidePanelOpen = (Boolean(bot) && (state.settingsOpen || state.computerOpen || state.inspectorOpen || state.activityOpen)) || roomPanelOpen || (notificationFeed && state.notificationsOpen) || inboxShown;
   const collapseSidebar = sidePanelOpen && !sidebarAndPanelFit;
