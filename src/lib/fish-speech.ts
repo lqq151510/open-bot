@@ -2,6 +2,7 @@
 // the harness sends each clip to Fish Audio. It speaks the same five-method contract as window.ogb's speech bridge.
 import { api, ApiError } from "@/state/api";
 import { t } from "./i18n";
+import { withMicrophone } from "./microphone-preference";
 
 export type SpeechBridge = Required<
   Pick<NonNullable<Window["ogb"]>, "speechStart" | "speechStop" | "speechFinish" | "onSpeechTranscript" | "onSpeechEnd">
@@ -180,7 +181,7 @@ export const fishSpeech: SpeechBridge = {
     let mic: Mic;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: withMicrophone({ echoCancellation: true, noiseSuppression: true, autoGainControl: true }),
       });
       const context = new AudioContext({ sampleRate: SAMPLE_RATE });
       mic = { stream, context, source: context.createMediaStreamSource(stream), processor: context.createScriptProcessor(FRAME_SAMPLES, 1, 1) };

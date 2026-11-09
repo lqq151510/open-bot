@@ -6,6 +6,7 @@ import { openExternalLink } from "./app-links";
 import { endCall, startCall } from "./call";
 import { desktopCapabilitiesNow } from "./desktop";
 import { t } from "./i18n";
+import { withMicrophone } from "./microphone-preference";
 
 export type LiveMediaPhase = "idle" | "starting" | "live" | "ending" | "ended" | "failed";
 
@@ -192,7 +193,7 @@ export async function startLiveCall(target: { botId: string; threadId: string })
   set({ ...IDLE, phase: "starting", botId: target.botId, threadId: target.threadId });
   startCall(target.botId);
   try {
-    const stream = await deps.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const stream = await deps.getUserMedia({ audio: withMicrophone({ echoCancellation: true, noiseSuppression: true, autoGainControl: true }) });
     if (mine !== generation) return void stream.getTracks().forEach((track) => track.stop());
     microphone = stream;
     for (const track of stream.getAudioTracks()) track.enabled = !state.muted;

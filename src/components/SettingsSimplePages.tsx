@@ -37,6 +37,7 @@ import { useServerUpdateItem } from "./SidebarProfileMenu";
 import { AdvancedModeRow, BrowserProfilesRow, ColorUserBubblesRow, FollowUpRow, LanguageRow, ReplayTourRow, SendKeyRow, SpellCheckRow, UpdatesRow } from "./AppSettingsRows";
 import { ThemeRow } from "./ThemeRow";
 import { AccentRow } from "./AccentRow";
+import { MicrophoneRow } from "./MicrophoneRow";
 import { AdminOnly } from "./AdminOnly";
 
 export type SimpleDisclosureId = "ai-more" | "ai-keys" | "computer-elsewhere" | "billing-limits";
@@ -85,6 +86,7 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
       {has("general") && (
         <SettingsGroup label={t("settings.simple.group.system")}>
           <SettingsRows>
+            <MicrophoneRow />
             <OpenAtLoginRow simple />
             <DefaultBotSidebarRow simple />
             <TalkShortcutRow />
