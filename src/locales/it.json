@@ -3525,7 +3525,7 @@
   "botPanel.avatar.reset": "Reimposta",
   "botPanel.avatar.face": "Faccia",
   "botPanel.avatar.costume": "Vestito da {name} mentre l'aspetto Halloween è attivo",
-  "botPanel.avatar.drop": "Trascina qui un'immagine, oppure scegline una",
+  "botPanel.avatar.drop": "Trascina qui un'immagine",
   "botPanel.avatar.types": "PNG, JPEG, GIF o WebP · fino a 10 MB",
   "botPanel.avatar.shape": "Forma",
   "botPanel.avatar.circle": "Cerchio",

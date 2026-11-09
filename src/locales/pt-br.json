@@ -7270,7 +7270,7 @@
   "botPanel.avatar.halloween": "Halloween",
   "botPanel.avatar.more": "Mais opções de aparência",
   "botPanel.avatar.costume": "Fantasiado de {name} enquanto o tema de Halloween estiver ligado",
-  "botPanel.avatar.drop": "Solte uma imagem aqui ou escolha uma",
+  "botPanel.avatar.drop": "Solte uma imagem aqui",
   "botPanel.avatar.types": "PNG, JPEG, GIF ou WebP · até 10 MB",
   "botPanel.avatar.shape": "Formato",
   "botPanel.avatar.circle": "Círculo",

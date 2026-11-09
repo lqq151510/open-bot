@@ -3585,7 +3585,7 @@
   "botPanel.avatar.face": "Twarz",
   "botPanel.avatar.halloween": "Halloween",
   "botPanel.avatar.costume": "Przebranie: {name}, gdy włączona jest skórka Halloween",
-  "botPanel.avatar.drop": "Upuść obraz tutaj lub wybierz jeden",
+  "botPanel.avatar.drop": "Upuść obraz tutaj",
   "botPanel.avatar.types": "PNG, JPEG, GIF lub WebP · do 10 MB",
   "botPanel.avatar.shape": "Kształt",
   "botPanel.avatar.circle": "Koło",

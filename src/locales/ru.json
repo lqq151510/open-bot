@@ -3641,7 +3641,7 @@
   "botPanel.avatar.face": "Лицо",
   "botPanel.avatar.halloween": "Хэллоуин",
   "botPanel.avatar.costume": "Одет как {name}, пока включена тема Хэллоуина",
-  "botPanel.avatar.drop": "Перетащите картинку сюда или выберите её",
+  "botPanel.avatar.drop": "Перетащите изображение сюда",
   "botPanel.avatar.types": "PNG, JPEG, GIF или WebP · до 10 МБ",
   "botPanel.avatar.shape": "Форма",
   "botPanel.avatar.circle": "Круг",

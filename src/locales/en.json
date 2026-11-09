@@ -4226,6 +4226,7 @@
   "botPanel.avatar.more": "More looks",
   "botPanel.avatar.costume": "Dressed as the {name} while the Halloween skin is on",
   "botPanel.avatar.drop": "Drop or paste a picture, or choose one",
+  "botPanel.avatar.or": "or",
   "botPanel.avatar.types": "PNG, JPEG, GIF, or WebP · up to 10 MB",
   "botPanel.avatar.shape": "Shape",
   "botPanel.avatar.circle": "Circle",
