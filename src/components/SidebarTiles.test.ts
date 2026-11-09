@@ -57,15 +57,15 @@ describe("the sidebar tiles", () => {
     expect(html).not.toContain('width="72px"');
   });
 
-  it("gives the crown to the main tile only, and only when it is the Chief", () => {
+  it("gives the hero card the star badge, and pinned tiles none", () => {
     const tileHtml = (extra: Partial<Bot>, primary: boolean) => renderToStaticMarkup(createElement(SidebarBotTile, { ...props(bot(extra)), primary }));
     const main = tileHtml({ chiefOfStaff: true }, true);
-    expect(main).toContain('data-testid="chief-badge"');
+    expect(main).toContain('data-testid="main-badge"');
+    expect(main).not.toContain('data-testid="chief-badge"');
     expect(main).toContain('title="OpenBot · Chief of Staff"');
-    expect(tileHtml({ chiefOfStaff: true }, false)).not.toContain('data-testid="chief-badge"');
-    expect(tileHtml({}, true)).not.toContain('data-testid="chief-badge"');
     expect(tileHtml({ defaultBot: {} }, true)).toContain('data-testid="main-badge"');
-    expect(tileHtml({ defaultBot: {} }, false)).not.toContain('data-testid="main-badge"');
+    expect(tileHtml({}, true)).toContain('data-testid="main-badge"');
+    expect(tileHtml({ chiefOfStaff: true }, false)).not.toContain('data-testid="main-badge"');
   });
 
   it("fills the selected tile and marks it current, and shows working, waiting and unread as a dot on the avatar", () => {
@@ -127,7 +127,8 @@ describe("the tile grid", () => {
     expect(html.match(/\bh-\[92px\] w-\[78px\]/g) ?? []).toHaveLength(count);
     expect(html.match(/width="72px" height="72px"/g)).toHaveLength(1);
     expect(html.match(/width="56px" height="56px"/g) ?? []).toHaveLength(count);
-    expect(html.match(/data-testid="chief-badge"/g)).toHaveLength(1);
+    expect(html.match(/data-testid="main-badge"/g)).toHaveLength(1);
+    expect(html).not.toContain('data-testid="chief-badge"');
   });
 
   it("follows the saved pinned order after the main bot, which never moves", () => {
