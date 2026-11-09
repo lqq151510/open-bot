@@ -1,4 +1,4 @@
-import { Crown, Loader2, Phone } from "lucide-react";
+import { Crown, Loader2, Phone, Star } from "lucide-react";
 import { memo, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { cn } from "@/lib/cn";
@@ -75,7 +75,8 @@ export const SidebarBotTile = memo(function SidebarBotTile({ primary = false, dr
       onKeyDown={onKeyDown}
       onContextMenu={(event) => openBotContextMenu(onMenu, bot.id, event)}
       className={cn(
-        "flex h-[92px] w-[78px] shrink-0 cursor-pointer flex-col items-center rounded-[10px] bg-[var(--tile)] px-1 pt-2 transition-colors duration-150", SIMPLE_ROW_FOCUS,
+        "flex shrink-0 cursor-pointer flex-col items-center bg-[var(--tile)] transition-colors duration-150", SIMPLE_ROW_FOCUS,
+        primary ? "h-[92px] w-[94px] rounded-[14px] px-1 pt-1" : "h-[92px] w-[78px] rounded-[10px] px-1 pt-2",
         selected ? "[--tile:var(--color-raised)]" : "[--tile:var(--color-panel)] hover:[--tile:color-mix(in_srgb,var(--color-raised)_50%,var(--color-panel))]",
         pinnedCircleDragClass({ drag, dragging, drop }),
       )}
@@ -84,14 +85,19 @@ export const SidebarBotTile = memo(function SidebarBotTile({ primary = false, dr
         <BotAvatar
           bot={bot}
           state={stateForBot({ ...bot, messages: visible })}
-          size={56}
+          size={primary ? 72 : 56}
           motion={mascotMotion?.kind ?? "none"}
           motionKey={mascotMotion?.nonce ?? 0}
           animated={working || noticing || (mascotMotion?.kind ?? "none") !== "none"}
         />
         {primary && bot.chiefOfStaff && (
-          <span data-testid="chief-badge" className={cn("absolute -bottom-px -right-px flex size-4 items-center justify-center rounded-full bg-[#E8993A] text-white", RING)}>
-            <Crown size={10} strokeWidth={1.5} fill="currentColor" aria-hidden="true" />
+          <span data-testid="chief-badge" className={cn("absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-[#E8993A] text-white", RING)}>
+            <Crown size={12} strokeWidth={1.5} fill="currentColor" aria-hidden="true" />
+          </span>
+        )}
+        {primary && !bot.chiefOfStaff && bot.defaultBot && (
+          <span data-testid="main-badge" className={cn("absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-[#E8993A] text-white", RING)}>
+            <Star size={11} strokeWidth={1.5} fill="currentColor" aria-hidden="true" />
           </span>
         )}
         {onLiveCall ? (
@@ -111,7 +117,7 @@ export const SidebarBotTile = memo(function SidebarBotTile({ primary = false, dr
           </span>
         )}
       </span>
-      <span className="mt-1.5 flex w-full min-w-0 justify-center">
+      <span className={cn("flex w-full min-w-0 justify-center", primary ? "mt-0" : "mt-1.5")}>
         <RenameTitle
           value={bot.name}
           editRequest={renameRequest}
@@ -167,12 +173,12 @@ function useBesideCorner(corner: boolean, count: number) {
 
 export function SidebarTileGrid({ primary, pinned, row, corner = false }: { primary: Bot | null; pinned: Bot[]; row: (bot: Bot) => BotRowProps; corner?: boolean }) {
   const order = usePinnedCircleDrag(pinned);
-  const besideCorner = useBesideCorner(corner, (primary ? 1 : 0) + order.ranked.length);
+  const besideCorner = useBesideCorner(corner && !primary, order.ranked.length);
   if (!primary && order.ranked.length === 0) return null;
   return (
     <div ref={besideCorner.ref} data-sidebar-tiles="" data-beside-corner={besideCorner.beside ? "" : undefined}
       className="flex max-h-[40vh] flex-wrap justify-center gap-1 overflow-y-auto px-3 pb-4 pt-2.5" {...order.frameProps}>
-      {primary && <SidebarBotTile {...row(primary)} primary />}
+      {primary && <div className="flex basis-full justify-center"><SidebarBotTile {...row(primary)} primary /></div>}
       {order.ranked.map((bot) => <SidebarBotTile key={bot.id} {...row(bot)} {...order.dragProps(bot)} />)}
       <span role="status" className="sr-only">{order.moved}</span>
     </div>

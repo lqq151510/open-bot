@@ -128,14 +128,30 @@ export function partitionSidebarBots<T extends SidebarBot>(
   return { unsectionedChief, pinnedBots, sectionChiefs, sectionedBots, unsectionedBots };
 }
 
-export function withPrimaryTile<T extends SidebarBot>(parts: ReturnType<typeof partitionSidebarBots<T>>, defaultBotId: string | undefined) {
-  const primary = parts.unsectionedChief
+export function withPrimaryTile<T extends SidebarBot>(parts: ReturnType<typeof partitionSidebarBots<T>>, defaultBotId: string | undefined, openBotId?: string) {
+  const visible = [
+    ...(parts.unsectionedChief ? [parts.unsectionedChief] : []),
+    ...parts.pinnedBots,
+    ...parts.unsectionedBots,
+    ...parts.sectionChiefs,
+    ...parts.sectionedBots,
+  ];
+  const primary = (openBotId ? visible.find((bot) => bot.id === openBotId) : undefined)
+    ?? parts.unsectionedChief
     ?? parts.pinnedBots.find((bot) => bot.chiefOfStaff && !bot.section)
     ?? [...parts.pinnedBots, ...parts.unsectionedBots].find((bot) => bot.id === defaultBotId)
     ?? null;
   if (!primary) return { ...parts, primary };
   const others = (bots: T[]) => bots.filter((bot) => bot.id !== primary.id);
-  return { ...parts, primary, unsectionedChief: null, pinnedBots: others(parts.pinnedBots), unsectionedBots: others(parts.unsectionedBots) };
+  return {
+    ...parts,
+    primary,
+    unsectionedChief: parts.unsectionedChief && parts.unsectionedChief.id !== primary.id ? parts.unsectionedChief : null,
+    pinnedBots: others(parts.pinnedBots),
+    unsectionedBots: others(parts.unsectionedBots),
+    sectionChiefs: others(parts.sectionChiefs),
+    sectionedBots: others(parts.sectionedBots),
+  };
 }
 
 /** Bots that are working or waiting on the person move to the top of their own list (pinned, main, each department),

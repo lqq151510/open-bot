@@ -304,6 +304,14 @@ describe("the primary tile", () => {
     expect(tiled.sectionChiefs.map((candidate) => candidate.id)).toEqual(["lead"]);
     expect(withPrimaryTile(parts, undefined).primary).toBeNull();
   });
+
+  it("prefers the bot the person has open, even from a department", () => {
+    const parts = partitionSidebarBots([bot("chief", { chiefOfStaff: true }), bot("openbot"), bot("bea", { section: "Work" })]);
+    const tiled = withPrimaryTile(parts, "openbot", "bea");
+    expect(tiled.primary?.id).toBe("bea");
+    expect(tiled.sectionedBots).toEqual([]);
+    expect(tiled.unsectionedChief?.id).toBe("chief");
+  });
 });
 
 describe("active bots first", () => {

@@ -42,12 +42,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the sidebar tiles", () => {
-  it.each([true, false])("draws the main tile and a pinned tile the same: 78 by 92, radius 10, a 56px avatar over a one-line 13px medium name (main %s)", (primary) => {
-    const html = renderToStaticMarkup(createElement(SidebarBotTile, { ...props(bot({ chiefOfStaff: primary })), primary }));
-    expect(html).toMatch(new RegExp(`data-sidebar-tile="${primary ? "primary" : "pinned"}"[^>]*class="[^"]*\\bh-\\[92px\\] w-\\[78px\\][^"]*\\brounded-\\[10px\\]`));
-    expect(html).toContain('width="56px" height="56px"');
+  it("draws the open bot as the 94 by 92 hero card, a 72px avatar over its name inside", () => {
+    const html = renderToStaticMarkup(createElement(SidebarBotTile, { ...props(bot({ chiefOfStaff: true })), primary: true }));
+    expect(html).toMatch(/data-sidebar-tile="primary"[^>]*class="[^"]*\bh-\[92px\] w-\[94px\][^"]*\brounded-\[14px\]/);
+    expect(html).toContain('width="72px" height="72px"');
     expect(html).toMatch(/truncate text-center text-\[13px\] font-medium leading-4 text-ink"[^>]*>OpenBot</);
     expect(html).not.toContain("data-provider-mark");
+  });
+
+  it("keeps a pinned bot as the smaller 78 by 92 tile with its name below", () => {
+    const html = renderToStaticMarkup(createElement(SidebarBotTile, props(bot())));
+    expect(html).toMatch(/data-sidebar-tile="pinned"[^>]*class="[^"]*\bh-\[92px\] w-\[78px\][^"]*\brounded-\[10px\]/);
+    expect(html).toContain('width="56px" height="56px"');
+    expect(html).not.toContain('width="72px"');
   });
 
   it("gives the crown to the main tile only, and only when it is the Chief", () => {
@@ -57,6 +64,8 @@ describe("the sidebar tiles", () => {
     expect(main).toContain('title="OpenBot · Chief of Staff"');
     expect(tileHtml({ chiefOfStaff: true }, false)).not.toContain('data-testid="chief-badge"');
     expect(tileHtml({}, true)).not.toContain('data-testid="chief-badge"');
+    expect(tileHtml({ defaultBot: {} }, true)).toContain('data-testid="main-badge"');
+    expect(tileHtml({ defaultBot: {} }, false)).not.toContain('data-testid="main-badge"');
   });
 
   it("fills the selected tile and marks it current, and shows working, waiting and unread as a dot on the avatar", () => {
@@ -109,13 +118,15 @@ describe("the tile grid", () => {
 
   afterEach(() => setPinnedCircleOrder([]));
 
-  it.each([0, 1, 2, 3, 5])("puts the main bot first, then %i pinned bots, as same-size tiles in one centred, wrapping grid", (count) => {
+  it.each([0, 1, 2, 3, 5])("puts the main bot first as the hero card, then %i pinned bots in one centred, wrapping grid", (count) => {
     const html = grid(main, pins(count));
     const drag = count > 1 ? ":drag" : "";
     expect(tiles(html)).toEqual(["primary:openbot", ...pins(count).map((pin) => `pinned:${pin.id}${drag}`)]);
     expect(html).toMatch(/^<div data-sidebar-tiles="" class="flex max-h-\[40vh\] flex-wrap justify-center gap-1 overflow-y-auto /);
-    expect(html.match(/\bh-\[92px\] w-\[78px\]/g)).toHaveLength(count + 1);
-    expect(html.match(/width="56px" height="56px"/g)).toHaveLength(count + 1);
+    expect(html.match(/\bh-\[92px\] w-\[94px\]/g)).toHaveLength(1);
+    expect(html.match(/\bh-\[92px\] w-\[78px\]/g) ?? []).toHaveLength(count);
+    expect(html.match(/width="72px" height="72px"/g)).toHaveLength(1);
+    expect(html.match(/width="56px" height="56px"/g) ?? []).toHaveLength(count);
     expect(html.match(/data-testid="chief-badge"/g)).toHaveLength(1);
   });
 
@@ -130,9 +141,9 @@ describe("the tile grid", () => {
   });
 
   // A grid taller than its 40vh cap scrolls, and its 8px scrollbar takes from the room.
-  it.each([[280, 3], [360, 4]])("fits %ipx of sidebar to %i tiles across, with or without a scrollbar", (width, columns) => {
-    const html = grid(main, pins(5));
-    const tile = Number(/data-sidebar-tile="primary"[^>]*class="[^"]*\bw-\[(\d+)px\]/.exec(html)![1]);
+  it.each([[280, 3], [360, 4]])("fits %ipx of sidebar to %i pinned tiles across, with or without a scrollbar", (width, columns) => {
+    const html = grid(null, pins(5));
+    const tile = Number(/data-sidebar-tile="pinned"[^>]*class="[^"]*\bw-\[(\d+)px\]/.exec(html)![1]);
     const gridClass = /data-sidebar-tiles="" class="([^"]*)"/.exec(html)![1]!;
     const gap = 4 * Number(/\bgap-(\d+)\b/.exec(gridClass)![1]);
     const gutters = 2 * 4 * Number(/\bpx-(\d+)\b/.exec(gridClass)![1]);
