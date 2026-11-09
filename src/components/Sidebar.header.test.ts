@@ -352,7 +352,7 @@ describe("sidebar head and foot", () => {
 });
 
 describe("sidebar foot in Simple mode", () => {
-  it("puts the account avatar then the Connect apps pill in the foot, with Automations and Team map in the account menu", () => {
+  it("puts the account chip then the apps grid button in the foot, with Automations and Team map in the account menu", () => {
     fixture.advanced = false;
     const html = render();
     const foot = html.slice(html.indexOf('data-glass-bar="bottom"'));
@@ -362,8 +362,10 @@ describe("sidebar foot in Simple mode", () => {
     expect(html.match(/data-sidebar-nav="apps"/g)).toHaveLength(1);
     expect(foot.indexOf("data-sidebar-account")).toBeGreaterThan(-1);
     expect(foot.indexOf("data-sidebar-account")).toBeLessThan(foot.indexOf('data-sidebar-nav="apps"'));
-    expect(foot).toMatch(/data-tour="nav-apps" data-sidebar-nav="apps"[^>]*>(<[^>]*>)*Connect apps</);
-    expect(foot.match(/data-app-face="/g)).toHaveLength(3);
+    expect(foot).toContain('data-tour="nav-apps" data-sidebar-nav="apps"');
+    expect(foot).toContain('aria-label="Apps"');
+    expect(foot).not.toContain('data-app-face=');
+    expect(foot).not.toContain("Connect apps");
   });
 
   it("keeps one Automations row in the foot and no Routines row in Advanced mode, and still one Apps", () => {

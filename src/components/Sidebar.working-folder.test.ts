@@ -26,15 +26,17 @@ const bot: Bot = {
   notifications: true, messages: [], modelSelection: { instanceId: "test", model: "test" }, cwd: "/projects/default",
   tasks: [{ threadId: "current", title: "Current thread", createdAt: 1 }],
 };
+const scout: Bot = { ...bot, id: "scout", name: "Scout", threadId: "scout-thread", cwd: "/projects/scout",
+  tasks: [{ threadId: "scout-thread", title: "Scout thread", createdAt: 1 }] };
 const dispatch = vi.fn();
 let host: HTMLDivElement;
 let root: Root;
 const render = () => flushSync(() => root.render(createElement(BotEditorStore, {
-  value: { state: { ...initialState, connected: true, bots: [bot], selectedId: bot.id }, dispatch,
+  value: { state: { ...initialState, connected: true, bots: [bot, scout], selectedId: bot.id }, dispatch,
     flushBotPatches: async () => null, refreshInstances: async () => {}, refreshModels: async () => {} },
   children: createElement(Sidebar, { open: true, onClose: () => {} }),
 })));
-const openMenu = () => flushSync(() => document.querySelector<HTMLButtonElement>('button[aria-label="Actions for Pepper"]')!.click());
+const openMenu = (name = "Pepper") => flushSync(() => document.querySelector<HTMLButtonElement>(`button[aria-label="Actions for ${name}"]`)!.click());
 const menuItem = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find((button) => button.textContent === label);
 
 beforeEach(() => {
@@ -86,7 +88,7 @@ describe("working folder through the rendered sidebar", () => {
   it("keeps new-thread folder creation out of Simple mode", () => {
     access.advanced = false;
     render();
-    openMenu();
+    openMenu("Scout");
     expect(menuItem("New thread")).toBeDefined();
     expect(menuItem("New thread in a working folder…")).toBeUndefined();
   });
