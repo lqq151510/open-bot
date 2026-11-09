@@ -8208,6 +8208,7 @@
   "call.group.inTurn": "你會依序聽到每個回應。",
   "call.group.keysHint": "按住 {keys} 說話 · 說出成員名字以指定發言者 · 空白鍵打斷 · Esc 掛斷",
   "common.copy": "複製",
+  "common.copied": "已複製",
   "common.saving": "儲存中…",
   "chat.code.copied": "已拷貝到剪貼簿",
   "chat.code.copiedShort": "已拷貝！",
