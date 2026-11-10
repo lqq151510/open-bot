@@ -6431,6 +6431,8 @@
   "settings.simple.updates.seeRelease": "查看发布说明",
   "settings.simple.updates.reload": "重新加载",
   "settings.system.hardwareAcceleration": "使用硬件加速",
+  "settings.hardwareAcceleration.restart": "{app} 重新启动后生效。",
+  "settings.hardwareAcceleration.restartNow": "立即重新启动",
   "settings.computer.executeOnThis": "在这台电脑上执行",
   "settings.computer.executeOnThisSubtitle": "允许 Grok Bot 在你的电脑上打开文件并运行任务。自动审核仍会先检查所有操作。",
   "settings.computer.alwaysAllow": "始终允许",

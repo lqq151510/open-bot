@@ -31,6 +31,7 @@ import { SkinPicker } from "./SkinPicker";
 import { PlaceLookRows } from "./PlaceLookCard";
 import { ChromeRailRow } from "./ChromeRailToggle";
 import { WindowFrameRow } from "./WindowFrameRow";
+import { HardwareAccelerationRow } from "./HardwareAccelerationRow";
 import { ProfileSummaryRow } from "./ProfileSettings";
 import { ImportSettings } from "./ImportSettings";
 import { NotificationRows } from "./NotificationSettingsRows";
@@ -41,30 +42,6 @@ import { AccentRow } from "./AccentRow";
 import { MicrophoneRow } from "./MicrophoneRow";
 import { AdminOnly } from "./AdminOnly";
 import { LoginsSettings } from "./LoginsSettings";
-
-export function HardwareAccelerationRow() {
-  const [enabled, setEnabled] = useState(() => {
-    try {
-      return localStorage.getItem("openbot.hardwareAcceleration") !== "false";
-    } catch {
-      return true;
-    }
-  });
-  const toggle = () => {
-    setEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("openbot.hardwareAcceleration", String(next));
-      } catch {}
-      return next;
-    });
-  };
-  return (
-    <SettingRow title={t("settings.system.hardwareAcceleration")}>
-      <Switch checked={enabled} aria-label={t("settings.system.hardwareAcceleration")} onChange={toggle} />
-    </SettingRow>
-  );
-}
 
 export type SimpleDisclosureId = "ai-more" | "ai-keys" | "computer-elsewhere" | "billing-limits";
 

@@ -56,6 +56,7 @@ function parse(raw) {
     ...(isTalkKey(record.talkKey) ? { talkKey: record.talkKey } : {}),
     ...(typeof record.railHidden === "boolean" ? { railHidden: record.railHidden } : {}),
     ...(typeof record.windowFrame === "boolean" ? { windowFrame: record.windowFrame } : {}),
+    ...(typeof record.hardwareAcceleration === "boolean" ? { hardwareAcceleration: record.hardwareAcceleration } : {}),
     ...(Object.keys(quickAsks).length ? { quickAsks } : {}) };
 }
 
@@ -141,7 +142,19 @@ export function createDesktopPrefs({ read, write }) {
       const windowFrame = on !== false;
       if ((current().windowFrame !== false) !== windowFrame) save({ ...current(), windowFrame });
     },
+    /** The GPU process runs until the person turns it off; Electron fixes that before the app is ready, so a change
+     * lands on the next start. */
+    hardwareAcceleration: () => current().hardwareAcceleration !== false,
+    setHardwareAcceleration(on) {
+      const hardwareAcceleration = on !== false;
+      if ((current().hardwareAcceleration !== false) !== hardwareAcceleration) save({ ...current(), hardwareAcceleration });
+    },
   };
+}
+
+/** Main reads this before Electron is ready, where the GPU process is decided; a record it cannot read leaves it on. */
+export function savedHardwareAcceleration(file) {
+  return createDesktopPrefs(jsonFile(file)).hardwareAcceleration();
 }
 
 /**
@@ -154,7 +167,7 @@ export function createDesktopPrefs({ read, write }) {
  * `onLanguage(language)`: tells main, which draws its menus, tray and dialogs in it. `onShown(language, sender)`: the
  * language a page of the window shows, which main's words follow while nothing is picked. `prefs`: the record main reads too.
  */
-export function registerDesktopPrefs({ prefs: given, ipcMain, read, write, page, cloudOffered, cloudAccount, localConfig = () => null, languageChanged = () => {}, onLanguage = () => {}, onShown = () => {}, frame = null, now = Date.now, systemName = accountFullName }) {
+export function registerDesktopPrefs({ prefs: given, ipcMain, read, write, page, cloudOffered, cloudAccount, localConfig = () => null, languageChanged = () => {}, onLanguage = () => {}, onShown = () => {}, frame = null, acceleration = null, now = Date.now, systemName = accountFullName }) {
   let prefs = given ?? null;
   const store = () => prefs ??= createDesktopPrefs({ read, write });
   const from = (channel, pages, handler) => (event, ...args) => {
@@ -208,6 +221,18 @@ export function registerDesktopPrefs({ prefs: given, ipcMain, read, write, page,
     store().setWindowFrame(on === true);
     try { frame?.changed(); } catch {}
     return frameState();
+  }));
+  // Electron fixes the GPU process before the app is ready: every page reads the choice here and sets it for the next
+  // start, which the state says.
+  const accelerationState = () => ({
+    on: store().hardwareAcceleration(),
+    restart: Boolean(acceleration?.launched) && acceleration.launched() !== store().hardwareAcceleration(),
+    available: acceleration?.available?.() !== false,
+  });
+  ipcMain.handle("hardware-acceleration:state", from("hardware-acceleration:state", ANY, () => accelerationState()));
+  ipcMain.handle("hardware-acceleration:set", from("hardware-acceleration:set", ANY, (_, on) => {
+    store().setHardwareAcceleration(on === true);
+    return accelerationState();
   }));
   if (!cloudAccount) return null;
   const consent = createUpdatesConsent({ prefs: { installId: () => store().installId(), updatesConsent: () => store().updatesConsent(), setUpdatesConsent: value => store().setUpdatesConsent(value) },

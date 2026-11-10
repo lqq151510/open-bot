@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import vm from "node:vm";
-import { createDesktopPrefs, createDesktopText, DESKTOP_NOTICES, DESKTOP_PORTS, jsonFile, registerDesktopPrefs } from "./desktop-prefs.mjs";
+import { createDesktopPrefs, createDesktopText, DESKTOP_NOTICES, DESKTOP_PORTS, jsonFile, registerDesktopPrefs, savedHardwareAcceleration } from "./desktop-prefs.mjs";
 import { ONBOARDING_CLOUD_HINT, onboardingHints, WELCOME_VERSION } from "./onboarding-record.mjs";
 
 const require = createRequire(import.meta.url);
@@ -99,7 +99,7 @@ function desktopMain({ offered = true, page = event => event.page, config = () =
 
 test("every page of this desktop's window reads and records the same notices; nothing else is answered", async () => {
   const main = desktopMain();
-  assert.deepEqual(main.channels, ["desktop-notices:state", "desktop-notices:seen", "desktop-profile:system-name", "desktop-analytics:set", "desktop-language:set", "window-frame:state", "window-frame:set"]);
+  assert.deepEqual(main.channels, ["desktop-notices:state", "desktop-notices:seen", "desktop-profile:system-name", "desktop-analytics:set", "desktop-language:set", "window-frame:state", "window-frame:set", "hardware-acceleration:state", "hardware-acceleration:set"]);
   for (const page of ["local", "cloud", "server"]) assert.deepEqual(await main.ask("desktop-notices:state", page), { seen: [], cloud: true });
   await main.ask("desktop-notices:seen", "server", POPUP);
   assert.deepEqual(await main.ask("desktop-notices:state", "local"), { seen: [POPUP], cloud: true });
@@ -441,3 +441,43 @@ test("Settings reads and changes the window's frame on any page of the window; o
   asking = null;
   assert.throws(() => handlers.get("window-frame:set")({}, true), /only available in this app's window/);
 });
+test("hardware acceleration is on until the person turns it off, and main reads the record before the app is ready", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "desktop-prefs-gpu-"));
+  try {
+    const file = path.join(dir, "desktop-prefs.json");
+    assert.equal(savedHardwareAcceleration(file), true, "no file yet");
+    let saved = null, writes = 0;
+    const prefs = createDesktopPrefs({ read: () => saved, write: value => { saved = structuredClone(value); writes++; } });
+    assert.equal(prefs.hardwareAcceleration(), true);
+    prefs.setHardwareAcceleration(true);
+    assert.equal(writes, 0, "turning on what is already on writes nothing");
+    prefs.setHardwareAcceleration(false);
+    assert.equal(saved.hardwareAcceleration, false);
+    createDesktopPrefs(jsonFile(file)).setHardwareAcceleration(false);
+    assert.equal(savedHardwareAcceleration(file), false, "main reads the choice before Electron is ready");
+    prefs.setHardwareAcceleration("off");
+    assert.equal(createDesktopPrefs({ read: () => saved, write: () => {} }).hardwareAcceleration(), true, "only false turns it off");
+    assert.equal(createDesktopPrefs({ read: () => ({ hardwareAcceleration: "no" }), write: () => {} }).hardwareAcceleration(), true);
+    fs.writeFileSync(file, "not json");
+    assert.equal(savedHardwareAcceleration(file), true, "a record main cannot read leaves it on");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("Settings reads and changes hardware acceleration on any page of the window; the running app keeps its choice until the next start", async () => {
+  let saved = null, launched = true, available = true;
+  const prefs = createDesktopPrefs({ read: () => saved, write: value => { saved = structuredClone(value); } });
+  const handlers = new Map();
+  registerDesktopPrefs({ prefs, ipcMain: { handle: (c, h) => handlers.set(c, h), on: () => {} }, read: () => saved, write: value => { saved = structuredClone(value); },
+    page: event => event.page, cloudOffered: async () => false, acceleration: { launched: () => launched, available: () => available } });
+  const ask = (channel, page, ...args) => handlers.get(channel)({ page }, ...args);
+  assert.deepEqual(await ask("hardware-acceleration:state", "server"), { on: true, restart: false, available: true });
+  assert.deepEqual(await ask("hardware-acceleration:set", "server", false), { on: false, restart: true, available: true });
+  assert.equal(saved.hardwareAcceleration, false);
+  launched = false;
+  assert.deepEqual(await ask("hardware-acceleration:state", "local"), { on: false, restart: false, available: true }, "the running app already starts without it");
+  assert.deepEqual(await ask("hardware-acceleration:set", "cloud", true), { on: true, restart: true, available: true });
+  available = false;
+  assert.equal((await ask("hardware-acceleration:state", "local")).available, false);
+  assert.throws(() => ask("hardware-acceleration:set", null, false), /only available in this app's window/);
+});
+

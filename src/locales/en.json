@@ -6627,6 +6627,8 @@
   "settings.simple.updates.seeRelease": "See the release",
   "settings.simple.updates.reload": "Reload",
   "settings.system.hardwareAcceleration": "Use hardware acceleration",
+  "settings.hardwareAcceleration.restart": "Takes effect when {app} restarts.",
+  "settings.hardwareAcceleration.restartNow": "Restart now",
   "settings.computer.executeOnThis": "Execute on this computer",
   "settings.computer.executeOnThisSubtitle": "Allow Grok Bot to open files and run tasks on your computer. Auto review still checks every action first.",
   "settings.computer.alwaysAllow": "Always allow",

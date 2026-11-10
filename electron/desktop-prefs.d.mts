@@ -58,6 +58,9 @@ export interface DesktopPrefs {
   /** True until the person turns the window's frame off. */
   windowFrame(): boolean;
   setWindowFrame(on: boolean): void;
+  /** True until the person turns hardware acceleration off; Electron reads it before the app is ready. */
+  hardwareAcceleration(): boolean;
+  setHardwareAcceleration(on: boolean): void;
 }
 /** The window's frame, this desktop's choice, as Settings reads and changes it. */
 export interface WindowFrameState {
@@ -65,9 +68,19 @@ export interface WindowFrameState {
   /** The choice changes this window only when the app starts again (Windows). */
   restart: boolean;
 }
+/** Hardware acceleration, this desktop's choice, as Settings reads and changes it. */
+export interface HardwareAccelerationState {
+  on: boolean;
+  /** The app has to start again before the GPU process follows the choice. */
+  restart: boolean;
+  /** False where this desktop always decides (Linux without a usable GPU). */
+  available: boolean;
+}
 type Files = Pick<typeof import("node:fs"), "readFileSync" | "writeFileSync" | "renameSync" | "rmSync">;
 export declare function jsonFile(file: string, files?: Files): { read(): unknown; write(value: unknown): void };
 export declare function createDesktopPrefs(options: { read(): unknown; write(value: unknown): void }): DesktopPrefs;
+/** Main reads this before Electron is ready, where the GPU process is decided; a record it cannot read leaves it on. */
+export declare function savedHardwareAcceleration(file: string): boolean;
 export declare function createDesktopText(app: { getPath(name: "userData"): string; isReady(): boolean; getLocale(): string }, prefs?: DesktopPrefs): {
   prefs: DesktopPrefs;
   language(): string;
@@ -100,6 +113,9 @@ export declare function registerDesktopPrefs(options: {
   /** The window's frame: `made()`, the frame the window was made with (null before it is); `restarts`, a change waits for
    * the app to start again; `changed()`, the pages hear it. */
   frame?: { made(): boolean | null; restarts: boolean; changed(): void } | null;
+  /** Hardware acceleration: `launched()`, the choice the running app started with; `available()`, false where this
+   * desktop always decides. */
+  acceleration?: { launched(): boolean; available(): boolean } | null;
   /** The OpenBot Cloud sign-in client: with it, the product-updates question is asked and its answer kept here. */
   cloudAccount?(): import("./updates-consent.mjs").UpdatesConsentClient | null;
   now?: () => number;

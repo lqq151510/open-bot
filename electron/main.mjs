@@ -99,7 +99,7 @@ import { CHECKOUT_SOURCES, cloudMenuSublabel, cloudTarget, createCloudAccountCli
 import { installCloudPlanIpc } from "./cloud-plan-ipc.mjs";
 import { cloudLinkOpensSheet, colorDotIcons, createCloudLook, createCloudReadyNotice, installCloudBuy, lookFile } from "./cloud-buy.mjs";
 import { createTrialNotices } from "./cloud-trial-notice.mjs";
-import { createDesktopText, DESKTOP_PORTS, jsonFile, registerDesktopPrefs, relabelDesktop } from "./desktop-prefs.mjs";
+import { createDesktopText, DESKTOP_PORTS, jsonFile, registerDesktopPrefs, relabelDesktop, savedHardwareAcceleration } from "./desktop-prefs.mjs";
 import { createDesktopIncludedX } from "./included-x.mjs"; import { createDesktopIncludedPages } from "./included-pages.mjs";
 import { cloudPageSenderAllowed, cloudPlanDisk, cloudUnreachableText, createCloudPowerGate, isCloudHomeEntry, myCloudOrigin, rememberedCloudHome, savedCloudHomeOrigin, signInCloudSession, withCloudHome } from "./cloud-home.mjs";
 import { installCloudFiles } from "./cloud-sync-main.mjs";
@@ -177,9 +177,14 @@ function applyUnreadBadge(win = mainWindow) {
   if (process.platform === "darwin" || process.platform === "linux") app.setBadgeCount(count);
 }
 
+// Electron fixes its GPU process before the app is ready, so Settings' switch is read here; a change lands on the next
+// start. Linux without a usable GPU always runs without it.
+const launchedHardwareAcceleration = savedHardwareAcceleration(path.join(app.getPath("userData"), "desktop-prefs.json"))
+  && !(process.platform === "linux" && linuxDisablesGpu());
+if (!launchedHardwareAcceleration) app.disableHardwareAcceleration();
+
 // GNOME groups the window with its desktop entry only when both identities match; set before ready.
 if (process.platform === "linux") {
-  if (linuxDisablesGpu()) app.disableHardwareAcceleration();
   app.setDesktopName("com.openbot.app.desktop");
 }
 
@@ -2962,6 +2967,7 @@ app.whenReady().then(async () => {
   desktopPrefs = nativeText.prefs;
   updatesConsent = registerDesktopPrefs({ ipcMain, cloudAccount: () => cloudAccount, prefs: desktopPrefs, localConfig: jsonFile(path.join(desktopDataDir(), "config.json")).read, cloudOffered: () => cloudAccountRestored().then(cloudOffersReady),
     frame: { made: () => windowFrameMade, restarts: process.platform === "win32", changed: () => void broadcastDesktopCapabilities() },
+    acceleration: { launched: () => launchedHardwareAcceleration, available: () => !(process.platform === "linux" && linuxDisablesGpu()) },
     languageChanged: (language, sender) => {
       for (const win of appWindows()) if (!win.isDestroyed() && win.webContents !== sender) win.webContents.send("desktop-language:changed", language);
       chromeRail.send("desktop-language:changed", language);
