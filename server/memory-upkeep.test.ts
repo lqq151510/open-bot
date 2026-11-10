@@ -53,6 +53,7 @@ describe("capture parsing", () => {
     const prompt = capturePrompt({ botName: "Scout", turns: [{ person: "I'm vegetarian", bot: "Noted." }], notebook: "", today: TODAY });
     expect(prompt).toContain("Today is Friday, 2026-09-25");
     expect(prompt).toContain("Person: I'm vegetarian\nScout: Noted.");
+    expect(prompt).toContain("Never what was only visible on the computer screen");
     expect(prompt).toContain("(empty)");
   });
 
