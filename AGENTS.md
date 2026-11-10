@@ -25,3 +25,12 @@ name, a type, an extracted function, one shared helper. A rule ("never X",
 rule that guards correctness; fix the code.
 
 More specific `AGENTS.md` files override this note within their directories.
+
+## Learned User Preferences
+
+- Imitate Grok Bot by copying product behavior, and keep each engine on its own subscription (Claude, Codex, Grok CLI, xAI API, or a custom CLI). Do not bind memory injection or engine choice to one model.
+
+## Learned Workspace Facts
+
+- Per-bot memory is injected before the engine, not inside a driver. A name, a time zone the user states, and how every bot should speak go only in About me; the profile email is not injected. Passwords, card numbers, phone numbers, email addresses, keys, prices, balances, unread counts, limits, and screen observations (screenshots, window text, click coordinates) are not long-term memory. A confirmed outcome may be kept without the screen.
+- Grok Bot defaults: a bot with no computer of its own uses the one shared account computer; an approved skill applies to the whole account; memory and routines belong to exactly one bot.
