@@ -20,6 +20,7 @@ import type { TeamPeople } from "../team-people.ts";
 import { writeMemoryFile, writeMemoryTopic } from "../workspace.ts";
 import { refusalBody, userError } from "../user-errors.ts";
 import type { ServerErrorBody } from "../../shared/server-text.ts";
+import { usesSharedComputer } from "../../shared/product-defaults.ts";
 import { PASS, type RouteHandler } from "./table.ts";
 
 export type ModelSelectionCheck = { ok: true; selection: ModelSelection } | ({ ok: false; status: number } & ServerErrorBody);
@@ -206,7 +207,7 @@ export function createBotCreateRoutes(deps: BotCreateRouteDeps): RouteHandler {
           ...ordinary, name: bot.name, section, modelSelection: bot.modelSelection,
           mascotExpression: ordinary.mascotExpression ?? undefined,
           avatarUrl: ordinary.avatarUrl || undefined,
-          computer: ordinary.computer ?? undefined, cwd: checkedCwd.cwd ?? undefined,
+          computer: usesSharedComputer(ordinary.computer) ? undefined : ordinary.computer ?? undefined, cwd: checkedCwd.cwd ?? undefined,
           peers: ordinary.peers ?? undefined, mcpServers: ordinary.mcpServers ?? undefined,
           browserProfile: ordinary.browserProfile || undefined,
           voiceNoteEveryReply: ordinary.voiceNoteEveryReply ?? undefined,

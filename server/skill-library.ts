@@ -10,6 +10,7 @@ import { DATA_DIR, type AppConfig } from "./config.ts";
 import { githubSkillOriginSchema, skillFolderDigest, skillFolderRecordSchema, writeSkillFolder } from "./skill-folder.ts";
 import { entryExistsWithoutFollowing } from "./skill-storage.ts";
 import type { GitHubSkillOrigin } from "../shared/skill-import.ts";
+import { accountSkill } from "../shared/product-defaults.ts";
 import { isSkillName, parseSkillMd, SKILL_FILE_MAX_BYTES } from "../shared/skill-md.ts";
 import type { SkillPackageStamp } from "./skills.ts";
 
@@ -443,6 +444,8 @@ export function setLibrarySkillReviewState(
     return { error: "stored skill files changed after review — the library entry cannot be approved" };
   }
   entry.reviewState = reviewState;
+  if (accountSkill(reviewState)) entry.everyBot = true;
+  else delete entry.everyBot;
   writeSkillLibraryIndex(root, index);
   skillLibraryEvents.emit("invalidate", { kind: "review-state", name });
   return librarySkillListing(root, entry);

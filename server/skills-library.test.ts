@@ -224,6 +224,20 @@ describe("assignment resolution", () => {
     expect(skills.resolveBotSkills(bot, [])).toEqual(skills.listSkills(bot));
   });
 
+  it("approving a library skill puts it on every bot, and turning that review off takes it back", () => {
+    const name = `account-${Math.random().toString(36).slice(2, 10)}`;
+    library.installLibrarySkill({ name, instructions: SKILL(name), source: "lib", reviewState: "disabled" });
+    try {
+      expect(library.setLibrarySkillReviewState(name, "approved")).toMatchObject({ enabled: true, everyBot: true });
+      expect(skills.resolveBotSkills(bot, []).map((skill) => skill.name)).toContain(name);
+      expect(skills.resolveBotSkills(bot, undefined).map((skill) => skill.name)).not.toContain(name);
+      expect(library.setLibrarySkillReviewState(name, "disabled")).toMatchObject({ enabled: false, everyBot: false });
+      expect(skills.resolveBotSkills(bot, []).map((skill) => skill.name)).not.toContain(name);
+    } finally {
+      library.setLibrarySkillReviewState(name, "disabled");
+    }
+  });
+
   it("renders assigned library skills into the prompt index with the library path", () => {
     skills.installSkill(bot, "private:test", [{ path: "SKILL.md", content: SKILL("own-skill") }]);
     skills.setSkillEnabled(bot, "own-skill", true);
