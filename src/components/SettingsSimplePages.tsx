@@ -489,11 +489,11 @@ export function SimplePermissionsPage() {
 export function SimpleVaultPage() {
   const [tab, setTab] = useState<"all" | "logins" | "payments" | "contacts">("all");
   const [search, setSearch] = useState("");
+  const [loginCount, setLoginCount] = useState(0);
 
   const items = [
     {
       id: "email",
-      category: "contacts",
       iconType: "mail",
       title: "示例邮箱",
       subtitle: "hello@example.com",
@@ -501,7 +501,6 @@ export function SimpleVaultPage() {
     },
     {
       id: "redbook",
-      category: "contacts",
       iconType: "contact",
       title: "示例联系人",
       subtitle: "contact@example.com",
@@ -509,7 +508,6 @@ export function SimpleVaultPage() {
     },
     {
       id: "me",
-      category: "contacts",
       iconType: "user",
       title: "我的资料",
       subtitle: "个人账户",
@@ -517,47 +515,31 @@ export function SimpleVaultPage() {
     },
   ];
 
-  const filtered = items.filter((item) => {
-    if (tab === "logins" && item.category !== "logins") return false;
-    if (tab === "payments" && item.category !== "payments") return false;
-    if (tab === "contacts" && item.category !== "contacts") return false;
-    if (search && !item.title.toLowerCase().includes(search.toLowerCase()) && !item.subtitle.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const showContacts = tab === "all" || tab === "contacts";
+  const filtered = showContacts ? items.filter((item) => {
+    if (!search) return true;
+    const needle = search.toLowerCase();
+    return item.title.toLowerCase().includes(needle) || item.subtitle.toLowerCase().includes(needle);
+  }) : [];
+  const contactBox = tab === "payments" || (showContacts && (filtered.length > 0 || tab === "contacts"));
+  const tabClass = (id: typeof tab) => `rounded-full px-3 py-1 font-medium transition-colors ${tab === id ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`;
 
   return (
     <div data-settings-block="logins" className="flex scroll-mt-4 flex-col gap-4">
-      {/* 顶部标签分类与搜索行 */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 overflow-x-auto text-[13px]">
-            <button
-              type="button"
-              onClick={() => setTab("all")}
-              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "all" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
-            >
-              {t("settings.vault.tabAll")} 3
+            <button type="button" data-vault-tab="all" onClick={() => setTab("all")} className={tabClass("all")}>
+              {t("settings.vault.tabAll")} {items.length + loginCount}
             </button>
-            <button
-              type="button"
-              onClick={() => setTab("logins")}
-              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "logins" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
-            >
-              {t("settings.vault.tabLogins")} 0
+            <button type="button" data-vault-tab="logins" onClick={() => setTab("logins")} className={tabClass("logins")}>
+              {t("settings.vault.tabLogins")} {loginCount}
             </button>
-            <button
-              type="button"
-              onClick={() => setTab("payments")}
-              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "payments" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
-            >
+            <button type="button" data-vault-tab="payments" onClick={() => setTab("payments")} className={tabClass("payments")}>
               {t("settings.vault.tabPayments")} 0
             </button>
-            <button
-              type="button"
-              onClick={() => setTab("contacts")}
-              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "contacts" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
-            >
-              {t("settings.vault.tabContacts")} 3
+            <button type="button" data-vault-tab="contacts" onClick={() => setTab("contacts")} className={tabClass("contacts")}>
+              {t("settings.vault.tabContacts")} {items.length}
             </button>
           </div>
           <div className="relative flex items-center">
@@ -572,43 +554,41 @@ export function SimpleVaultPage() {
           </div>
         </div>
 
-        {/* 凭证列表卡片 */}
-        <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
-          {filtered.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/[0.02] transition-colors">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400">
-                {item.iconType === "mail" && <Mail size={18} />}
-                {item.iconType === "contact" && <UserCheck size={18} className="text-ink-secondary" />}
-                {item.iconType === "user" && <User size={18} className="text-ink-secondary" />}
+        {contactBox && (
+          <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
+            {filtered.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/[0.02] transition-colors">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400">
+                  {item.iconType === "mail" && <Mail size={18} />}
+                  {item.iconType === "contact" && <UserCheck size={18} className="text-ink-secondary" />}
+                  {item.iconType === "user" && <User size={18} className="text-ink-secondary" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[14px] font-medium text-ink">{item.title}</div>
+                  <div className="text-[13px] text-ink-secondary truncate">{item.subtitle}</div>
+                </div>
+                {item.action === "manage" ? (
+                  <button type="button" className="ui-button shrink-0 text-[13px]">
+                    管理
+                  </button>
+                ) : (
+                  <ChevronRight size={16} className="text-ink-secondary/60 shrink-0" />
+                )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-medium text-ink">{item.title}</div>
-                <div className="text-[13px] text-ink-secondary truncate">{item.subtitle}</div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="p-4 text-center text-[13px] text-ink-secondary">
+                没有匹配的项目
               </div>
-              {item.action === "manage" ? (
-                <button type="button" className="ui-button shrink-0 text-[13px]">
-                  管理
-                </button>
-              ) : (
-                <ChevronRight size={16} className="text-ink-secondary/60 shrink-0" />
-              )}
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="p-4 text-center text-[13px] text-ink-secondary">
-              没有匹配的项目
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {/* 底部隐私说明 */}
+        {(tab === "all" || tab === "logins") && <LoginsSettings query={search} onListed={setLoginCount} />}
+
         <p className="text-[12px] leading-relaxed text-ink-secondary px-1">
           {t("settings.vault.privacyNote")}
         </p>
-      </div>
-
-      <div className="mt-2 hidden">
-        <LoginsSettings />
       </div>
     </div>
   );

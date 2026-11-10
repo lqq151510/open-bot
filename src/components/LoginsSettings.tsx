@@ -20,7 +20,10 @@ const SOURCE_KEYS = {
 
 const ROW_BUTTON = "flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-50";
 
-export function LoginsSettings() {
+export function LoginsSettings({ onListed, query = "" }: {
+  onListed?: (count: number) => void;
+  query?: string;
+} = {}) {
   const { state } = useStore();
   const ownerOrAdmin = useOwnerOrAdmin();
   const bots = state.bots.map((bot) => ({ id: bot.id, name: bot.name }));
@@ -44,10 +47,11 @@ export function LoginsSettings() {
       setLogins(answer.logins);
       setOnePassword(answer.onePassword ?? { connected: false });
       setError(null);
+      onListed?.(answer.logins.length);
     }
     catch (cause) { setError(cause instanceof Error && cause.message ? cause.message : t("settings.logins.loadError")); }
   };
-  useEffect(() => { if (ownerOrAdmin) void load(); }, [ownerOrAdmin]);
+  useEffect(() => { if (ownerOrAdmin) void load(); }, [ownerOrAdmin, onListed]);
 
   if (ownerOrAdmin === false) {
     return <Card title={t("settings.logins.title")} subtitle={t("settings.logins.adminOnly")} />;
@@ -73,6 +77,10 @@ export function LoginsSettings() {
     catch (cause) { setError(cause instanceof Error && cause.message ? cause.message : t("settings.logins.deleteError")); }
     finally { setBusy(false); }
   };
+  const needle = query.trim().toLowerCase();
+  const shown = needle
+    ? logins?.filter((login) => `${login.site}\n${login.username}`.toLowerCase().includes(needle))
+    : logins;
 
   return (
     <Card title={t("settings.logins.title")} subtitle={t("settings.logins.subtitle")}>
@@ -80,9 +88,9 @@ export function LoginsSettings() {
         {state.config?.cloudHome === true && <p className="text-[12px] leading-relaxed text-ink-secondary" data-logins-cloud-own>{t("settings.logins.cloudOwn")}</p>}
         {logins === null && !error && <p className="text-[12px] text-ink-secondary">{t("settings.logins.loading")}</p>}
         {logins?.length === 0 && !adding && <p className="text-[12px] leading-relaxed text-ink-secondary">{t("settings.logins.empty")}</p>}
-        {!!logins?.length && (
+        {!!shown?.length && (
           <ul className="divide-y divide-hairline/30" data-logins-list>
-            {logins.map((login) => (
+            {shown.map((login) => (
               <li key={login.id} className="flex flex-col gap-2 py-2.5" data-login-row={login.site}>
                 <div className="flex min-w-0 items-start gap-2">
                   <KeyRound size={14} aria-hidden="true" className="mt-[3px] shrink-0 text-ink-tertiary" />
@@ -142,6 +150,9 @@ export function LoginsSettings() {
               </li>
             ))}
           </ul>
+        )}
+        {!!logins?.length && !!needle && !shown?.length && !adding && (
+          <p className="text-[12px] leading-relaxed text-ink-secondary">{t("settings.noMatch", { query: query.trim() })}</p>
         )}
         {adding ? (
           <div className="rounded-lg bg-inset/60 p-3">
