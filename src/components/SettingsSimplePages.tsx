@@ -1,6 +1,6 @@
 import { pageIsThisComputer } from "@/lib/companion-bridge";
-import { useState, type ReactNode } from "react";
-import { CheckCircle2, ChevronRight, ExternalLink, Mail, Monitor, Search, Smartphone, User, UserCheck } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { CheckCircle2, ExternalLink, Monitor, Search, Smartphone } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { t } from "@/lib/i18n";
@@ -486,42 +486,22 @@ export function SimplePermissionsPage() {
   );
 }
 
-export function SimpleVaultPage() {
+export function SimpleVaultPage({ onReady }: { onReady?: (open: () => void) => void } = {}) {
   const [tab, setTab] = useState<"all" | "logins" | "payments" | "contacts">("all");
   const [search, setSearch] = useState("");
   const [loginCount, setLoginCount] = useState(0);
+  const [openAdd, setOpenAdd] = useState(0);
+  const openLoginForm = useCallback(() => {
+    setTab((current) => (current === "all" || current === "logins" ? current : "logins"));
+    setOpenAdd((count) => count + 1);
+  }, []);
+  useEffect(() => {
+    onReady?.(openLoginForm);
+    return () => { onReady?.(() => {}); };
+  }, [onReady, openLoginForm]);
 
-  const items = [
-    {
-      id: "email",
-      iconType: "mail",
-      title: "示例邮箱",
-      subtitle: "hello@example.com",
-      action: "manage",
-    },
-    {
-      id: "redbook",
-      iconType: "contact",
-      title: "示例联系人",
-      subtitle: "contact@example.com",
-      action: "chevron",
-    },
-    {
-      id: "me",
-      iconType: "user",
-      title: "我的资料",
-      subtitle: "个人账户",
-      action: "chevron",
-    },
-  ];
-
-  const showContacts = tab === "all" || tab === "contacts";
-  const filtered = showContacts ? items.filter((item) => {
-    if (!search) return true;
-    const needle = search.toLowerCase();
-    return item.title.toLowerCase().includes(needle) || item.subtitle.toLowerCase().includes(needle);
-  }) : [];
-  const contactBox = tab === "payments" || (showContacts && (filtered.length > 0 || tab === "contacts"));
+  const showLogins = tab === "all" || tab === "logins";
+  const contactBox = tab === "payments" || tab === "contacts";
   const tabClass = (id: typeof tab) => `rounded-full px-3 py-1 font-medium transition-colors ${tab === id ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`;
 
   return (
@@ -530,7 +510,7 @@ export function SimpleVaultPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 overflow-x-auto text-[13px]">
             <button type="button" data-vault-tab="all" onClick={() => setTab("all")} className={tabClass("all")}>
-              {t("settings.vault.tabAll")} {items.length + loginCount}
+              {t("settings.vault.tabAll")} {loginCount}
             </button>
             <button type="button" data-vault-tab="logins" onClick={() => setTab("logins")} className={tabClass("logins")}>
               {t("settings.vault.tabLogins")} {loginCount}
@@ -539,7 +519,7 @@ export function SimpleVaultPage() {
               {t("settings.vault.tabPayments")} 0
             </button>
             <button type="button" data-vault-tab="contacts" onClick={() => setTab("contacts")} className={tabClass("contacts")}>
-              {t("settings.vault.tabContacts")} {items.length}
+              {t("settings.vault.tabContacts")} 0
             </button>
           </div>
           <div className="relative flex items-center">
@@ -555,36 +535,14 @@ export function SimpleVaultPage() {
         </div>
 
         {contactBox && (
-          <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
-            {filtered.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/[0.02] transition-colors">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400">
-                  {item.iconType === "mail" && <Mail size={18} />}
-                  {item.iconType === "contact" && <UserCheck size={18} className="text-ink-secondary" />}
-                  {item.iconType === "user" && <User size={18} className="text-ink-secondary" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-medium text-ink">{item.title}</div>
-                  <div className="text-[13px] text-ink-secondary truncate">{item.subtitle}</div>
-                </div>
-                {item.action === "manage" ? (
-                  <button type="button" className="ui-button shrink-0 text-[13px]">
-                    管理
-                  </button>
-                ) : (
-                  <ChevronRight size={16} className="text-ink-secondary/60 shrink-0" />
-                )}
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="p-4 text-center text-[13px] text-ink-secondary">
-                没有匹配的项目
-              </div>
-            )}
+          <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02]">
+            <div className="p-4 text-center text-[13px] text-ink-secondary">
+              没有匹配的项目
+            </div>
           </div>
         )}
 
-        {(tab === "all" || tab === "logins") && <LoginsSettings query={search} onListed={setLoginCount} />}
+        {showLogins && <LoginsSettings query={search} onListed={setLoginCount} openAdd={openAdd} />}
 
         <p className="text-[12px] leading-relaxed text-ink-secondary px-1">
           {t("settings.vault.privacyNote")}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Archive, ArrowUpCircle, ChartNoAxesColumn, ChevronDown, Cloud, Coins, Download, FlaskConical, KeyRound, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { skillsLibraryEnabled } from "@/lib/feature-flags";
@@ -192,6 +192,8 @@ export function SettingsModal() {
       ? "companion"
       : advanced && requested === "updates" ? "general" : requested;
   const dialogRef = useRef<HTMLDivElement>(null);
+  const openVaultAdd = useRef<() => void>(() => {});
+  const registerVaultAdd = useCallback((open: () => void) => { openVaultAdd.current = open; }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchFirst = useRef(advanced);
   const [query, setQuery] = useState("");
@@ -454,7 +456,7 @@ export function SettingsModal() {
             ai={<SimpleAiPage has={has} disclose={disclose} connections={renderSection("connections")} />}
             botAccess={renderSection("botAccess")} />;
       case "permissions": return <SimplePermissionsPage />;
-      case "vault": return <SimpleVaultPage />;
+      case "vault": return <SimpleVaultPage onReady={registerVaultAdd} />;
       case "computer": return <SimpleComputerPage has={has} remoteAccess={remoteAccess} servers={<ConnectedWorkspacesSettings />} disclose={disclose} />;
       case "billing": return <SimpleBillingPage has={has} disclose={disclose} cloudAccount={renderSection("cloudAccount")} />;
       case "updates": return <SimpleUpdatesPage remoteActive={remoteActive} />;
@@ -568,7 +570,7 @@ export function SettingsModal() {
               </h2>
               {currentPage?.id === "vault" && (
                 <div className="ml-auto mr-4 hidden sm:block">
-                  <button type="button" className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-canvas hover:bg-ink/90 transition-colors">
+                  <button type="button" aria-label={t("settings.vault.newItem")} onClick={() => openVaultAdd.current()} className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-canvas hover:bg-ink/90 transition-colors">
                     {t("settings.vault.newItem")} <ChevronDown size={14} />
                   </button>
                 </div>

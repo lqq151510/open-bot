@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LockKeyhole, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
 import { loginHeldBackFor, type LoginBots, type LoginSummary, type OnePasswordStatus, type OnePasswordVault } from "../../shared/logins";
@@ -20,9 +20,10 @@ const SOURCE_KEYS = {
 
 const ROW_BUTTON = "flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-50";
 
-export function LoginsSettings({ onListed, query = "" }: {
+export function LoginsSettings({ onListed, query = "", openAdd = 0 }: {
   onListed?: (count: number) => void;
   query?: string;
+  openAdd?: number;
 } = {}) {
   const { state } = useStore();
   const ownerOrAdmin = useOwnerOrAdmin();
@@ -52,6 +53,15 @@ export function LoginsSettings({ onListed, query = "" }: {
     catch (cause) { setError(cause instanceof Error && cause.message ? cause.message : t("settings.logins.loadError")); }
   };
   useEffect(() => { if (ownerOrAdmin) void load(); }, [ownerOrAdmin, onListed]);
+  const appliedAdd = useRef(0);
+  useEffect(() => {
+    if (openAdd === appliedAdd.current) return;
+    appliedAdd.current = openAdd;
+    if (openAdd === 0) return;
+    setEditing(null);
+    setDeleting(null);
+    setAdding(true);
+  }, [openAdd]);
 
   if (ownerOrAdmin === false) {
     return <Card title={t("settings.logins.title")} subtitle={t("settings.logins.adminOnly")} />;
