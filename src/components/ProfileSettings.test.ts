@@ -5,7 +5,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ConfigStatus } from "@/state/store";
 
-const fixture = vi.hoisted(() => ({ config: {} as Partial<ConfigStatus>, dispatch: vi.fn(), api: vi.fn() }));
+const fixture = vi.hoisted(() => ({
+  config: {} as Partial<ConfigStatus>,
+  dispatch: vi.fn(),
+  api: vi.fn(),
+  accounts: {
+    view: null as { active: { id: string; email: string } } | null,
+    add: vi.fn(),
+    signOut: vi.fn(),
+    sheet: null as { email: string | null; note: string | null } | null,
+    closeSheet: vi.fn(),
+  },
+}));
+vi.mock("./AccountMenu", () => ({
+  useAccounts: () => ({
+    view: fixture.accounts.view,
+    add: fixture.accounts.add,
+    signOut: fixture.accounts.signOut,
+    sheet: fixture.accounts.sheet,
+    closeSheet: fixture.accounts.closeSheet,
+    openSheet: null,
+    noRail: true,
+  }),
+  AccountsSheet: () => null,
+}));
 vi.mock("@/state/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/state/store")>()),
   api: fixture.api,
@@ -13,7 +36,7 @@ vi.mock("@/state/store", async (importOriginal) => ({
 }));
 vi.mock("./AboutMeSettings", () => ({ AboutMeSettings: () => null }));
 
-const { ProfileFields, profilePhotoFileProblem, profilePhotoSizeProblem } = await import("./ProfileSettings");
+const { ProfileFields, ProfileSummaryRow, profilePhotoFileProblem, profilePhotoSizeProblem } = await import("./ProfileSettings");
 const { InitialsAvatar } = await import("./Avatar");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -24,6 +47,10 @@ const photo = "/api/attachments/5f0c2b1e-8a43-4c1d-9e7a-2b6f1d3c4e5a.webp";
 beforeEach(() => {
   fixture.dispatch.mockReset();
   fixture.api.mockReset();
+  fixture.accounts.view = null;
+  fixture.accounts.add.mockReset();
+  fixture.accounts.signOut.mockReset();
+  fixture.accounts.closeSheet.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -108,5 +135,30 @@ describe("the profile photo", () => {
     await act(async () => image.dispatchEvent(new Event("error")));
     expect(host.querySelector("img")).toBeNull();
     expect(host.textContent).toBe("AL");
+  });
+});
+
+describe("the account card", () => {
+  const button = (label: string) => [...host.querySelectorAll("button")].find((entry) => entry.textContent?.trim() === label);
+
+  it("shows the signed-in account's name and address with Add account and Sign out", async () => {
+    fixture.accounts.view = { active: { id: "a1", email: "ada@example.com" } };
+    fixture.config = { profile: { name: "Ada Lovelace", email: "local@example.com" } };
+    await act(async () => root.render(createElement(ProfileSummaryRow)));
+    expect(host.textContent).toContain("Ada Lovelace");
+    expect(host.textContent).toContain("ada@example.com");
+    expect(host.textContent).not.toContain("local@example.com");
+    await act(async () => button("Add account")!.click());
+    expect(fixture.accounts.add).toHaveBeenCalledTimes(1);
+    await act(async () => button("Sign out")!.click());
+    expect(fixture.accounts.signOut).toHaveBeenCalledWith("a1");
+  });
+
+  it("signed out, edits the local profile instead of signing out", async () => {
+    fixture.config = { profile: { name: "Ada", email: "ada@example.com" } };
+    await act(async () => root.render(createElement(ProfileSummaryRow)));
+    expect(host.textContent).toContain("ada@example.com");
+    expect(button("Edit")).not.toBeUndefined();
+    expect(button("Sign out")).toBeUndefined();
   });
 });

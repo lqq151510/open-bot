@@ -6,6 +6,7 @@ import { IMAGE_MAX_BYTES, imageAttachmentFromFile, isImageFile } from "@/lib/com
 import type { LocaleKey } from "@/locales";
 import { botAvatarUrlFromStoredPath } from "../../shared/bot-avatar";
 import { AboutMeSettings } from "./AboutMeSettings";
+import { AccountsSheet, useAccounts } from "./AccountMenu";
 import { profileInitials } from "./SidebarProfileMenu";
 import { Check, Copy, User } from "lucide-react";
 
@@ -204,95 +205,138 @@ function ProfileAvatar({ profile }: { profile?: { name?: string; email?: string;
   const initials = profileInitials(profile);
   const photo = profile?.avatarUrl && failed !== profile.avatarUrl ? profile.avatarUrl : null;
   return (
-    <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink/[0.06] text-[15px] font-medium text-ink-secondary">
+    <span className="flex size-13 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink/[0.06] text-[16px] font-medium text-ink-secondary">
       {photo ? <img src={photo} alt="" onError={() => setFailed(photo)} className="size-full object-cover" />
         : initials !== "?" ? initials : <User size={20} aria-hidden="true" />}
     </span>
   );
 }
 
+/** The account card: who is signed in with the accounts bridge (avatar, name, address, Add account, Sign out), or — signed
+ * out — the local profile's name and address with the way to edit them. The name toggles the fields editor. */
 export function ProfileSummaryRow() {
   const { state, dispatch } = useStore();
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const accounts = useAccounts();
   const profile = state.config?.profile;
   const name = profile?.name?.trim() ?? "";
   const email = profile?.email?.trim() ?? "";
+  const active = accounts.view?.active ?? null;
   const fieldsId = useId();
   const fields = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (editing) fields.current?.querySelector<HTMLInputElement>("input:not([type=file])")?.focus();
   }, [editing]);
 
-  const onCopy = (e: React.MouseEvent) => {
+  const copyEmail = (address: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!email) return;
-    void navigator.clipboard?.writeText(email);
+    void navigator.clipboard?.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  const copyButton = (address: string) => (
+    <button
+      type="button"
+      onClick={copyEmail(address)}
+      className="flex size-4 shrink-0 cursor-pointer items-center justify-center text-ink-secondary/70 transition-colors hover:text-ink"
+      title={copied ? t("common.copied") : t("common.copy")}
+      aria-label={copied ? t("common.copied") : t("common.copy")}
+    >
+      {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+    </button>
+  );
+  const cardButton = "ui-button ui-button-pill h-10 shrink-0 px-4";
+  const editButton = (label: string) => (
+    <button
+      type="button"
+      aria-expanded={editing}
+      aria-controls={fieldsId}
+      className={cardButton}
+      onClick={() => setEditing(!editing)}
+    >
+      {editing ? t("common.done") : label}
+    </button>
+  );
+
+  if (active) {
+    const shown = name || active.email;
+    return (
+      <div data-profile-summary="" className="px-4 py-[9px]">
+        <div className="flex min-w-0 items-center gap-3">
+          <ProfileAvatar profile={profile} />
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              aria-expanded={editing}
+              aria-controls={fieldsId}
+              onClick={() => setEditing(!editing)}
+              className="block max-w-full cursor-pointer truncate rounded-lg text-left text-[15px] font-medium leading-5 text-ink transition-colors hover:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/40"
+            >
+              {shown}
+            </button>
+            {name && (
+              <div className="flex items-center gap-1.5 text-[13px] leading-[18px] text-ink-secondary">
+                <span className="truncate">{active.email}</span>
+                {copyButton(active.email)}
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <button type="button" className={cardButton} onClick={() => accounts.add()}>
+              {t("connectors.action.addAccount")}
+            </button>
+            <button type="button" className={cardButton} onClick={() => accounts.signOut(active.id)}>
+              {t("accounts.signOut")}
+            </button>
+          </div>
+        </div>
+        <div id={fieldsId} ref={fields} hidden={!editing} className="mt-4">
+          {editing && <ProfileFields />}
+        </div>
+        {accounts.sheet && <AccountsSheet adding={accounts.sheet.email} note={accounts.sheet.note} onClose={accounts.closeSheet} />}
+      </div>
+    );
+  }
 
   return (
-    <div data-profile-summary="" className="px-4 py-[13px]">
+    <div data-profile-summary="" className="px-4 py-[9px]">
       <div className="flex min-w-0 items-center gap-3">
         <ProfileAvatar profile={profile} />
         <div className="min-w-0 flex-1">
           {name || email ? (
             <>
-              <div className="truncate text-[14px] font-medium leading-5 text-ink">{name || email}</div>
+              <div className="truncate text-[15px] font-medium leading-5 text-ink">{name || email}</div>
               {email && (
                 <div className="flex items-center gap-1.5 truncate text-[13px] leading-[18px] text-ink-secondary">
                   <span className="truncate">{email}</span>
-                  <button
-                    type="button"
-                    onClick={onCopy}
-                    className="flex size-4 cursor-pointer items-center justify-center text-ink-secondary/70 hover:text-ink transition-colors"
-                    title={copied ? t("common.copied") : t("common.copy")}
-                    aria-label={copied ? t("common.copied") : t("common.copy")}
-                  >
-                    {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                  </button>
+                  {copyButton(email)}
                 </div>
               )}
             </>
           ) : (
-            <div className="truncate text-[14px] leading-5 text-ink-secondary">{t("settings.simple.account.noName")}</div>
+            <div className="truncate text-[15px] leading-5 text-ink-secondary">{t("settings.simple.account.noName")}</div>
           )}
         </div>
         {name || email ? (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center gap-3">
             <button
               type="button"
-              className="ui-button shrink-0"
+              className={cardButton}
               onClick={() => dispatch({ type: "openCloudAdd", source: "app_settings" })}
             >
               {t("connectors.action.addAccount")}
             </button>
-            <button
-              type="button"
-              aria-expanded={editing}
-              aria-controls={fieldsId}
-              className="ui-button shrink-0"
-              onClick={() => setEditing(!editing)}
-            >
-              {editing ? t("common.done") : t("settings.simple.account.edit")}
-            </button>
+            {editButton(t("settings.simple.account.edit"))}
           </div>
         ) : (
-          <button
-            type="button"
-            aria-expanded={editing}
-            aria-controls={fieldsId}
-            className="ui-button shrink-0"
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? t("common.done") : t("settings.simple.account.add")}
-          </button>
+          editButton(t("settings.simple.account.add"))
         )}
       </div>
       <div id={fieldsId} ref={fields} hidden={!editing} className="mt-4">
         {editing && <ProfileFields />}
       </div>
+      {accounts.sheet && <AccountsSheet adding={accounts.sheet.email} note={accounts.sheet.note} onClose={accounts.closeSheet} />}
     </div>
   );
 }
