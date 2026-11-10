@@ -4929,6 +4929,7 @@
   "routines.status.failed": "失败",
   "routines.status.cancelled": "已取消",
   "routines.status.missed": "已错过",
+  "routines.conversation.created": "已创建",
   "routines.status.problems": "问题",
   "routines.retried.stalled": "AI 卡住后已重试 · {status}",
   "routines.retried.restarted": "{app} 重启后重试 · {status}",

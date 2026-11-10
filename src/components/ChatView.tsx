@@ -58,7 +58,7 @@ import { normalizeState, stateForBot } from "@/lib/mascot";
 import { peerLine, peerRequest, type PeerLine } from "@/lib/peer-message";
 import { showWorkingDots } from "@/lib/turn-tail";
 import { lastNonReceipt } from "@/lib/receipts";
-import { useTurnLive } from "@/state/turn-status"; import { useTurnNow } from "./NowCard"; import { useThreadRoutineRun } from "@/state/older-routine-runs";
+import { useTurnLive } from "@/state/turn-status"; import { useTurnNow } from "./NowCard"; import { useThreadRoutineRun } from "@/state/older-routine-runs"; import { ConversationRoutines } from "./ConversationRoutines";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { LiveToolsContext, useLiveToolIds } from "@/hooks/use-live-tool-ids";
 import { VoiceNoteBubble, type VoiceNoteAttachment } from "./VoiceNoteBubble";
@@ -1226,6 +1226,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
               </div>
             </div>
           )}
+          <ConversationRoutines botId={profile.id} threadId={bot.threadId} mainThreadId={profile.mainThreadId ?? profile.threadId} messages={messages} />
           <TurnPresence
             avatar={
               <BotAvatar

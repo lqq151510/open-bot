@@ -5087,6 +5087,7 @@
   "routines.status.partial": "Partly done",
   "routines.status.cancelled": "Cancelled",
   "routines.status.missed": "Missed",
+  "routines.conversation.created": "Created",
   "routines.status.problems": "Problems",
   "routines.retried.stalled": "Retried after the AI stalled · {status}",
   "routines.retried.restarted": "Retried after {app} restarted · {status}",
