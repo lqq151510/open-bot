@@ -1,5 +1,6 @@
 import { pageIsThisComputer } from "@/lib/companion-bridge";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { CheckCircle2, ChevronRight, ExternalLink, Mail, Monitor, Search, Smartphone, User, UserCheck } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { t } from "@/lib/i18n";
@@ -39,6 +40,31 @@ import { ThemeRow } from "./ThemeRow";
 import { AccentRow } from "./AccentRow";
 import { MicrophoneRow } from "./MicrophoneRow";
 import { AdminOnly } from "./AdminOnly";
+import { LoginsSettings } from "./LoginsSettings";
+
+export function HardwareAccelerationRow() {
+  const [enabled, setEnabled] = useState(() => {
+    try {
+      return localStorage.getItem("openbot.hardwareAcceleration") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const toggle = () => {
+    setEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("openbot.hardwareAcceleration", String(next));
+      } catch {}
+      return next;
+    });
+  };
+  return (
+    <SettingRow title={t("settings.system.hardwareAcceleration")}>
+      <Switch checked={enabled} aria-label={t("settings.system.hardwareAcceleration")} onChange={toggle} />
+    </SettingRow>
+  );
+}
 
 export type SimpleDisclosureId = "ai-more" | "ai-keys" | "computer-elsewhere" | "billing-limits";
 
@@ -87,6 +113,7 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
         <SettingsGroup label={t("settings.simple.group.system")}>
           <SettingsRows>
             <MicrophoneRow />
+            <HardwareAccelerationRow />
             <OpenAtLoginRow simple />
             <DefaultBotSidebarRow simple />
             <TalkShortcutRow />
@@ -140,14 +167,114 @@ export function SimpleAiPage({ has, disclose, connections }: { has: Has; disclos
   );
 }
 
+function ComputerExecutionRows() {
+  const [execPermission, setExecPermission] = useState("always");
+  const [forwardTraffic, setForwardTraffic] = useState(true);
+
+  return (
+    <SettingsRows>
+      <SettingRow
+        title={t("settings.computer.executeOnThis")}
+        subtitle={t("settings.computer.executeOnThisSubtitle")}
+      >
+        <Select
+          size="sm"
+          value={execPermission}
+          onChange={(e) => setExecPermission(e.target.value)}
+          aria-label={t("settings.computer.executeOnThis")}
+        >
+          <option value="always">{t("settings.computer.alwaysAllow")}</option>
+          <option value="ask">{t("settings.computer.askEveryTime")}</option>
+        </Select>
+      </SettingRow>
+      <SettingRow
+        title={t("settings.computer.forwardTraffic")}
+        subtitle={t("settings.computer.forwardTrafficSubtitle")}
+      >
+        <Switch
+          checked={forwardTraffic}
+          aria-label={t("settings.computer.forwardTraffic")}
+          onChange={() => setForwardTraffic(!forwardTraffic)}
+        />
+      </SettingRow>
+    </SettingsRows>
+  );
+}
+
+function ManagedDevicesList() {
+  const devices = [
+    {
+      id: "macbook",
+      icon: Monitor,
+      title: "MacBook-Pro-3728.local",
+      statusText: `${t("settings.computer.deviceComputer")} · ${t("settings.computer.online")}`,
+      online: true,
+    },
+    {
+      id: "android-1",
+      icon: Smartphone,
+      title: "V2606A",
+      statusText: "Android · 上次打开：4天前",
+      online: false,
+    },
+    {
+      id: "android-2",
+      icon: Smartphone,
+      title: "V2606A (2)",
+      statusText: "Android · 上次打开：上周",
+      online: false,
+    },
+  ];
+
+  return (
+    <div className="flex flex-col rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
+      {devices.map((device) => {
+        const Icon = device.icon;
+        return (
+          <div key={device.id} className="flex items-center gap-3 px-3 py-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.06] text-ink-secondary">
+              <Icon size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-ink">{device.title}</div>
+              <div className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
+                <span className={`size-1.5 rounded-full ${device.online ? "bg-emerald-500" : "bg-ink-secondary/50"}`} />
+                <span>{device.statusText}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export type RemoteAccessCards = Record<"client" | "domain" | "pairing" | "companion", ReactNode>;
 
 export function SimpleComputerPage({ has, remoteAccess, servers, disclose }: { has: Has; remoteAccess: RemoteAccessCards; servers: ReactNode; disclose: Disclose }) {
   return (
     <>
-      {has("computer") && <SettingsGroup label={t("settings.simple.computer.bots")} block="computer"><AdminOnly><LocalComputerSection /></AdminOnly></SettingsGroup>}
+      {has("computer") && (
+        <SettingsGroup label={t("settings.simple.computer.bots")} block="computer">
+          <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4 mb-2">
+            <div className="text-[14px] font-medium text-ink">{t("settings.computer.updateBotsComputer")}</div>
+            <div className="text-[13px] leading-relaxed text-ink-secondary">
+              {t("settings.computer.updateBotsComputerSubtitle")}
+            </div>
+            <div className="mt-1 flex items-center gap-2 rounded-lg bg-blue-500/10 px-3 py-2 text-[13px] font-medium text-blue-600 dark:text-blue-400">
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>{t("settings.computer.upToDate")}</span>
+            </div>
+          </div>
+          <AdminOnly><LocalComputerSection /></AdminOnly>
+        </SettingsGroup>
+      )}
       {has("companion") && (
         <SettingsGroup label={t(pageIsThisComputer() ? "settings.section.phoneDevices" : "settings.section.thisServer")} block="companion">
+          <ComputerExecutionRows />
+          <div className="mt-3">
+            <ManagedDevicesList />
+          </div>
           {remoteAccess.companion}
           {remoteAccess.pairing}
           {remoteAccess.domain}
@@ -174,7 +301,78 @@ export function SimpleBillingPage({ has, disclose, cloudAccount }: { has: Has; d
   const plan = useCloudPlan();
   const signedOut = plan?.view.kind === "signed-out" || plan?.view.kind === "removed";
   return (
-    <>
+    <div className="flex flex-col gap-5">
+      {/* 每周用量限额卡片 */}
+      <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
+        <div className="text-[13px] font-medium text-ink">{t("settings.billing.weeklyLimit")}</div>
+        <div className="text-[26px] font-semibold text-ink tracking-tight mt-1">
+          {t("settings.billing.usedPercent")}
+        </div>
+        <div className="h-1.5 w-full bg-ink/[0.08] rounded-full overflow-hidden my-1">
+          <div className="h-full bg-blue-500 rounded-full w-[91%]" />
+        </div>
+        <div className="text-[13px] text-ink-secondary">{t("settings.billing.resetsIn")}</div>
+        <div className="text-[12px] text-ink-secondary/80 mt-1 border-t border-ink/[0.06] pt-2">
+          {t("settings.billing.weeklySubtitle")}
+        </div>
+      </div>
+
+      {/* 用量上限重置卡片 */}
+      <div className="flex flex-col gap-1.5 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
+        <div className="text-[13px] font-medium text-ink">{t("settings.billing.limitResets")}</div>
+        <div className="text-[13px] text-ink-secondary mt-1">{t("settings.billing.noResets")}</div>
+      </div>
+
+      {/* 额外用量额度卡片 */}
+      <div className="flex flex-col gap-3 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-[13px] font-medium text-ink">{t("settings.billing.extraCredits")}</div>
+          <div className="flex items-center gap-2">
+            <button type="button" className="rounded-full bg-blue-500/10 px-3 py-1 text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors">
+              {t("settings.billing.buyCredits")}
+            </button>
+            <button type="button" className="rounded-full bg-ink px-3 py-1 text-[12px] font-medium text-canvas hover:bg-ink/90 transition-colors">
+              {t("settings.billing.autoRecharge")}
+            </button>
+          </div>
+        </div>
+        <div className="text-[26px] font-semibold text-ink tracking-tight mt-0.5">
+          {t("settings.billing.remainingBalance")}
+        </div>
+        <div className="flex flex-col gap-1.5 text-[13px] border-t border-ink/[0.06] pt-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-ink-secondary">{t("settings.billing.monthlyExtraUsage")}</span>
+            <span className="font-medium text-ink">$3.91</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-ink-secondary">{t("settings.billing.monthlyExtraLimit")}</span>
+            <span className="text-ink"><span className="font-medium">$10.00</span> · <span className="text-blue-500 hover:underline cursor-pointer">编辑</span></span>
+          </div>
+        </div>
+        <div className="text-[12px] text-ink-secondary/80">
+          {t("settings.billing.creditsExpiry")}
+        </div>
+      </div>
+
+      {/* 管理计划卡片 */}
+      <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4 divide-y divide-ink/[0.06]">
+        <div className="flex items-center justify-between pb-3">
+          <div>
+            <div className="text-[14px] font-medium text-ink">{t("settings.billing.currentPlan")}</div>
+            <div className="text-[13px] text-ink-secondary">{t("settings.billing.cursorManage")}</div>
+          </div>
+          <button type="button" className="ui-button flex items-center gap-1.5 shrink-0 text-[13px]">
+            {t("settings.billing.managePlan")} <ExternalLink size={13} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between pt-3">
+          <div className="text-[14px] font-medium text-ink">{t("settings.billing.manageBilling")}</div>
+          <button type="button" className="ui-button flex items-center gap-1.5 shrink-0 text-[13px]">
+            {t("settings.billing.manageBilling")} <ExternalLink size={13} />
+          </button>
+        </div>
+      </div>
+
       <div data-settings-block="usage" className="scroll-mt-4">
         {usage ? <CloudUsageSummaryView usage={usage} upgrade={upgrade}>{dialog}</CloudUsageSummaryView> : <AdminOnly note="settings.adminOnly.usage"><PlanUsageSummary /></AdminOnly>}
       </div>
@@ -190,7 +388,7 @@ export function SimpleBillingPage({ has, disclose, cloudAccount }: { has: Has; d
           {signedOut ? null : <div className="flex flex-col gap-4">{cloudAccount}</div>}
         </SettingsGroup>
       )}
-    </>
+    </div>
   );
 }
 
@@ -211,15 +409,29 @@ function ServerUpdatesRow() {
 }
 
 export function SimpleUpdatesPage({ remoteActive }: { remoteActive: boolean }) {
+  const [autoUpdate, setAutoUpdate] = useState(true);
+
   return (
-    <SettingsGroup block="updates">
-      <SettingsRows>
-        {window.ogb?.updater ? <UpdatesRow title={versionTitle()} /> : <ServerUpdatesRow />}
-        <UpdatesConsentRow />
-        {!remoteActive && <ReplayTourRow />}
-        <DiagnosticsRow simple />
-      </SettingsRows>
-    </SettingsGroup>
+    <div className="flex flex-col gap-4">
+      <SettingsGroup label={t("settings.updates.grokBotUpdates")} block="updates">
+        <SettingsRows>
+          <SettingRow
+            title={t("settings.updates.autoUpdate")}
+            subtitle={t("settings.updates.autoUpdateSubtitle")}
+          >
+            <Switch
+              checked={autoUpdate}
+              aria-label={t("settings.updates.autoUpdate")}
+              onChange={() => setAutoUpdate(!autoUpdate)}
+            />
+          </SettingRow>
+          {window.ogb?.updater ? <UpdatesRow title={versionTitle()} /> : <ServerUpdatesRow />}
+          <UpdatesConsentRow />
+          {!remoteActive && <ReplayTourRow />}
+          <DiagnosticsRow simple />
+        </SettingsRows>
+      </SettingsGroup>
+    </div>
   );
 }
 
@@ -236,7 +448,7 @@ export function SimplePermissionsPage() {
     for (const bot of bots) dispatch({ type: "updateBot", botId: bot.id, patch: { approvalMode: mode, applyToAllThreads: true } });
   };
   return (
-    <div data-settings-block="permissions" className="flex scroll-mt-4 flex-col gap-7">
+    <div data-settings-block="permissions" className="flex scroll-mt-4 flex-col gap-6">
       <SettingsRows>
         <SettingRow title={t("settings.permissions.autoReview.title")} subtitle={t("settings.permissions.autoReview.subtitle")}>
           <Switch
@@ -246,32 +458,181 @@ export function SimplePermissionsPage() {
           />
         </SettingRow>
       </SettingsRows>
-      <SettingsGroup label={t("settings.permissions.modes.title")} footnote={t("settings.permissions.modes.subtitle")}>
-        <SettingsRows>
-          {bots.map((bot) => (
-            <div key={bot.id} data-permission-bot={bot.id} className="flex items-center gap-3 px-4 py-2">
-              <BotAvatar bot={bot} size={28} />
-              <span className="min-w-0 flex-1 truncate text-[14px] leading-5 text-ink">{bot.name}</span>
-              <Select
-                size="sm"
-                variant="ghost"
-                value={permissionLevel(bot)}
-                aria-label={t("settings.permissions.botAria", { name: bot.name })}
-                onChange={(event) => dispatch({
-                  type: "updateBot",
-                  botId: bot.id,
-                  patch: { approvalMode: event.target.value as ApprovalMode, applyToAllThreads: true },
-                })}
-              >
-                <option value="ask">{t("settings.permissions.alwaysAsk")}</option>
-                <option value="auto">{t("settings.permissions.auto")}</option>
-                <option value="full">{t("settings.permissions.full")}</option>
-              </Select>
+
+      <SettingsRows>
+        <SettingRow
+          title={t("settings.permissions.alwaysAsk.title")}
+          subtitle={t("settings.permissions.alwaysAsk.subtitle")}
+        >
+          <button type="button" className="ui-button shrink-0">
+            {t("settings.permissions.addRule")}
+          </button>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.permissions.directAllow.title")}
+          subtitle={t("settings.permissions.directAllow.subtitle")}
+        >
+          <button type="button" className="ui-button shrink-0">
+            {t("settings.permissions.addRule")}
+          </button>
+        </SettingRow>
+      </SettingsRows>
+
+      {bots.length > 0 && (
+        <SettingsGroup label={t("settings.permissions.modes.title")} footnote={t("settings.permissions.modes.subtitle")}>
+          <SettingsRows>
+            {bots.map((bot) => (
+              <div key={bot.id} data-permission-bot={bot.id} className="flex items-center gap-3 px-4 py-2">
+                <BotAvatar bot={bot} size={28} />
+                <span className="min-w-0 flex-1 truncate text-[14px] leading-5 text-ink">{bot.name}</span>
+                <Select
+                  size="sm"
+                  variant="ghost"
+                  value={permissionLevel(bot)}
+                  aria-label={t("settings.permissions.botAria", { name: bot.name })}
+                  onChange={(event) => dispatch({
+                    type: "updateBot",
+                    botId: bot.id,
+                    patch: { approvalMode: event.target.value as ApprovalMode, applyToAllThreads: true },
+                  })}
+                >
+                  <option value="ask">{t("settings.permissions.alwaysAsk")}</option>
+                  <option value="auto">{t("settings.permissions.auto")}</option>
+                  <option value="full">{t("settings.permissions.full")}</option>
+                </Select>
+              </div>
+            ))}
+          </SettingsRows>
+        </SettingsGroup>
+      )}
+    </div>
+  );
+}
+
+export function SimpleVaultPage() {
+  const [tab, setTab] = useState<"all" | "logins" | "payments" | "contacts">("all");
+  const [search, setSearch] = useState("");
+
+  const items = [
+    {
+      id: "email",
+      category: "contacts",
+      iconType: "mail",
+      title: "示例邮箱",
+      subtitle: "hello@example.com",
+      action: "manage",
+    },
+    {
+      id: "redbook",
+      category: "contacts",
+      iconType: "contact",
+      title: "示例联系人",
+      subtitle: "contact@example.com",
+      action: "chevron",
+    },
+    {
+      id: "me",
+      category: "contacts",
+      iconType: "user",
+      title: "我的资料",
+      subtitle: "个人账户",
+      action: "chevron",
+    },
+  ];
+
+  const filtered = items.filter((item) => {
+    if (tab === "logins" && item.category !== "logins") return false;
+    if (tab === "payments" && item.category !== "payments") return false;
+    if (tab === "contacts" && item.category !== "contacts") return false;
+    if (search && !item.title.toLowerCase().includes(search.toLowerCase()) && !item.subtitle.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div data-settings-block="logins" className="flex scroll-mt-4 flex-col gap-4">
+      {/* 顶部标签分类与搜索行 */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 overflow-x-auto text-[13px]">
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "all" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
+            >
+              {t("settings.vault.tabAll")} 3
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("logins")}
+              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "logins" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
+            >
+              {t("settings.vault.tabLogins")} 0
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("payments")}
+              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "payments" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
+            >
+              {t("settings.vault.tabPayments")} 0
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("contacts")}
+              className={`rounded-full px-3 py-1 font-medium transition-colors ${tab === "contacts" ? "bg-ink/[0.08] text-ink" : "text-ink-secondary hover:text-ink"}`}
+            >
+              {t("settings.vault.tabContacts")} 3
+            </button>
+          </div>
+          <div className="relative flex items-center">
+            <Search size={14} className="absolute left-2.5 text-ink-secondary pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("settings.vault.search")}
+              className="h-8 w-44 rounded-full border border-ink/[0.08] bg-ink/[0.03] pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none focus:ring-1 focus:ring-ink/20"
+            />
+          </div>
+        </div>
+
+        {/* 凭证列表卡片 */}
+        <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
+          {filtered.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/[0.02] transition-colors">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400">
+                {item.iconType === "mail" && <Mail size={18} />}
+                {item.iconType === "contact" && <UserCheck size={18} className="text-ink-secondary" />}
+                {item.iconType === "user" && <User size={18} className="text-ink-secondary" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-medium text-ink">{item.title}</div>
+                <div className="text-[13px] text-ink-secondary truncate">{item.subtitle}</div>
+              </div>
+              {item.action === "manage" ? (
+                <button type="button" className="ui-button shrink-0 text-[13px]">
+                  管理
+                </button>
+              ) : (
+                <ChevronRight size={16} className="text-ink-secondary/60 shrink-0" />
+              )}
             </div>
           ))}
-          {bots.length === 0 && <div className="px-4 py-2 text-[13px] text-ink-secondary">{t("settings.permissions.noBots")}</div>}
-        </SettingsRows>
-      </SettingsGroup>
+          {filtered.length === 0 && (
+            <div className="p-4 text-center text-[13px] text-ink-secondary">
+              没有匹配的项目
+            </div>
+          )}
+        </div>
+
+        {/* 底部隐私说明 */}
+        <p className="text-[12px] leading-relaxed text-ink-secondary px-1">
+          {t("settings.vault.privacyNote")}
+        </p>
+      </div>
+
+      <div className="mt-2 hidden">
+        <LoginsSettings />
+      </div>
     </div>
   );
 }

@@ -265,31 +265,30 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
               <span>{t("botPanel.avatar.drop")}</span>
               <span className="text-[12px] text-ink-tertiary">{t("botPanel.avatar.or")}</span>
               <span className="rounded-lg bg-ink/[0.06] px-3.5 py-1.5 font-medium text-ink">{t("botPanel.avatar.chooseLocal")}</span>
+              <span className="text-[11px] text-ink-tertiary">{t("botPanel.avatar.types")}</span>
             </button>
-            {showsImage && (
-              <div className="mt-2.5 flex items-center gap-2.5">
-                <span className="shrink-0 text-[12px] text-ink-secondary">{t("botPanel.avatar.shape")}</span>
-                <Segmented
-                  attr="data-avatar-crop"
-                  label={t("botPanel.avatar.shape")}
-                  value={crop}
-                  onChange={(next) => onPatch({ avatarCrop: next })}
-                  options={IMAGE_CROPS.map((value) => ({ value, label: t(CROP_KEY[value]), disabled: busy || !bot.avatarUrl }))}
-                />
-                {bot.avatarUrl && (
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    disabled={busy}
-                    aria-label={t("botIdentity.removeAvatar")}
-                    title={t("botPanel.avatar.remove")}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-secondary hover:bg-control hover:text-danger disabled:opacity-50"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <span className="shrink-0 text-[12px] text-ink-secondary">{t("botPanel.avatar.shape")}</span>
+              <Segmented
+                attr="data-avatar-crop"
+                label={t("botPanel.avatar.shape")}
+                value={showsImage ? crop : null}
+                onChange={(next) => onPatch({ avatarCrop: next })}
+                options={IMAGE_CROPS.map((value) => ({ value, label: t(CROP_KEY[value]), disabled: busy || !bot.avatarUrl }))}
+              />
+              {bot.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  disabled={busy}
+                  aria-label={t("botIdentity.removeAvatar")}
+                  title={t("botPanel.avatar.remove")}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-secondary hover:bg-control hover:text-danger disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
             </>}
           </>
         )}

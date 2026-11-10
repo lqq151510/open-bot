@@ -1,6 +1,6 @@
 import { t } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
-import { Bot as BotIcon, ChartNoAxesColumn, Keyboard, MessageSquare, Monitor, Puzzle, RefreshCw, Search, Settings, Users, type LucideIcon } from "lucide-react";
+import { ChartNoAxesColumn, Keyboard, MessageSquare, Monitor, Plus, Puzzle, RefreshCw, Search, Settings, Users, type LucideIcon } from "lucide-react";
 import { api, openBot, useStore, visibleMessages, type Bot, type Group } from "@/state/store";
 import { rankByName } from "@/lib/palette-rank";
 import { isMacPlatform } from "@/lib/keyboard-shortcuts";
@@ -100,7 +100,7 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
   const bots = rankByName(roster, q);
   const rooms = rankByName(state.groups, q);
   const actions: PaletteAction[] = [
-    ...(onNewBot ? [{ id: "new-bot", label: t("sidebar.newBotSimple"), keywords: "new bot create robot 新建 创建 机器人 新建机器人 新建bot", icon: BotIcon, run: onNewBot }] : []),
+    ...(onNewBot ? [{ id: "new-bot", label: t("sidebar.newBotSimple"), keywords: "new bot create robot 新建 创建 机器人 新建机器人 新建bot", icon: Plus, run: onNewBot }] : []),
     ...(onNewGroup ? [{ id: "new-group", label: t("sidebar.newChat.createGroup"), keywords: "new group create chat 创建群聊 新建群聊 群组", icon: Users, run: onNewGroup }] : []),
     { id: "apps", label: t("sidebar.connectApps"), keywords: "connect apps plugins mcp 连接 应用 插件 连接应用", icon: Puzzle, run: () => dispatch({ type: "togglePlugins", open: true, surface: "apps" }) },
     { id: "settings", label: `${t("settings.title")} · ${t("settings.section.general")}`, keywords: "settings general preferences 设置 通用", icon: Settings, run: () => dispatch({ type: "toggleAppSettings", open: true, section: "general" }) },
@@ -139,6 +139,16 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (imeComposing(e.nativeEvent)) { e.stopPropagation(); return; }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-7]$/.test(e.key)) {
+      const idx = Number(e.key) - 1;
+      const target = entries[idx];
+      if (target) {
+        e.preventDefault();
+        e.stopPropagation();
+        void activate(target);
+        return;
+      }
+    }
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -221,8 +231,7 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
           )}
           {bots.map((bot, i) => {
             const preview = lastLine(bot, visibleMessages(bot), state.instances, showThreads) || bot.title;
-            const rosterIndex = roster.findIndex((entry) => entry.id === bot.id);
-            const hint = rosterIndex >= 0 && rosterIndex < 9 ? `${modKey}${rosterIndex + 1}` : undefined;
+            const hint = i < 7 ? `${modKey}${i + 1}` : undefined;
             return row(
               `bot:${bot.id}`,
               i,
@@ -254,6 +263,8 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
                 <Users size={16} className="shrink-0 text-ink-secondary" />
                 <span className="truncate text-[15px] text-ink">{group.name}</span>
               </>,
+              false,
+              (roomOffset + i) < 7 ? `${modKey}${roomOffset + i + 1}` : undefined,
             ),
           )}
           {q && messageHits.length > 0 && (
@@ -281,15 +292,33 @@ export function CommandPalette({ onOpenChange, onNewBot, onNewGroup }: { onOpenC
                   </span>
                 </>,
                 true,
+                (messageOffset + i) < 7 ? `${modKey}${messageOffset + i + 1}` : undefined,
               );
             })}
           {actions.length > 0 && (
-            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">{t("composer.commands.title")}</div>
+            <div className="px-3 pb-1 pt-2 text-[12px] font-medium text-ink-secondary">{t("palette.actions") || t("composer.commands.title")}</div>
           )}
-          {actions.map((action, i) => row(`action:${action.id}`, actionOffset + i, () => void activate({ kind: "action", action }), <>
-            <action.icon size={16} className="shrink-0 text-ink-secondary" />
-            <span className="truncate text-[15px] text-ink">{action.label}</span>
-          </>, false, action.id === "new-bot" ? `${modKey}N` : undefined))}
+          {actions.map((action, i) => {
+            const isNewBot = action.id === "new-bot";
+            const hint = (actionOffset + i) < 7 ? `${modKey}${actionOffset + i + 1}` : undefined;
+            return row(
+              `action:${action.id}`,
+              actionOffset + i,
+              () => void activate({ kind: "action", action }),
+              <>
+                {isNewBot ? (
+                  <span className="flex size-7 items-center justify-center rounded-full bg-ink/[0.06] text-ink shrink-0">
+                    <Plus size={15} />
+                  </span>
+                ) : (
+                  <action.icon size={16} className="shrink-0 text-ink-secondary" />
+                )}
+                <span className="truncate text-[15px] text-ink">{action.label}</span>
+              </>,
+              false,
+              hint,
+            );
+          })}
         </div>
       </div>
     </div>

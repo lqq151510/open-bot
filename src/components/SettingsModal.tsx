@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, ArrowUpCircle, ChartNoAxesColumn, Cloud, Coins, Download, FlaskConical, KeyRound, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
+import { Archive, ArrowUpCircle, ChartNoAxesColumn, ChevronDown, Cloud, Coins, Download, FlaskConical, KeyRound, Monitor, Palette, ScrollText, Search, Settings, Shield, TabletSmartphone, Terminal, User, Users, X, Building2, Zap, BookOpen, ImagePlus } from "lucide-react";
 import { useStore, type AppSettingsSection } from "@/state/store";
 import { skillsLibraryEnabled } from "@/lib/feature-flags";
 import { type LocaleKey } from "@/locales";
@@ -67,7 +67,7 @@ import { useAdvancedMode } from "@/lib/interface-mode";
 import { Select } from "./Select";
 import { SavedStepsRow } from "./SavedStepsRow";
 import { BrowserProfilesRow, ColorUserBubblesRow, AdvancedModeRow, ExperimentalFeaturesRow, LanguageRow, NewBotEffortRow, PinnedCirclesRow, ReplayTourRow, RunCardRow, FollowUpRow, SendKeyRow, ShowThreadsRow, ToolCallsRow, UniversalPinsRow, UpdatesRow } from "./AppSettingsRows";
-import { SIMPLE_ADVANCED_ONLY, SimpleAiPage, SimpleBillingPage, SimpleComputerPage, SimpleGeneralPage, SimpleLooksPage, SimplePermissionsPage, SimpleUpdatesPage, type Disclose, type SimpleDisclosureId } from "./SettingsSimplePages";
+import { SIMPLE_ADVANCED_ONLY, SimpleAiPage, SimpleBillingPage, SimpleComputerPage, SimpleGeneralPage, SimpleLooksPage, SimplePermissionsPage, SimpleUpdatesPage, SimpleVaultPage, type Disclose, type SimpleDisclosureId } from "./SettingsSimplePages";
 
 // labelKey, not a label: t() reads the active pack when called, so a label resolved at module scope would freeze the
 // boot language.
@@ -454,7 +454,7 @@ export function SettingsModal() {
             ai={<SimpleAiPage has={has} disclose={disclose} connections={renderSection("connections")} />}
             botAccess={renderSection("botAccess")} />;
       case "permissions": return <SimplePermissionsPage />;
-      case "vault": return <div data-settings-block="logins" className="scroll-mt-4"><LoginsSettings /></div>;
+      case "vault": return <SimpleVaultPage />;
       case "computer": return <SimpleComputerPage has={has} remoteAccess={remoteAccess} servers={<ConnectedWorkspacesSettings />} disclose={disclose} />;
       case "billing": return <SimpleBillingPage has={has} disclose={disclose} cloudAccount={renderSection("cloudAccount")} />;
       case "updates": return <SimpleUpdatesPage remoteActive={remoteActive} />;
@@ -566,6 +566,13 @@ export function SettingsModal() {
               <h2 className="hidden truncate text-[17px] font-medium leading-6 tracking-[-0.008em] text-ink sm:block">
                 {looksOpen ? t("settings.simple.page.looks") : currentPage ? t(currentPage.labelKey) : null}
               </h2>
+              {currentPage?.id === "vault" && (
+                <div className="ml-auto mr-4 hidden sm:block">
+                  <button type="button" className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-canvas hover:bg-ink/90 transition-colors">
+                    {t("settings.vault.newItem")} <ChevronDown size={14} />
+                  </button>
+                </div>
+              )}
             </header>
             <button
               type="button"

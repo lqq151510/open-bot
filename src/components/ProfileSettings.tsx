@@ -7,7 +7,7 @@ import type { LocaleKey } from "@/locales";
 import { botAvatarUrlFromStoredPath } from "../../shared/bot-avatar";
 import { AboutMeSettings } from "./AboutMeSettings";
 import { profileInitials } from "./SidebarProfileMenu";
-import { User } from "lucide-react";
+import { Check, Copy, User } from "lucide-react";
 
 const PHOTO_MIN_SIDE = 64;
 const PHOTO_MAX_SIDE = 8192;
@@ -212,8 +212,9 @@ function ProfileAvatar({ profile }: { profile?: { name?: string; email?: string;
 }
 
 export function ProfileSummaryRow() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const profile = state.config?.profile;
   const name = profile?.name?.trim() ?? "";
   const email = profile?.email?.trim() ?? "";
@@ -222,19 +223,72 @@ export function ProfileSummaryRow() {
   useEffect(() => {
     if (editing) fields.current?.querySelector<HTMLInputElement>("input:not([type=file])")?.focus();
   }, [editing]);
+
+  const onCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!email) return;
+    void navigator.clipboard?.writeText(email);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div data-profile-summary="" className="px-4 py-[13px]">
       <div className="flex min-w-0 items-center gap-3">
         <ProfileAvatar profile={profile} />
         <div className="min-w-0 flex-1">
-          {name || email ? <>
-            <div className="truncate text-[14px] leading-5 text-ink">{name || email}</div>
-            {name && email && <div className="truncate text-[13px] leading-[18px] text-ink-secondary">{email}</div>}
-          </> : <div className="truncate text-[14px] leading-5 text-ink-secondary">{t("settings.simple.account.noName")}</div>}
+          {name || email ? (
+            <>
+              <div className="truncate text-[14px] font-medium leading-5 text-ink">{name || email}</div>
+              {email && (
+                <div className="flex items-center gap-1.5 truncate text-[13px] leading-[18px] text-ink-secondary">
+                  <span className="truncate">{email}</span>
+                  <button
+                    type="button"
+                    onClick={onCopy}
+                    className="flex size-4 cursor-pointer items-center justify-center text-ink-secondary/70 hover:text-ink transition-colors"
+                    title={copied ? t("common.copied") : t("common.copy")}
+                    aria-label={copied ? t("common.copied") : t("common.copy")}
+                  >
+                    {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="truncate text-[14px] leading-5 text-ink-secondary">{t("settings.simple.account.noName")}</div>
+          )}
         </div>
-        <button type="button" aria-expanded={editing} aria-controls={fieldsId} className="ui-button shrink-0" onClick={() => setEditing(!editing)}>
-          {editing ? t("common.done") : t(name || email ? "settings.simple.account.edit" : "settings.simple.account.add")}
-        </button>
+        {name || email ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="ui-button shrink-0"
+              onClick={() => dispatch({ type: "openCloudAdd", source: "app_settings" })}
+            >
+              {t("connectors.action.addAccount")}
+            </button>
+            <button
+              type="button"
+              aria-expanded={editing}
+              aria-controls={fieldsId}
+              className="ui-button shrink-0"
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? t("common.done") : t("settings.simple.account.edit")}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            aria-expanded={editing}
+            aria-controls={fieldsId}
+            className="ui-button shrink-0"
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? t("common.done") : t("settings.simple.account.add")}
+          </button>
+        )}
       </div>
       <div id={fieldsId} ref={fields} hidden={!editing} className="mt-4">
         {editing && <ProfileFields />}
