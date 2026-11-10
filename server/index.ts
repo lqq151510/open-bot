@@ -127,8 +127,7 @@ import { createSkillReview, turnToolSteps } from "./skill-review.ts";
 import { createSideJobs, helperSelection } from "./side-jobs.ts";
 import type { CaptureTurn, RoomLine } from "./memory-capture.ts";
 import { createAboutMe } from "./about-me.ts"; import { createPersonPreference } from "./host/person-preference.ts";
-import { botMemoryUpdate, ownersOwnAsk } from "./memory-forget.ts";
-import { spokenMemoryToApply } from "./memory-spoken.ts";
+import { botMemoryUpdate, ownersOwnAsk } from "./memory-forget.ts"; import { applySpokenMemory } from "./spoken-memory-turn.ts";
 import { canManage, canReach, hasTeamAuthority, livePeerRoster, livePeerRosterBlock, peerName, peerRosterSystemPrompt, peerStatus, peerStatusWords, reachablePeers, resolveTeammate, roomPeerRosterSystemPrompt, roomRosterLine } from "./peer-roster.ts"; import { roomPostRefusal, sharedNamesNote, unreachedMentionLines } from "./same-name-mentions.ts";
 import {
   containerComputerAction,
@@ -7529,31 +7528,6 @@ function threadTitleGate(bot: Pick<BotRecord, "modelSelection">): { ok: true; in
 }
 
 const titleRegenerations = new Set<string>();
-
-function recordSpokenMemory(input: {
-  bot: BotRecord;
-  threadId: string;
-  generation: string;
-  text: string;
-  agentsMcp: boolean;
-  workspaceFiles: boolean;
-  memoryEnabled: boolean;
-  writesRefused: boolean;
-  personSpoke: boolean;
-}): void {
-  const command = spokenMemoryToApply(input, input.text);
-  if (!command) return;
-  const room = store.groupByThread(input.threadId);
-  const ownersAsk = Boolean(CLOUD_TEAM) || (!room && ownersOwnAsk(store.activePath(input.threadId)));
-  botMemoryUpdate(teamHost.layer(input.bot.id, input.threadId), command, {
-    source: memorySourceLabel({ room, task: store.taskByThread(input.bot.id, input.threadId), threadId: input.threadId }),
-    aboutMe: ownersAsk ? aboutMeFacts : null,
-    prefer: command.action === "prefer"
-      ? personPreference.target({ threadId: input.threadId, generation: input.generation } as InternalCapability, input.bot)
-      : null,
-  });
-}
-
 /** The turn's start saves its thread's bookkeeping (title, last asked, read) once, when its synchronous part returns. */
 function startTurn(...args: Parameters<typeof beginTurn>): ReturnType<typeof beginTurn> { return batchSaves(() => beginTurn(...args)); }
 async function beginTurn(
@@ -8403,16 +8377,7 @@ async function beginTurn(
       }
       // The tool bridge is decided here: the folder the turn is launched in is known, and the prompt is not built yet.
       applyAgentsBridge(threadId, integrations, cfg, bot, turnEngine(instance, providerConfigs(), registry.lastSnapshot(instance.instanceId), cwd));
-      const confined = proactive.fence.confines(threadId), apiFenced = botApiThread(threadId); if (confined || apiFenced) for (const key of Object.keys(integrations) as Array<keyof typeof integrations>) if (!(apiFenced ? BOT_API_TOOLS : READ_AND_DRAFT_TOOLS).has(key)) delete integrations[key];
-      recordSpokenMemory({
-        bot, threadId, generation: dispatchClaimId, text,
-        agentsMcp: instance.adapter.capabilities.agentsMcp === true,
-        workspaceFiles: supportsWorkspaceFiles(instance.driverKind),
-        memoryEnabled: bot.memoryEnabled !== false,
-        writesRefused: notesRefused || guestConfined,
-        personSpoke: !opts?.coordination && !opts?.cardContinuation && !opts?.automationSource && !opts?.compactOnly
-          && !opts?.computerSelectionContinuation && !commsDepth && !opts?.peerAsk && !userMessage.peerAsk && !userMessage.sender && !userMessage.relayed && userMessage.via !== "api",
-      });
+      const confined = proactive.fence.confines(threadId), apiFenced = botApiThread(threadId); if (confined || apiFenced) for (const key of Object.keys(integrations) as Array<keyof typeof integrations>) if (!(apiFenced ? BOT_API_TOOLS : READ_AND_DRAFT_TOOLS).has(key)) delete integrations[key]; applySpokenMemory({ bot, threadId, generation: dispatchClaimId, text, agentsMcp: instance.adapter.capabilities.agentsMcp === true, workspaceFiles: supportsWorkspaceFiles(instance.driverKind), memoryEnabled: bot.memoryEnabled !== false, writesRefused: notesRefused || guestConfined, personSpoke: !opts?.coordination && !opts?.cardContinuation && !opts?.automationSource && !opts?.compactOnly && !opts?.computerSelectionContinuation && !commsDepth && !opts?.peerAsk && !userMessage.peerAsk && !userMessage.sender && !userMessage.relayed && userMessage.via !== "api" }, { cloudTeam: Boolean(CLOUD_TEAM), groupByThread: (id) => store.groupByThread(id), activePath: (id) => store.activePath(id), taskByThread: (botId, id) => store.taskByThread(botId, id), layer: (botId, id) => teamHost.layer(botId, id), aboutMe: aboutMeFacts, preferTarget: (id, generation, who) => personPreference.target({ threadId: id, generation } as InternalCapability, who) });
       const prompt = buildSystemPrompt(persona, liveBot?.soul ?? bot.soul ?? "", [
         { id: "user-profile", label: "About the user", text: userProfileSystemPrompt(teamHost.profileFor(threadId, cfg.profile)) }, { id: "people", label: "People", text: teamMessages.prompt(bot.id, threadId, Boolean(integrations.agents)) }, { id: "long-waits", label: "Waiting on the person", text: teammatePrompts.personBehind(bot.id, threadId) ? teamMessages.longWaits(threadId) : "" },
         { id: "setup", label: "Setup", text: setupSystemPrompt(setupMode, {
@@ -10214,14 +10179,7 @@ async function runClaimedGroupMemberTurn(
     const drift = checkSoulDrift(bot.id, bot.soul ?? "", bot.soulHash ?? "");
     if (drift.drift !== Boolean(bot.soulDrift)) store.patchBot(bot.id, { soulDrift: drift.drift });
   }
-  recordSpokenMemory({
-    bot, threadId, generation: internalGeneration, text: latestUser?.text ?? "",
-    agentsMcp: instance.adapter.capabilities.agentsMcp === true,
-    workspaceFiles: supportsWorkspaceFiles(instance.driverKind),
-    memoryEnabled: bot.memoryEnabled !== false,
-    writesRefused: roomGuestConfined || (CLOUD_PERSONAL && cloudHomeLendingRefusal(cloudLendingTurn({ botId: bot.id, threadId, generation: internalGeneration })) !== null) || !roomFeedsBot(readyGroup, bot),
-    personSpoke: hop === 0 && !cardContinuation && !orchestration && Boolean(latestUser) && !latestUser?.sender && !latestUser?.peerAsk && !latestUser?.relayed && latestUser?.via !== "api",
-  });
+  applySpokenMemory({ bot, threadId, generation: internalGeneration, text: latestUser?.text ?? "", agentsMcp: instance.adapter.capabilities.agentsMcp === true, workspaceFiles: supportsWorkspaceFiles(instance.driverKind), memoryEnabled: bot.memoryEnabled !== false, writesRefused: roomGuestConfined || (CLOUD_PERSONAL && cloudHomeLendingRefusal(cloudLendingTurn({ botId: bot.id, threadId, generation: internalGeneration })) !== null) || !roomFeedsBot(readyGroup, bot), personSpoke: hop === 0 && !cardContinuation && !orchestration && Boolean(latestUser) && !latestUser?.sender && !latestUser?.peerAsk && !latestUser?.relayed && latestUser?.via !== "api" }, { cloudTeam: Boolean(CLOUD_TEAM), groupByThread: (id) => store.groupByThread(id), activePath: (id) => store.activePath(id), taskByThread: (botId, id) => store.taskByThread(botId, id), layer: (botId, id) => teamHost.layer(botId, id), aboutMe: aboutMeFacts, preferTarget: (id, generation, who) => personPreference.target({ threadId: id, generation } as InternalCapability, who) });
   const roomMemory = memorySystemPrompt(teamHost.layer(bot.id, threadId), { managedWrites: Boolean(integrations.agents), fileTools: worksInWorkspace, enabled: bot.memoryEnabled !== false }) + teamHost.sharedNotesPrompt(bot.id, threadId);
   const recentLines = recentWork(recentWorkSources(bot), bot, { userName: typeof userName === "string" ? userName : "the team", currentThreadId: threadId, ...recentWorkFilter(threadId) });
   recordTurnPlace(bot.id, threadId, (roomTeamComputer ? "cloud" : roomVmTarget ? "vm" : surfaceOfComputerKind(roomComputerKind)) ?? (integrations.browser ? "browser" : null));
