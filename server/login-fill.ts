@@ -2,7 +2,7 @@
 // the engine's loopback relay (never on a command line), and the bot hears what was filled or why not, never a value.
 import { randomBytes } from "node:crypto";
 
-import { loginLabel, loginOriginCheck, loginPageCheck, type LoginPlace, type LoginSource } from "../shared/logins.ts";
+import { loginOriginCheck, loginPageCheck, loginPlaceName, type LoginPlace, type LoginSource } from "../shared/logins.ts";
 import { scrubHeldSecrets } from "../shared/redact.ts";
 import type { SecretHold } from "./browser-secret-hold.ts";
 import { totpCode, type TotpKey } from "./totp.ts";
@@ -239,7 +239,7 @@ function evaluated(data: Record<string, unknown> | null): Record<string, unknown
 
 function listed(logins: Array<LoginPlace & { username: string }>): string {
   if (!logins.length) return "You have no saved logins.";
-  const shown = logins.slice(0, 12).map(loginLabel);
+  const shown = logins.slice(0, 12).map(loginPlaceName);
   return `Your saved logins: ${shown.join(", ")}${logins.length > shown.length ? ` and ${logins.length - shown.length} more` : ""}.`;
 }
 
@@ -297,15 +297,15 @@ export async function fillLogin(input: FillLoginInput, deps: FillLoginDeps): Pro
   if (wanted) {
     chosen = all.filter((login) => login.username.toLowerCase() === wanted.toLowerCase());
     if (!chosen.length) {
-      return { ok: false, host: pageHost, text: `No saved login for ${pageHost} has the username ${JSON.stringify(wanted)}. The usernames saved there: ${all.map((login) => login.username).join(", ")}.` };
+      return { ok: false, host: pageHost, text: `No saved login for ${pageHost} matches the username ${JSON.stringify(wanted)}. Ask the person which account to use.` };
     }
   }
   if (chosen.length > 1) {
-    return { ok: false, host: pageHost, text: `There are ${chosen.length} saved logins for ${pageHost}: ${chosen.map((login) => login.username).join(", ")}. Call fill_login again with the username to use.` };
+    return { ok: false, host: pageHost, text: `There are ${chosen.length} saved logins for ${pageHost}. Ask the person which account to use, then call fill_login with the username they give.` };
   }
   const login = chosen[0]!;
   if (!loginOriginCheck(pageUrl, login).ok) {
-    return { ok: false, host: pageHost, text: `This page's host (${pageHost}) is not one the saved login for ${loginLabel(login)} fills on.` };
+    return { ok: false, host: pageHost, text: `This page's host (${pageHost}) is not one the saved login for ${loginPlaceName(login)} fills on.` };
   }
   return new LoginRun(login, { submit: input.submit !== false, host: pageHost, deps, now, sleep }).run();
 }
@@ -363,7 +363,7 @@ class LoginRun {
   }
 
   private who(): string {
-    return `${this.login.username || "the saved login"}${this.login.source === "1password" ? " (from 1Password)" : ""}`;
+    return this.login.source === "1password" ? "the saved login (from 1Password)" : "the saved login";
   }
 
   private filledWords(): string {

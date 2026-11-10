@@ -134,10 +134,11 @@ it.skipIf(process.platform === "win32")("saves a login from the sign-in card wit
     await expect.poll(() => evidence().length, { timeout: 20_000 }).toBe(2);
     const resumed = evidence()[1];
     expect(JSON.stringify(resumed.prompt)).toContain("the person saved a login for example.com and login.microsoftonline.com. Open its login page in your browser and call fill_login there: it fills the form and submits it.");
-    expect(resumed.system).toContain(`Your saved logins, for fill_login on these sites and their sign-in pages: example.com (${USERNAME}).`);
+    expect(resumed.system).toContain("Your saved logins, for fill_login on these sites and their sign-in pages: example.com.");
+    expect(resumed.system).not.toContain(USERNAME);
     const [filled] = answered(1, "fill_login");
     expect(filled.isError).toBeFalsy();
-    expect(filled.content[0].text).toBe(`Filled the username and the password for ${USERNAME} on login.microsoftonline.com and submitted it; the page is now https://example.com/invoices (“Invoices”). Check you are signed in.`);
+    expect(filled.content[0].text).toBe("Filled the username and the password for the saved login on login.microsoftonline.com and submitted it; the page is now https://example.com/invoices (“Invoices”). Check you are signed in.");
     expect(page.sent).toEqual([{ email: USERNAME, password: PASSWORD, csrf: "token-not-a-secret" }]);
     expect(page.pressed).toEqual(["Enter"]);
     expect([...browser.proxies]).toEqual([expect.stringMatching(/^socks5:\/\/127\.0\.0\.1:[1-9]\d*$/u)]);
@@ -179,7 +180,7 @@ it.skipIf(process.platform === "win32")("fills a login saved for example.com on 
     };
 
     await turn("Sign in to example.com.", 1);
-    expect(answered(0, "fill_login")[0].content[0].text).toBe(`Filled the username and the password for ${USERNAME} on accounts.example.com. Submit the form now (its sign-in button, or Enter). The password is cleared from the page in 60 seconds. You never see the password; do not read it back from the page.`);
+    expect(answered(0, "fill_login")[0].content[0].text).toBe("Filled the username and the password for the saved login on accounts.example.com. Submit the form now (its sign-in button, or Enter). The password is cleared from the page in 60 seconds. You never see the password; do not read it back from the page.");
     const [evaluated] = answered(0, "agent_browser_eval");
     expect(evaluated).toMatchObject({ isError: true, content: [{ text: expect.stringMatching(/^A saved password was just filled on this page, so agent_browser_eval is refused here/u) }] });
     expect(page.field("#password").value).toBe(PASSWORD);
@@ -187,13 +188,13 @@ it.skipIf(process.platform === "win32")("fills a login saved for example.com on 
 
     page.navigate("https://bob.github.io/login", LOGIN_FORM);
     await turn("Sign in to Bob's page.", 2);
-    expect(answered(1, "fill_login")[0].content[0].text).toBe(`No saved login for bob.github.io. A login fills on its own site and the sign-in hosts saved with it, never on another site. Your saved logins: alice.github.io (alice), example.com (${USERNAME}). Open that site's login page, or call request_sign_in so the person signs in.`);
+    expect(answered(1, "fill_login")[0].content[0].text).toBe("No saved login for bob.github.io. A login fills on its own site and the sign-in hosts saved with it, never on another site. Your saved logins: alice.github.io, example.com. Open that site's login page, or call request_sign_in so the person signs in.");
     expect(page.typed).toEqual([USERNAME, PASSWORD]);
 
     page.navigate("https://www.example.com/login", LOGIN_FORM);
     page.answer = () => ({ error: "Incorrect password." });
     await turn("Try www.", 3);
-    expect(answered(2, "fill_login")[0].content[0].text).toBe(`The site did not accept the login for ${USERNAME} on www.example.com. It said: “Incorrect password.”. Check the saved login in Settings → Logins, or call request_sign_in. The password was cleared from the page.`);
+    expect(answered(2, "fill_login")[0].content[0].text).toBe("The site did not accept the login for the saved login on www.example.com. It said: “Incorrect password.”. Check the saved login in Settings → Logins, or call request_sign_in. The password was cleared from the page.");
     expect(page.sent).toHaveLength(1);
     expect(page.field("#password").value).toBe("");
     expect(JSON.stringify(evidence())).not.toContain(PASSWORD);
@@ -254,7 +255,7 @@ it.runIf(process.platform === "darwin")("on Auto, signs in in the bot's own brow
     expect(turn.system).toContain("use, in this order: a connected app that does it, your built-in browser, a cloud computer if select_computer offers one");
     const [filled] = answered(0, "fill_login");
     expect(filled.isError).toBeFalsy();
-    expect(filled.content[0].text).toBe(`Filled the username and the password for ${USERNAME} on example.com and submitted it; the page is now https://example.com/invoices (“Invoices”). Check you are signed in.`);
+    expect(filled.content[0].text).toBe("Filled the username and the password for the saved login on example.com and submitted it; the page is now https://example.com/invoices (“Invoices”). Check you are signed in.");
     expect(page.sent).toEqual([{ email: USERNAME, password: PASSWORD, csrf: "token-not-a-secret" }]);
     // The person's own screen was never touched, so nothing asked to use it.
     const messages = (await api("GET", `/api/threads/${bot.threadId}/messages?limit=100`)).body.messages as any[];

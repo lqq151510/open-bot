@@ -57,7 +57,7 @@ describe("fill_login fills and submits in one call", () => {
     page.answer = () => ({ navigate: DASHBOARD });
     const outcome = await fill();
     expect(outcome).toMatchObject({ ok: true, host: "accounts.example.com", filled: ["username", "password"] });
-    expect(outcome.text).toBe("Filled the username and the password for alice@example.com on accounts.example.com and submitted it; the page is now https://example.com/dashboard (“Dashboard”). Check you are signed in.");
+    expect(outcome.text).toBe("Filled the username and the password for the saved login on accounts.example.com and submitted it; the page is now https://example.com/dashboard (“Dashboard”). Check you are signed in.");
     expect(page.typed).toEqual(["alice@example.com", PASSWORD]);
     expect(page.pressed).toEqual(["Enter"]);
     expect(page.sent).toEqual([{ email: "alice@example.com", password: PASSWORD, csrf: "token-not-a-secret" }]);
@@ -150,7 +150,8 @@ describe("a login fills on its own site, and nowhere else", () => {
     const outcome = await fill();
     expect(outcome.ok).toBe(false);
     expect(outcome.text).toContain(`No saved login for ${new URL(url).hostname}.`);
-    expect(outcome.text).toContain("Your saved logins: example.com (alice).");
+    expect(outcome.text).toContain("Your saved logins: example.com.");
+    expect(outcome.text).not.toContain("alice");
     expect(page.typed).toEqual([]);
     expect(page.engineCalls).toEqual([["get", "url"]]);
   });
@@ -159,7 +160,7 @@ describe("a login fills on its own site, and nowhere else", () => {
     const { page, fill } = setup("https://bob.github.io/login", LOGIN_FORM, [{ host: "alice.github.io", username: "alice" }]);
     const outcome = await fill();
     expect(outcome.text).toContain("No saved login for bob.github.io.");
-    expect(outcome.text).toContain("Your saved logins: alice.github.io (alice).");
+    expect(outcome.text).toContain("Your saved logins: alice.github.io.");
     expect(page.engineCalls).toEqual([["get", "url"]]);
   });
 
@@ -177,7 +178,8 @@ describe("a login fills on its own site, and nowhere else", () => {
     const { page, fill } = setup("https://evil.okta.com/login", LOGIN_FORM, saved);
     const refused = await fill();
     expect(refused.text).toContain("No saved login for evil.okta.com.");
-    expect(refused.text).toContain("Your saved logins: acme.okta.com (alice@example.com).");
+    expect(refused.text).toContain("Your saved logins: acme.okta.com.");
+    expect(refused.text).not.toContain("alice@example.com");
     page.navigate("https://acme.okta.com/login", LOGIN_FORM);
     page.answer = () => ({ navigate: { url: "https://acme.okta.com/app", html: "<title>Apps</title>" } });
     expect(await fill()).toMatchObject({ ok: true, filled: ["username", "password"] });
@@ -220,7 +222,7 @@ describe("a login the site refuses is cleared from the page", () => {
     page.answer = () => ({ error: "Incorrect password." });
     const outcome = await fill();
     expect(outcome).toMatchObject({ ok: false, filled: ["username", "password"] });
-    expect(outcome.text).toBe("The site did not accept the login for alice@example.com on example.com. It said: “Incorrect password.”. Check the saved login in Settings → Logins, or call request_sign_in. The password was cleared from the page.");
+    expect(outcome.text).toBe("The site did not accept the login for the saved login on example.com. It said: “Incorrect password.”. Check the saved login in Settings → Logins, or call request_sign_in. The password was cleared from the page.");
     expect(page.sent).toHaveLength(1);
     expect(page.field("#password").value).toBe("");
     expect(page.field("#email").value).toBe("alice@example.com");
@@ -268,7 +270,7 @@ describe("what the page shows after the login is sent", () => {
     const outcome = await fill();
     expect(page.sent).toHaveLength(1);
     expect(outcome).toMatchObject({ ok: true, filled: ["username", "password"] });
-    expect(outcome.text).toBe("Submitted the username and the password for alice@example.com, and a human check (CAPTCHA) appeared. Call request_sign_in so the person finishes signing in.");
+    expect(outcome.text).toBe("Submitted the username and the password for the saved login, and a human check (CAPTCHA) appeared. Call request_sign_in so the person finishes signing in.");
   });
 
   it("after the password, a code the saved login cannot make is the bot's to read from the person's inbox, or the person's to enter", async () => {
@@ -276,7 +278,7 @@ describe("what the page shows after the login is sent", () => {
     page.answer = () => ({ navigate: { url: "https://example.com/2fa", html: `<form><input name="otp" autocomplete="one-time-code"><button>Verify</button></form>` } });
     const outcome = await fill();
     expect(outcome).toMatchObject({ ok: true, filled: ["username", "password"] });
-    expect(outcome.text).toBe("Submitted the username and the password for alice@example.com. The page now asks for a one-time code, and the saved login has no 2FA key. If the site sent it to the person's own email or phone, read it from their connected email or messages and type it in yourself; otherwise call request_sign_in so the person enters it.");
+    expect(outcome.text).toBe("Submitted the username and the password for the saved login. The page now asks for a one-time code, and the saved login has no 2FA key. If the site sent it to the person's own email or phone, read it from their connected email or messages and type it in yourself; otherwise call request_sign_in so the person enters it.");
     expect(page.sent).toHaveLength(1);
   });
 });
@@ -286,7 +288,7 @@ describe("filling without submitting", () => {
     const { page, fill } = setup("https://example.com/login", LOGIN_FORM, [{ host: "example.com", username: "alice" }], { submit: false });
     const outcome = await fill();
     expect(outcome).toMatchObject({ ok: true, filled: ["username", "password"], held: { url: "https://example.com/login", ms: SECRET_HOLD_MS } });
-    expect(outcome.text).toBe("Filled the username and the password for alice on example.com. Submit the form now (its sign-in button, or Enter). The password is cleared from the page in 60 seconds. You never see the password; do not read it back from the page.");
+    expect(outcome.text).toBe("Filled the username and the password for the saved login on example.com. Submit the form now (its sign-in button, or Enter). The password is cleared from the page in 60 seconds. You never see the password; do not read it back from the page.");
     expect(page.sent).toEqual([]);
     expect(page.field("#password").value).toBe(PASSWORD);
     await outcome.held!.clear!();
@@ -346,10 +348,14 @@ describe("one-time codes and fields", () => {
     const { page, fill } = setup("https://example.com/login", LOGIN_FORM, saved, { submit: false });
     const asked = await fill();
     expect(asked.ok).toBe(false);
-    expect(asked.text).toBe("There are 2 saved logins for example.com: alice, bob. Call fill_login again with the username to use.");
+    expect(asked.text).toBe("There are 2 saved logins for example.com. Ask the person which account to use, then call fill_login with the username they give.");
+    expect(asked.text).not.toContain("alice");
+    expect(asked.text).not.toContain("bob");
     expect(await fill("Bob")).toMatchObject({ ok: true });
     expect(page.field("#password").value).toBe("fake-bob-pw");
-    expect((await fill("carol")).text).toContain('has the username "carol"');
+    const missing = await fill("carol");
+    expect(missing.text).toContain('matches the username "carol"');
+    expect(missing.text).not.toContain("alice");
   });
 
   it("says when the page has no login fields", async () => {

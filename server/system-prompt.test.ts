@@ -258,15 +258,19 @@ describe("computerPrompt", () => {
     expect(SIGN_IN_PROMPT.indexOf("fill_login")).toBeLessThan(SIGN_IN_PROMPT.indexOf("call request_sign_in"));
   });
 
-  it("names a bot's saved logins by site and username only, a login kept to its host by that host, and nothing when it has none", () => {
+  it("names a bot's saved logins by site only, a login kept to its host by that host, and nothing when it has none", () => {
     expect(savedLoginsPrompt([])).toBe("");
-    expect(savedLoginsPrompt([
+    const prompt = savedLoginsPrompt([
       { ...loginPlace("accounts.example.com"), username: "alice@example.com" },
       { ...loginPlace("acme.okta.com", [], true), username: "ops" },
       { ...loginPlace("localhost"), username: "" },
-    ])).toBe(" Your saved logins, for fill_login on these sites and their sign-in pages: example.com (alice@example.com), acme.okta.com (ops), localhost.");
+    ]);
+    expect(prompt).toBe(" Your saved logins, for fill_login on these sites and their sign-in pages: example.com, acme.okta.com, localhost. A saved login's username stays in the vault; you are not told it.");
+    expect(prompt).not.toContain("alice@example.com");
+    expect(prompt).not.toContain("ops");
     const many = Array.from({ length: 45 }, (_, index) => ({ ...loginPlace(`site${index}.com`), username: "a" }));
-    expect(savedLoginsPrompt(many)).toMatch(/site39\.com \(a\) and 5 more\.$/u);
+    expect(savedLoginsPrompt(many)).toMatch(/site39\.com and 5 more\. A saved login's username stays in the vault; you are not told it\.$/u);
+    expect(savedLoginsPrompt(many)).not.toContain("(a)");
   });
 });
 

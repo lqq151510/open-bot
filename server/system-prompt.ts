@@ -4,7 +4,7 @@ import { theirComputer } from "./lent-computers.ts";
 import { agentsToolBridged } from "./drivers/agents-bridge.ts";
 import { teammateAvailabilityPrompt, type RosterMember } from "./peer-roster.ts";
 import type { ConnectorToolGrant } from "../shared/wire.ts";
-import { loginLabel, type LoginPlace } from "../shared/logins.ts";
+import { loginPlaceName, type LoginPlace } from "../shared/logins.ts";
 import { isConversational, type ReplyStyle } from "../shared/reply-style.ts";
 import { REPLY_HABITS_PROMPT } from "./reply-habits.ts";
 
@@ -122,9 +122,9 @@ const COMPUTER_PARAGRAPH: Record<ComputerPromptKind, string> = {
 
 export function savedLoginsPrompt(logins: ReadonlyArray<LoginPlace & { username: string }>): string {
   if (!logins.length) return "";
-  const shown = logins.slice(0, 40).map(loginLabel);
+  const shown = logins.slice(0, 40).map(loginPlaceName);
   const more = logins.length > shown.length ? ` and ${logins.length - shown.length} more` : "";
-  return ` Your saved logins, for fill_login on these sites and their sign-in pages: ${shown.join(", ")}${more}.`;
+  return ` Your saved logins, for fill_login on these sites and their sign-in pages: ${shown.join(", ")}${more}. A saved login's username stays in the vault; you are not told it.`;
 }
 
 export function computerPrompt(kind: ComputerPromptKind | null): string {

@@ -123,7 +123,8 @@ describe("1Password logins", () => {
     });
     const outcome = await fill();
     expect(outcome).toMatchObject({ ok: true, filled: ["username", "password", "code"] });
-    expect(outcome.text).toContain("for alice@example.com (from 1Password) on accounts.example.com.");
+    expect(outcome.text).toContain("for the saved login (from 1Password) on accounts.example.com.");
+    expect(outcome.text).not.toContain("alice@example.com");
     expect(page.field("#password").value).toBe(VAULT_PASSWORD);
     expect(page.field("input[name=otp]").value).toBe(totpCode(parseTotpKey(KEY)!, now));
     expect(remembered).toEqual(expect.arrayContaining([VAULT_PASSWORD, totpCode(parseTotpKey(KEY)!, now)]));

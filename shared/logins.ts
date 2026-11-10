@@ -154,10 +154,14 @@ export function loginUsableBy(login: { bots: LoginBots }, botIds: string | reado
   return bots === "all" || (typeof botIds === "string" ? [botIds] : botIds).every((id) => bots.includes(id));
 }
 
-/** A login as a bot hears of it: its site, or its hosts when it is kept to
- * them, and the username. */
+/** The site a bot may hear: the saved site, or the exact hosts when the login is kept to them. */
+export function loginPlaceName(login: LoginPlace): string {
+  return login.exactHost ? login.hosts.join(" or ") : login.site;
+}
+
+/** A login as a person sees it in settings: the place, and the username. */
 export function loginLabel(login: LoginPlace & { username: string }): string {
-  const where = login.exactHost ? login.hosts.join(" or ") : login.site;
+  const where = loginPlaceName(login);
   return login.username ? `${where} (${login.username})` : where;
 }
 
