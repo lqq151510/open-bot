@@ -562,7 +562,7 @@ const TOOL_DEFINITIONS = [
   {
     name: "memory_log",
     description:
-      "Write one line to today's log file, memory/log/YYYY-MM-DD.md, stamped with the time and this conversation: what happened, not what is true. Use it for events worth a trace — a deploy went out, a person decided something, a check failed — that should not shape future sessions. A few recent lines are shown as not facts. Do not log a screenshot or window text. A fact that should hold in every session goes to memory_update instead.",
+      "Write one line to today's log file, memory/log/YYYY-MM-DD.md, stamped with the time and this conversation: what happened, not what is true. Use it for events worth a trace — a deploy went out, a person decided something, a check failed — that should not shape future sessions. The last few lines from today and yesterday are shown as not facts. Do not log a screenshot or window text. A fact that should hold in every session goes to memory_update instead.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
