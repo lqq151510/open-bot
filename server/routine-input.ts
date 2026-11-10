@@ -6,6 +6,7 @@ import { loadChecks, loadModelSelection } from "./routine-load.ts";
 import { cleanSchedule } from "./routine-schedules.ts";
 import type { ModelSelection } from "../shared/wire.ts";
 import type { Routine, RoutineInput } from "./routines.ts";
+import { singleBotId } from "../shared/product-defaults.ts";
 import { userErrorThrown } from "./user-errors.ts";
 
 type Refusal = { status: number; error: string };
@@ -50,7 +51,7 @@ export function routineThreadModel(routine: Pick<Routine, "botId" | "modelSelect
 export function sanitizeInput(input: RoutineInput, after: number): Omit<Routine, "id" | "createdAt" | "updatedAt" | "nextRunAt"> {
   const name = String(input.name ?? "").trim().slice(0, 80);
   const prompt = String(input.prompt ?? "").trim().slice(0, 20_000);
-  const botId = String(input.botId ?? "").trim();
+  const botId = singleBotId(input.botId) ?? "";
   if (!name) throw new Error("Give the routine a name");
   if (!prompt) throw new Error("Tell the bot what to do");
   if (!botId) throw new Error("Choose a bot");
