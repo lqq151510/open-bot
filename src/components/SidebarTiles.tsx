@@ -4,7 +4,7 @@ import { memo, useLayoutEffect, useRef, useState, type KeyboardEvent, type Mouse
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { useLiveMedia } from "@/lib/live-call-media";
-import { stateForBot } from "@/lib/mascot";
+import { useSidebarAvatar } from "@/lib/sidebar-presence";
 import { useShowThreads } from "@/lib/thread-preferences";
 import { api, openBotRow, useStore, type Bot } from "@/state/store";
 import { useChiefStepOpen } from "@/lib/default-bot";
@@ -30,6 +30,7 @@ export const SidebarBotTile = memo(function SidebarBotTile({ primary = false, dr
   const remoteClient = typeof window !== "undefined" && window.ogb?.remoteClient?.active === true;
   const [renaming, setRenaming] = useState(false);
   const visible = useVisibleMessages(bot);
+  const presence = useSidebarAvatar({ ...bot, messages: visible });
   const { waiting, working, teammateWait, queued } = sidebarBotStatus(bot, pendingQueued);
   const { unread, noticing } = useBotUnread(bot);
   const onLiveCall = liveBadgeFor(bot.id, liveMedia, liveCall);
@@ -81,10 +82,10 @@ export const SidebarBotTile = memo(function SidebarBotTile({ primary = false, dr
         pinnedCircleDragClass({ drag, dragging, drop }),
       )}
     >
-      <span className="relative flex">
+      <span className="relative flex" data-sidebar-presence={presence.presence}>
         <BotAvatar
           bot={bot}
-          state={stateForBot({ ...bot, messages: visible })}
+          state={presence.state}
           size={primary ? 72 : 56}
           motion={mascotMotion?.kind ?? "none"}
           motionKey={mascotMotion?.nonce ?? 0}
