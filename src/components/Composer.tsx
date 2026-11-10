@@ -96,14 +96,7 @@ import {
 import { useSlashSkills } from "@/lib/use-slash-skills";
 import { randomUuid } from "@/lib/random-uuid";
 import { GrokModePill } from "./GrokModePill";
-import {
-  augmentPromptWithGrokMode,
-  readGrokPersonaMode,
-  writeGrokPersonaMode,
-  readGrokThinkMode,
-  writeGrokThinkMode,
-  type GrokPersonaMode,
-} from "@/lib/grok-mode";
+import { grokComposerModel, grokFunToggle, grokThinkSelection } from "@/lib/grok-mode";
 
 const supportsAgents = (instances: InstanceInfo[], candidate?: Bot) =>
   Boolean(candidate && instances.find((instance) => instance.instanceId === candidate.modelSelection.instanceId)?.capabilities?.agentsMcp);
@@ -190,22 +183,24 @@ export function Composer({
   const attachmentPending = useDraftAttachmentPending(draftId);
   const failedSends = useFailedComposerSends(draftId); const picks = mentionPicksFor(draftId);
   const [channelMode, setChannelMode] = useComposerChannelMode(draftId);
-  const [grokMode, setGrokMode] = useState<GrokPersonaMode>(() => readGrokPersonaMode());
-  const [grokThink, setGrokThink] = useState(() => readGrokThinkMode());
-  const toggleGrokMode = useCallback(() => {
-    setGrokMode((prev) => {
-      const next = prev === "fun" ? "normal" : "fun";
-      writeGrokPersonaMode(next);
-      return next;
-    });
-  }, []);
+  const grokInstance = !group && profile
+    ? state.instances.find((instance) => instance.instanceId === (bot ?? profile).modelSelection.instanceId)
+    : undefined;
+  const grok = grokComposerModel({
+    enabled: grokInstance !== undefined, soul: profile?.soul ?? "", driverKind: grokInstance?.driverKind,
+    effortLevels: grokInstance?.capabilities?.effortLevels, effort: bot?.modelSelection.effort, busy: bot?.busy === true,
+  });
+  const toggleGrokFun = useCallback(() => {
+    if (!profile) return;
+    const next = grokFunToggle(profile.soul ?? "");
+    if (next.kind === "tooLong") dispatch({ type: "error", message: t("grokMode.fun.tooLong") });
+    if (next.kind === "update") dispatch({ type: "updateBot", botId: profile.id, patch: { soul: next.soul } });
+  }, [dispatch, profile]);
   const toggleGrokThink = useCallback(() => {
-    setGrokThink((prev) => {
-      const next = !prev;
-      writeGrokThinkMode(next);
-      return next;
-    });
-  }, []);
+    if (!profile || !bot) return;
+    const selection = grokThinkSelection(bot.modelSelection, bot.busy === true);
+    if (selection) dispatch({ type: "setModel", botId: profile.id, threadId: bot.threadId, selection });
+  }, [bot, dispatch, profile]);
   const editText = useCallback(
     (next: string) => {
       markDraftEdited(draftId);
@@ -587,7 +582,7 @@ export function Composer({
       dispatch({ type: "error", message: t("composer.error.noImages") });
       return;
     }
-    const composed = composeMessage(serializeThreadRefs(augmentPromptWithGrokMode(effectiveText, grokMode, grokThink), threads, currentBotId), attachments);
+    const composed = composeMessage(serializeThreadRefs(effectiveText, threads, currentBotId), attachments);
     if (!composed) return;
     stopDictation();
     const body = restoredRequestText(draftId) ?? composed;
@@ -858,11 +853,12 @@ export function Composer({
                   onPin={(surface) => dispatch({ type: "updateTask", botId: modeBot.id, threadId: modeBot.threadId, patch: { surface } })}
                 />
               )}
-              {advanced && <GrokModePill
-                mode={grokMode}
-                onToggleMode={toggleGrokMode}
-                think={grokThink}
-                onToggleThink={toggleGrokThink}
+              {advanced && grok.show && <GrokModePill
+                fun={grok.fun}
+                onToggleFun={toggleGrokFun}
+                think={grok.think}
+                onToggleThink={grok.showThink ? toggleGrokThink : undefined}
+                thinkDisabled={grok.thinkDisabled}
               />}
             </div>
           )}

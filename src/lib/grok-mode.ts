@@ -1,67 +1,82 @@
-// Grok Bot mode: Normal vs Fun Mode, plus Think Mode (Reasoning toggle)
+import { BOT_PROFILE_LIMITS } from "../../shared/bot-profile";
+import type { EffortLevel } from "../../shared/wire";
+import { utf8Bytes } from "./soul";
 
-export type GrokPersonaMode = "normal" | "fun";
+const FUN_START = "<!-- grok-fun -->";
+const FUN_END = "<!-- /grok-fun -->";
+const FUN_BODY = "Answer with a witty, sharp, slightly rebellious and humorous edge, and stay accurate.";
 
-const GROK_MODE_STORAGE_KEY = "omb-grok-mode";
-const GROK_THINK_STORAGE_KEY = "omb-grok-think";
+export const GROK_FUN_BLOCK = `${FUN_START}\n${FUN_BODY}\n${FUN_END}`;
 
-export function readGrokPersonaMode(): GrokPersonaMode {
-  try {
-    if (typeof localStorage === "undefined") return "normal";
-    const stored = localStorage.getItem(GROK_MODE_STORAGE_KEY);
-    return stored === "fun" ? "fun" : "normal";
-  } catch {
-    return "normal";
-  }
+export function soulHasGrokFun(soul: string): boolean {
+  const start = soul.indexOf(FUN_START);
+  if (start < 0) return false;
+  return soul.indexOf(FUN_END, start + FUN_START.length) >= 0;
 }
 
-export function writeGrokPersonaMode(mode: GrokPersonaMode): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(GROK_MODE_STORAGE_KEY, mode);
-    }
-  } catch {}
+function withoutGrokFun(soul: string): string {
+  const start = soul.indexOf(FUN_START);
+  if (start < 0) return soul;
+  const end = soul.indexOf(FUN_END, start + FUN_START.length);
+  if (end < 0) return soul;
+  const before = soul.slice(0, start).replace(/\n+$/u, "");
+  const after = soul.slice(end + FUN_END.length).replace(/^\n+/u, "");
+  if (!before) return after;
+  if (!after) return before;
+  return `${before}\n\n${after}`;
 }
 
-export function readGrokThinkMode(): boolean {
-  try {
-    if (typeof localStorage === "undefined") return false;
-    return localStorage.getItem(GROK_THINK_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
+export function soulWithGrokFun(soul: string, on: boolean, limit: number = BOT_PROFILE_LIMITS.soul): string | null {
+  if (!on) return withoutGrokFun(soul);
+  if (soulHasGrokFun(soul)) return soul;
+  const base = soul.replace(/\s+$/u, "");
+  const next = base ? `${base}\n\n${GROK_FUN_BLOCK}` : GROK_FUN_BLOCK;
+  return utf8Bytes(next) > limit ? null : next;
 }
 
-export function writeGrokThinkMode(enabled: boolean): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(GROK_THINK_STORAGE_KEY, enabled ? "true" : "false");
-    }
-  } catch {}
+export interface GrokComposerModel {
+  show: boolean;
+  fun: boolean;
+  showThink: boolean;
+  think?: boolean;
+  thinkDisabled: boolean;
 }
 
-export const GROK_FUN_INSTRUCTION =
-  "[Mode: Grok Fun Mode. Answer with a witty, sharp, slightly rebellious and humorous edge (Hitchhiker's Guide to the Galaxy style), while remaining deeply insightful and accurate.]";
+export function grokComposerModel(input: {
+  enabled: boolean;
+  soul: string;
+  driverKind?: string;
+  effortLevels?: readonly string[];
+  effort?: string;
+  busy: boolean;
+}): GrokComposerModel {
+  const show = input.enabled && input.driverKind === "grokAgent";
+  const showThink = show && input.effortLevels?.includes("high") === true;
+  return {
+    show,
+    fun: soulHasGrokFun(input.soul),
+    showThink,
+    think: showThink ? input.effort === "high" : undefined,
+    thinkDisabled: input.busy,
+  };
+}
 
-export const GROK_THINK_INSTRUCTION =
-  "[Thinking: Please perform detailed step-by-step reasoning inside <think>...</think> tags before presenting your final response.]";
+export type GrokFunToggle =
+  | { kind: "unchanged" }
+  | { kind: "tooLong" }
+  | { kind: "update"; soul: string };
 
-/**
- * Augments the outgoing user prompt with Grok's persona or thinking directives if enabled.
- */
-export function augmentPromptWithGrokMode(
-  text: string,
-  mode: GrokPersonaMode,
-  think: boolean,
-): string {
-  const directives: string[] = [];
-  if (mode === "fun") {
-    directives.push(GROK_FUN_INSTRUCTION);
-  }
-  if (think) {
-    directives.push(GROK_THINK_INSTRUCTION);
-  }
-  if (directives.length === 0) return text;
+export function grokFunToggle(soul: string, limit?: number): GrokFunToggle {
+  const next = soulWithGrokFun(soul, !soulHasGrokFun(soul), limit);
+  if (next === null) return { kind: "tooLong" };
+  if (next === soul) return { kind: "unchanged" };
+  return { kind: "update", soul: next };
+}
 
-  return `${directives.join(" ")}\n\n${text}`;
+export function grokThinkSelection<Selection extends { effort?: EffortLevel }>(selection: Selection, busy: boolean): Selection | null {
+  if (busy) return null;
+  const next = { ...selection };
+  if (next.effort === "high") delete next.effort;
+  else next.effort = "high";
+  return next;
 }
