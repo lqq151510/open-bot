@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import type { AboutMe } from "./about-me.ts";
 import { parseMemoryEntries, passageMatcher } from "./memory-entries.ts";
+import { memoryBodyRefused } from "./memory-secret.ts";
 import { clearForgotten, rememberForgotten } from "./profile-learned.ts";
 import { isMemorySeed, listMemoryTopics, readMemoryText, updateMemory, workspaceDir, writeMemoryFile, writeMemoryTopic, type MemoryUpdate, type MemoryUpdateResult } from "./workspace.ts";
 
@@ -94,6 +95,11 @@ export function botMemoryUpdate(
   body: { action?: unknown; text?: unknown; oldText?: unknown; until?: unknown },
   opts: { source: string; aboutMe: Pick<AboutMe, "forget"> | null; prefer?: PreferenceTarget | null },
 ): BotMemoryResult {
+  const stored = body.action === "forget" ? body.oldText : body.text;
+  if (typeof stored === "string") {
+    const refused = memoryBodyRefused(stored);
+    if (refused) return { ok: false, code: "invalid", error: refused };
+  }
   if (body.action === "prefer") {
     const text = typeof body.text === "string" ? body.text.replace(/\s+/g, " ").trim() : "";
     if (!text || text.length > PREFERENCE_CHARS) {

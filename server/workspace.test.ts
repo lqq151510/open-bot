@@ -532,8 +532,10 @@ describe("workspace", () => {
     }
     expect(listMemoryTopics(BOT)).toEqual([]);
     expect(loadMemory(BOT)).toBeNull();
-    expect(memorySystemPrompt(BOT)).not.toContain("shipped 0.1.70");
+    expect(memorySystemPrompt(BOT, { now: new Date(2026, 10, 10) })).not.toContain("shipped 0.1.70");
     expect(appendMemoryLog(BOT, "  ")).toMatchObject({ ok: false, code: "invalid" });
+    expect(appendMemoryLog(BOT, "The screenshot shows the invoice table and a Pay button.", { now })).toMatchObject({ ok: false, code: "invalid" });
+    expect(readMemoryLog(BOT, "2026-09-10.md")).not.toContain("invoice table");
     expect(readMemoryLog(BOT, "../MEMORY.md")).toBeNull();
     expect(readMemoryLog("never-ran", "2026-09-10.md")).toBeNull();
   });
@@ -669,6 +671,54 @@ describe("workspace", () => {
     expect(prompt).toContain("The user prefers CSV exports.");
     expect(prompt).toContain("Change MEMORY.md only with memory_update; on a conflict, find the current passage with session_search.");
     expect(prompt).not.toContain("update it with your file tools");
+  });
+
+  it("tells both write paths how to remember, correct, forget, and leave secrets out", () => {
+    for (const prompt of [memorySystemPrompt(BOT, { managedWrites: true }), memorySystemPrompt(BOT)]) {
+      expect(prompt).toContain("记住");
+      expect(prompt).toContain("改正");
+      expect(prompt).toContain("supersede");
+      expect(prompt).toContain("忘记");
+      expect(prompt).toContain("prefer");
+      expect(prompt).toContain("Do not memorize a price, a balance, an unread count or a limit");
+      expect(prompt).toContain("Never write a password, card number, phone number, email address or key");
+      expect(prompt).toContain("What you see on the computer — a screenshot, window text, a page, or click coordinates — is not memory.");
+      expect(prompt).toContain("request_credential");
+    }
+    expect(memorySystemPrompt(BOT, { enabled: false })).toBe("");
+    writeMemoryFile(BOT, "- The user prefers CSV exports.\n");
+    const readonly = memorySystemPrompt(BOT, { fileTools: false });
+    expect(readonly).toContain("The user prefers CSV exports.");
+    expect(readonly).toContain("no memory editing tools");
+    expect(readonly).not.toContain("memory_update");
+    expect(readonly).not.toContain("记住");
+  });
+
+  it("shows today and yesterday's log after MEMORY.md and marks it as not facts", () => {
+    const now = new Date(2026, 10, 10, 15, 4);
+    writeMemoryFile(BOT, "- The user prefers CSV exports.\n");
+    appendMemoryLog(BOT, "shipped the patch", { now });
+    appendMemoryLog(BOT, "yesterday outage", { now: new Date(2026, 10, 9, 9, 1) });
+    appendMemoryLog(BOT, "last month deploy", { now: new Date(2026, 9, 1, 9, 1) });
+    for (const prompt of [
+      memorySystemPrompt(BOT, { fileTools: false, now }),
+      memorySystemPrompt(BOT, { managedWrites: true, now }),
+    ]) {
+      expect(prompt).toContain("The user prefers CSV exports.");
+      expect(prompt.indexOf("The user prefers CSV exports.")).toBeLessThan(prompt.indexOf("Recent log (not facts"));
+      expect(prompt).toContain("not facts");
+      expect(prompt).toContain("shipped the patch");
+      expect(prompt).toContain("yesterday outage");
+      expect(prompt).not.toContain("last month deploy");
+    }
+    for (let i = 0; i < 30; i += 1) appendMemoryLog(BOT, `event ${i} ${"x".repeat(40)}`, { now });
+    const flooded = memorySystemPrompt(BOT, { managedWrites: true, now });
+    expect(flooded).toContain("event 29");
+    expect(flooded).not.toContain("event 0 ");
+    expect(flooded).not.toContain("last month deploy");
+    expect(memorySystemPrompt(BOT, { enabled: false, now })).toBe("");
+    expect(MEMORY_MAX_LINES).toBe(200);
+    expect(MEMORY_MAX_BYTES).toBe(24_000);
   });
 
   it("opts concurrent agents into targeted memory updates while retaining legacy guidance", () => {
