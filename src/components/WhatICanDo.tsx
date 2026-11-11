@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 
 import { t } from "@/lib/i18n";
 import type { LocaleKey } from "@/locales";
@@ -23,6 +23,7 @@ export function WhatICanDo({ bot, engineName, teamName }: {
   teamName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   useEffect(() => {
     if (!open) return;
@@ -31,8 +32,17 @@ export function WhatICanDo({ bot, engineName, teamName }: {
       event.preventDefault();
       setOpen(false);
     };
+    const onPointerDown = (event: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [open]);
 
   const description = bot.description.trim();
@@ -42,7 +52,7 @@ export function WhatICanDo({ bot, engineName, teamName }: {
   const empty = !description && !lead && asks.length === 0 && !engine;
 
   return (
-    <div className="relative" style={noDrag}>
+    <div ref={containerRef} className="relative" style={noDrag}>
       <button
         type="button"
         data-what-i-can-do=""

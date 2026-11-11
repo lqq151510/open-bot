@@ -91,7 +91,7 @@ export function ComputerImageUpdates() {
 }
 
 export function ComputerExecutionRows() {
-  const bridge = window.ogb?.deviceAccess;
+  const bridge = typeof window !== "undefined" ? window.ogb?.deviceAccess : undefined;
   const [retry, setRetry] = useState(0);
   const [data, setData] = useState<DeviceAccessState | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);

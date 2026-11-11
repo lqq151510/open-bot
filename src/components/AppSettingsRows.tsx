@@ -54,7 +54,7 @@ export function UpdatesRow({ title = t("settings.updates.title") }: { title?: st
                 ? t("settings.updates.handedOff")
                 : s.status === "error"
                   ? t("settings.updates.failed", { message: updaterMessage(s) ?? t("settings.updates.unknownError") })
-                  : t("settings.updates.latest");
+                  : t("settings.updates.alreadyLatest");
   return (
     <>
       {typeof autoUpdate === "boolean" && changeAutoUpdate && (

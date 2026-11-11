@@ -61,6 +61,12 @@ describe("What I can do", () => {
     await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
     expect(panel()).toBeNull();
     expect(capsule()?.getAttribute("aria-expanded")).toBe("false");
+
+    await act(async () => { capsule()!.click(); });
+    expect(panel()).not.toBeNull();
+    await act(async () => { document.dispatchEvent(new Event("pointerdown", { bubbles: true })); });
+    expect(panel()).toBeNull();
+    expect(capsule()?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("uses the chief and team lines that the welcome already has", async () => {
