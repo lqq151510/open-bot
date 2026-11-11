@@ -1,9 +1,10 @@
-import { pageIsThisComputer } from "@/lib/companion-bridge";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Monitor, Search } from "lucide-react";
+import { Monitor, Search, Smartphone } from "lucide-react";
 import { api, useStore, type AppSettingsSection } from "@/state/store";
 import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { t } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { phonePlatformLabel, usePhones } from "@/lib/phones";
 import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { appVersion } from "@/lib/app-links";
 import type { LocaleKey } from "@/locales";
@@ -154,9 +155,20 @@ function computerLabel(value: unknown): string | null {
   return typeof label === "string" && label.trim() ? label.trim() : null;
 }
 
+function formatLastOpened(seen: number, now = Date.now()): string {
+  const diffMs = Math.max(0, now - seen);
+  const diffDays = Math.floor(diffMs / 86_400_000);
+  if (diffDays < 1) return t("remote.serverPairing.justNow");
+  if (diffDays < 7) return t("remote.serverPairing.daysAgo", { days: diffDays });
+  if (diffDays < 14) return t("settings.computer.lastWeek");
+  return new Date(seen).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function ManagedDevicesList() {
   const [name, setName] = useState<string | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "empty">("loading");
+  const { phones } = usePhones();
+
   useEffect(() => {
     const controller = new AbortController();
     void api("/.well-known/openbot/environment", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]) })
@@ -197,6 +209,26 @@ function ManagedDevicesList() {
           </div>
         </div>
       </div>
+      {phones.map((phone) => {
+        const lastActive = phone.seen || phone.lastUsedAt || phone.registeredAt;
+        const statusText = phone.online
+          ? `${phonePlatformLabel(phone.registration.platform)} · ${t("settings.computer.online")}`
+          : `${phonePlatformLabel(phone.registration.platform)} · ${t("settings.computer.lastOpened", { when: formatLastOpened(lastActive) })}`;
+        return (
+          <div key={phone.key} className="flex items-center gap-3 border-t border-ink/[0.06] px-3 py-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.06] text-ink-secondary">
+              <Smartphone size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-medium text-ink">{phone.registration.name}</div>
+              <div className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
+                <span className={cn("size-1.5 rounded-full", phone.online ? "bg-emerald-500" : "bg-ink/30")} />
+                <span>{statusText}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -206,20 +238,22 @@ export type RemoteAccessCards = Record<"client" | "domain" | "pairing" | "compan
 export function SimpleComputerPage({ has, remoteAccess, servers, disclose }: { has: Has; remoteAccess: RemoteAccessCards; servers: ReactNode; disclose: Disclose }) {
   return (
     <>
-      {has("computer") && (
-        <SettingsGroup label={t("settings.simple.computer.bots")} block="computer">
-          <AdminOnly><ComputerImageUpdates /><LocalComputerSection /></AdminOnly>
+      {has("companion") && (
+        <SettingsGroup label={t("settings.computer.yourComputer")} block="companion">
+          <ComputerExecutionRows />
         </SettingsGroup>
       )}
       {has("companion") && (
-        <SettingsGroup label={t(pageIsThisComputer() ? "settings.section.phoneDevices" : "settings.section.thisServer")} block="companion">
-          <ComputerExecutionRows />
-          <div className="mt-3">
-            <ManagedDevicesList />
-          </div>
+        <SettingsGroup label={t("settings.computer.manageDevices")} block="devices">
+          <ManagedDevicesList />
           {remoteAccess.companion}
           {remoteAccess.pairing}
           {remoteAccess.domain}
+        </SettingsGroup>
+      )}
+      {has("computer") && (
+        <SettingsGroup label={t("settings.simple.computer.bots")} block="computer">
+          <AdminOnly><ComputerImageUpdates /><LocalComputerSection /></AdminOnly>
         </SettingsGroup>
       )}
       {has("computer") && (
