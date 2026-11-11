@@ -784,7 +784,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
             choices: askQuestions?.[0]?.options.map(option => option.label) ?? (isQuestion ? questionChoices : undefined),
             ...(askQuestions ? { questions: askQuestions } : {}),
             approvalScope: current.controlsHost ? "local-computer" : undefined,
-            allowSession: !isQuestion && !current.controlsHost ? true : undefined,
+            allowSession: !isQuestion && !current.controlsHost && !current.turn.approvalRulesActive?.() ? true : undefined,
           });
         };
 

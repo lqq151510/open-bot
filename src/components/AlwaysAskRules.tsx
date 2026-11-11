@@ -80,8 +80,19 @@ export function AlwaysAskRules({ canManage }: { canManage: boolean }) {
       <SettingRow
         title={t("settings.permissions.alwaysAsk.title")}
         subtitle={t("settings.permissions.alwaysAsk.subtitle")}
-        children={null}
-      />
+      >
+        {!scoped && canManage ? (
+          <button
+            type="button"
+            className="ui-button shrink-0"
+            data-permission-ask-rule="team"
+            disabled={pending || edit !== null}
+            onClick={() => start({ scope: "team", id: "", text: "" })}
+          >
+            {t("settings.permissions.addRule")}
+          </button>
+        ) : null}
+      </SettingRow>
       {loadFailed && (
         <div role="alert" className="flex items-center gap-3 px-4 pb-3 text-[13px] text-ink-secondary">
           {t("settings.permissions.alwaysAsk.loadFailed")}
@@ -102,15 +113,17 @@ export function AlwaysAskRules({ canManage }: { canManage: boolean }) {
           )}
           {groups.map(({ scope, rules, editable }) => (
             <div key={scope} data-permission-ask-scope={scope} role="group" aria-label={t(scopeLabels[scope])} className="space-y-2">
-              <div className="flex min-h-8 items-center justify-between gap-2">
-                <span className="text-[13px] font-medium text-ink">{t(scopeLabels[scope])}</span>
-                {editable && (
-                  <button type="button" className="ui-button shrink-0" data-permission-ask-rule={scope}
-                    disabled={pending || edit !== null} onClick={() => start({ scope, id: "", text: "" })}>
-                    {t("settings.permissions.addRule")}
-                  </button>
-                )}
-              </div>
+              {scoped && (
+                <div className="flex min-h-8 items-center justify-between gap-2">
+                  <span className="text-[13px] font-medium text-ink">{t(scopeLabels[scope])}</span>
+                  {editable && (
+                    <button type="button" className="ui-button shrink-0" data-permission-ask-rule={scope}
+                      disabled={pending || edit !== null} onClick={() => start({ scope, id: "", text: "" })}>
+                      {t("settings.permissions.addRule")}
+                    </button>
+                  )}
+                </div>
+              )}
               {rules.length === 0 && edit?.scope !== scope && (
                 <p className="text-[13px] text-ink-secondary">{t("settings.permissions.alwaysAsk.none")}</p>
               )}

@@ -361,7 +361,7 @@ export function SimplePermissionsPage() {
   return (
     <div data-settings-block="permissions" className="flex scroll-mt-4 flex-col gap-6">
       <SettingsRows>
-        <SettingRow title={t("settings.permissions.autoReview.title")} subtitle={t("settings.permissions.autoReview.subtitle")}>
+        <SettingRow title={t("settings.permissions.autoReview.title")} subtitle={t("settings.permissions.autoReview.subtitle", { product: productName() })}>
           <Switch
             checked={autoReview}
             aria-label={t("settings.permissions.autoReview.title")}

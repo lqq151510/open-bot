@@ -54,7 +54,8 @@ export function normalizeAntigravityTurn(turn: SendTurnInput, offeredModels: rea
 }
 
 /** Antigravity's session modes: `yolo` for Full, `auto_edit` for auto-accept edits, `default` otherwise (it has no reviewer for Auto). */
-export function antigravityPermissionMode(fullAuto: boolean, approvalMode?: ApprovalMode): "yolo" | "auto_edit" | "default" {
+export function antigravityPermissionMode(fullAuto: boolean, approvalMode?: ApprovalMode, approvalRules = false): "yolo" | "auto_edit" | "default" {
+  if (approvalRules) return "default";
   if (fullAuto || approvalMode === "full") return "yolo";
   return approvalMode === "edits" ? "auto_edit" : "default";
 }
@@ -142,7 +143,7 @@ const support: AcpSupport = {
     if (!Array.isArray(configOptions) || !configOptions.some(option => option?.id === "mode")) {
       return;
     }
-    const wanted = antigravityPermissionMode(config.fullAuto, turn.approvalMode);
+    const wanted = antigravityPermissionMode(config.fullAuto, turn.approvalMode, turn.approvalRulesActive?.() === true);
     const result = await request("session/set_config_option", {
       sessionId,
       configId: "mode",
