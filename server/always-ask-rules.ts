@@ -166,8 +166,8 @@ export function alwaysAskRequired(
   const textRules: string[] = [];
   for (const { text } of snapshot) {
     const { kind, value } = ruleMatch(text);
-    if (kind === "tool" && tool === value.toLowerCase()) return true;
-    if (kind === "command" && action.command?.trim() === value) return true;
+    if (kind === "tool" && (tool === value.toLowerCase() || tool.replace(/^mcp__[^_]+__/, "").toLowerCase() === value.toLowerCase())) return true;
+    if (kind === "command" && action.command?.trim() === value.trim()) return true;
     if (kind === "command" && action.command === undefined && /bash|shell|terminal|exec|command/.test(tool)) return true;
     if (kind === "text") textRules.push(value);
   }

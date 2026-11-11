@@ -6,7 +6,7 @@ type ToolRuleTurn = Pick<SendTurnInput, "approvalRulesActive" | "approvalRuleFor
 type ToolRuleAction = Parameters<NonNullable<ToolRuleTurn["approvalRuleForTool"]>>[0];
 
 export async function firstToolRequiringApproval(turn: ToolRuleTurn, action: ToolRuleAction, alias?: string): Promise<string | undefined> {
-  if (alias && await toolRuleRequiresApproval(turn, { tool: alias })) return alias;
+  if (alias && await toolRuleRequiresApproval(turn, { tool: alias, command: action.command })) return alias;
   return await toolRuleRequiresApproval(turn, action) ? action.tool : undefined;
 }
 

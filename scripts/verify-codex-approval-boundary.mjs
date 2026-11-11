@@ -60,6 +60,8 @@ try {
       recorder.until((event) => event.turnId === turnId && event.type === "turn.completed", 20_000).then((event) => ({ kind: "completed", event })),
     ]);
     if (seen.kind === "approval") {
+      if (mode === "patch") assert.equal(seen.event.tool, "edit");
+      assert.equal(existsSync(sentinel), false);
       await instance.adapter.respondToRequest(mode, seen.event.requestId, { behavior: "deny" });
       await recorder.until((event) => event.turnId === turnId && event.type === "turn.completed", 20_000);
     }

@@ -91,12 +91,12 @@ export function museCatalog(result: unknown, preferred?: string): ModelCatalog |
 }
 
 /** Full runs without asking or Muse's sandbox; every other level lets Muse's own policy ask. */
-export function museApprovalMode(mode: ApprovalMode | undefined): "allowAll" | "promptUnmatched" {
-  return mode === "full" ? "allowAll" : "promptUnmatched";
+export function museApprovalMode(mode: ApprovalMode | undefined, approvalRules = false): "allowAll" | "promptUnmatched" {
+  return !approvalRules && mode === "full" ? "allowAll" : "promptUnmatched";
 }
 
-export function museServeArgs(mode: ApprovalMode | undefined): string[] {
-  return ["serve", "--trust-workspace", ...(mode === "full" ? ["--disable-sandbox"] : [])];
+export function museServeArgs(mode: ApprovalMode | undefined, approvalRules = false): string[] {
+  return ["serve", "--trust-workspace", ...(!approvalRules && mode === "full" ? ["--disable-sandbox"] : [])];
 }
 
 interface MuseChoice { choiceId: string; label: string; decision: string; scope: string }
@@ -194,6 +194,7 @@ interface Pending {
 
 interface ActiveTurn {
   turnId: string;
+  turn: SendTurnInput;
   /** Muse's turn id: the turn/start command id the host mints; unset until sent. */
   nativeTurnId?: string;
   items: Map<string, MuseItem>;
@@ -467,7 +468,7 @@ export const MuseCodeDriver: ProviderDriver<MuseConfig> = {
         case "approval/requested": {
           const approval = params as unknown as MuseApproval;
           if (!active || !Array.isArray(approval.availableChoices)) return;
-          if (state.approvalMode === "allowAll" && answersAlone(approval.subject?.command)) {
+          if (state.approvalMode === "allowAll" && !active.turn.approvalRulesActive?.() && answersAlone(approval.subject?.command)) {
             const choice = museChoice(approval.availableChoices, "allow");
             if (choice) void decide(state, approval, choice).catch(() => {});
             return;
@@ -480,7 +481,7 @@ export const MuseCodeDriver: ProviderDriver<MuseConfig> = {
             tool: approval.toolName || subject.toolName || subject.kind || "tool",
             summary: redactSecretsInText(command ?? subject.path ?? subject.host ?? subject.target ?? approval.toolName ?? "Muse Code asks to continue"),
             ...(command ? { command: { command, cwd: subject.workspaceRoot ?? "" }, commandLine: command } : {}),
-            allowSession: Boolean(museChoice(approval.availableChoices, "allow", true)?.decision.startsWith("approvedFor")
+            allowSession: !active.turn.approvalRulesActive?.() && Boolean(museChoice(approval.availableChoices, "allow", true)?.decision.startsWith("approvedFor")
               || approval.availableChoices.some(choice => choice.scope === "session")),
           });
           return;
@@ -547,8 +548,9 @@ export const MuseCodeDriver: ProviderDriver<MuseConfig> = {
       const servers = turnStdioMcpServers(turn);
       const mcpServers = Object.fromEntries(servers.map(server => [server.name,
         { transport: "stdio", command: server.command, args: server.args, env: server.env, mode: "optional" }]));
-      const approvalMode = museApprovalMode(turn.approvalMode);
-      const key = JSON.stringify([cwd, museServeArgs(turn.approvalMode), servers]);
+      const approvalRules = turn.approvalRulesActive?.() === true;
+      const approvalMode = museApprovalMode(turn.approvalMode, approvalRules);
+      const key = JSON.stringify([cwd, museServeArgs(turn.approvalMode, approvalRules), servers]);
       if (turn.sessionReset) {
         await closeHost(state);
         state.sessionId = undefined;
@@ -562,7 +564,7 @@ export const MuseCodeDriver: ProviderDriver<MuseConfig> = {
         return { text: turn.text, rebuilt: false, started: false };
       }
       await closeHost(state);
-      const host = await startHost(museServeArgs(turn.approvalMode), cwd, key, servers.length > 0, "bot");
+      const host = await startHost(museServeArgs(turn.approvalMode, approvalRules), cwd, key, servers.length > 0, "bot");
       if (state.active?.turnId !== turnId) {
         await host.close().catch(() => {});
         throw new Error("Muse Code was stopped while it was starting.");
@@ -662,7 +664,7 @@ export const MuseCodeDriver: ProviderDriver<MuseConfig> = {
         const state = threadOf(turn.threadId);
         if (state.active && !state.active.finished) throw new Error("Muse Code is still working on this thread.");
         const turnId = newId();
-        const active: ActiveTurn = { turnId, items: new Map(), streamed: new Map(), finished: false };
+        const active: ActiveTurn = { turnId, turn, items: new Map(), streamed: new Map(), finished: false };
         state.active = active;
         void runTurn(state, turn, active);
         return { turnId };
