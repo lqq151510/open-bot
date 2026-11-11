@@ -30,6 +30,9 @@ More specific `AGENTS.md` files override this note within their directories.
 
 - Imitate Grok Bot by copying product behavior, and keep each engine on its own subscription (Claude, Codex, Grok CLI, xAI API, or a custom CLI). Do not bind memory injection or engine choice to one model.
 - Vault imitation is saved logins only. Do not add payments.
+- Zero paywalls: never add any paid/charge/buy credits/auto-top-up buttons or payment flows anywhere in the application.
+- Personal cloud computer (Local VM): on macOS use Docker containerization; on Windows use WSL2 / Docker Desktop with WSL2 backend (with optional native Windows CUA fallback).
+
 
 ## Learned Workspace Facts
 

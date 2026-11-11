@@ -17,6 +17,14 @@
 > 品牌、包标识与图标已替换为 OpenBot，核心能力来自上游项目。
 > 原项目的版权与归属声明保留在 [NOTICE](NOTICE)。
 
+> [!IMPORTANT]
+> **设计核心原则**：
+> 1. **严禁任何收费/充值按钮**：全应用不包含任何收费入口、额度购买、自动扣费或商业化支付按钮，完全由用户自带 API Key / 本地 CLI 运行，保险库仅用于管理本地网站登录凭据。
+> 2. **个人云电脑 (Local VM) 架构**：
+>    - **macOS**：采用 **Docker** 容器方案提供独立的 Linux 沙箱环境（无头 Chromium、Xvfb 与 CUA 操作驱动）。
+>    - **Windows**：采用 **WSL2**（Windows Subsystem for Linux 2）/ **Docker Desktop WSL2 引擎** 作为容器底座，无缝运行 Linux 隔离沙箱；同时支持 Windows 原生 CUA 桌面托管模式。
+
+
 ## Why
 
 One assistant in one box is the wrong shape for agents. OpenBot is an independent, open-source project inspired by **Grok Bot** —
