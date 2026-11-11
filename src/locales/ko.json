@@ -5039,6 +5039,7 @@
   "computer.twoDesktops": "데스크톱 두 개 열기",
   "computer.takeControl": "제어권 가져오기",
   "computer.youHaveWheel": "지금 내가 조작 중이에요 — 제어권을 돌려줄 때까지 봇의 클릭과 키 입력은 거부돼요.",
+  "computer.heldByOther": "다른 봇이 이 공유 컴퓨터를 사용하고 있어요.",
   "computer.inControl": "내가 제어 중이에요",
   "computer.useOpenDesktop": "조작하려면 “실시간 데스크톱 열기”를 쓰세요.",
   "computer.simple.useFullScreen": "조작하려면 “전체 화면”을 쓰세요.",

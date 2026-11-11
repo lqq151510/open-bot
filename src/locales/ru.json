@@ -4679,6 +4679,7 @@
   "computer.twoDesktops": "Открыть два рабочих стола",
   "computer.takeControl": "Взять управление",
   "computer.youHaveWheel": "У вас руль — клики и нажатия клавиш бота отклоняются, пока вы не вернёте ему управление.",
+  "computer.heldByOther": "Кто-то другой пользуется этим общим компьютером.",
   "computer.inControl": "Вы управляете",
   "computer.useOpenDesktop": "Для управления используйте «Открыть живой рабочий стол».",
   "computer.simple.useFullScreen": "Для управления используйте «Полный экран».",

@@ -2226,6 +2226,7 @@
   "computer.twoDesktops": "Відкрити два столи",
   "computer.takeControl": "Перехопити керування",
   "computer.youHaveWheel": "Керування у вас — кліки й натискання бота відмовляються, доки ви не повернете йому керування.",
+  "computer.heldByOther": "Хтось інший користується цим спільним комп’ютером.",
   "computer.inControl": "Керування у вас",
   "computer.useOpenDesktop": "Використайте «Відкрити живий стіл», щоб керувати.",
   "computer.handBack": "Повернути керування",

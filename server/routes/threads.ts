@@ -54,6 +54,7 @@ export interface ThreadRouteDeps {
   publicGroupState(record: GroupRecord): WireGroup;
   wireBot(bot: BotRecord): WireBot;
   botComputerControlSnapshot(botId: string): ReturnType<ComputerControl["snapshot"]>;
+  panelComputerControl?(botId: string): { held: boolean; heldByOther: boolean };
   messageFileRootsForThread(senderId: string, threadId: string): string[];
   viewerFor(auth: RequestAuth): Viewer;
   /** A room's unread mark as this person has read it (a Team Cloud); the room as it is anywhere else. */
@@ -109,9 +110,11 @@ export function createThreadRoutes(deps: ThreadRouteDeps): RouteHandler {
         computerControl: Object.fromEntries(
           shownBots.map((bot) => {
             const snapshot = botComputerControlSnapshot(bot.id);
+            const panel = deps.panelComputerControl?.(bot.id);
+            const view = { held: panel ? panel.held : snapshot.held, ...(panel?.heldByOther ? { heldByOther: true as const } : {}) };
             // A plea from someone else's private chat (a Team Cloud) names its site and reason: held is all that is shared.
-            if (snapshot.help && visible.hides(snapshot.help.threadId)) return [bot.id, { held: snapshot.held, helpReason: null }];
-            return [bot.id, { held: snapshot.held, helpReason: snapshot.helpReason, ...(snapshot.help ? { help: snapshot.help } : {}) }];
+            if (snapshot.help && visible.hides(snapshot.help.threadId)) return [bot.id, { ...view, helpReason: null }];
+            return [bot.id, { ...view, helpReason: snapshot.helpReason, ...(snapshot.help ? { help: snapshot.help } : {}) }];
           }),
         ),
       });

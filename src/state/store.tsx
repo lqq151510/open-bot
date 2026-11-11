@@ -115,7 +115,7 @@ export type ConnectorCardData = import("../../shared/connector-card").ConnectorC
 
 export type SecretRequestCardData = Omit<import("../../shared/wire").SecretRequestCardData, "phoneOperationId" | "vm">;
 
-export type ComputerControlState = { held: boolean; helpReason: string | null; help?: import("../../shared/wire").ComputerHelpRef | null };
+export type ComputerControlState = { held: boolean; heldByOther?: boolean; helpReason: string | null; help?: import("../../shared/wire").ComputerHelpRef | null };
 
 export interface Message extends Pick<import("../../shared/wire").WireMessage, "widget" | "app" | "fromApp" | "pointed" | "routedBy" | "quickModel" | "automation" | "publishedPage" | "sender" | "setupSuggestion" | "helperIntro" | "helperFollowup" | "setupOffer" | "savedSteps" | "setupChoices" | "setupChoicesPending" | "setupChoicesUpdating" | "setupRequest" | "relay" | "inbox" | "sentDirectly" | "doneWhen" | "bugReport"> {
   id: string;
@@ -1367,7 +1367,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         computerControl: {
           ...state.computerControl,
-          [action.botId]: { held: action.held, helpReason: action.helpReason, help: action.help ?? null },
+          [action.botId]: { held: action.held, heldByOther: action.heldByOther === true, helpReason: action.helpReason, help: action.help ?? null },
         },
       };
     case "modelVariantRuntime": {
@@ -3223,13 +3223,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             start: { state: frame.state, ...(frame.place ? { place: frame.place } : {}) } });
           break;
         case "computer-control":
-          rawDispatch({
-            type: "computerControl",
-            botId: frame.botId,
-            held: frame.held === true,
-            helpReason: typeof frame.helpReason === "string" ? frame.helpReason : null,
-            help: parseComputerHelp(frame.help),
-          });
+          rawDispatch({ type: "computerControl", botId: frame.botId, held: frame.held === true, heldByOther: frame.heldByOther === true, helpReason: typeof frame.helpReason === "string" ? frame.helpReason : null, help: parseComputerHelp(frame.help) });
           break;
         case "data":
           rawDispatch({ type: "dataSheet", sheet: frame.sheet });

@@ -5481,6 +5481,7 @@
   "computer.twoDesktops": "Open two desktops",
   "computer.takeControl": "Take control",
   "computer.youHaveWheel": "You have the wheel. The bot's clicks and keystrokes are refused until you hand it back.",
+  "computer.heldByOther": "Someone else is using this shared computer.",
   "computer.inControl": "You're in control",
   "computer.useOpenDesktop": "Use “Open live desktop” to drive.",
   "computer.simple.useFullScreen": "Use “Full screen” to drive.",

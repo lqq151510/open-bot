@@ -5322,6 +5322,7 @@
   "computer.twoDesktops": "打开两个桌面",
   "computer.takeControl": "接管控制",
   "computer.youHaveWheel": "现在由你操作——在你交还之前，机器人的点击和按键都会被拒绝。",
+  "computer.heldByOther": "别人正在用这台共享电脑。",
   "computer.inControl": "由你控制中",
   "computer.useOpenDesktop": "请使用「打开实时桌面」来操作。",
   "computer.simple.useFullScreen": "使用「全屏」来操作。",

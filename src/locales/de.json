@@ -1900,6 +1900,7 @@
   "computer.twoDesktops": "Zwei Desktops öffnen",
   "computer.takeControl": "Steuerung übernehmen",
   "computer.youHaveWheel": "Du hast das Steuer — Klicks und Tastendrücke des Bots werden abgelehnt, bis du es zurückgibst.",
+  "computer.heldByOther": "Jemand anderes benutzt diesen gemeinsamen Computer.",
   "computer.inControl": "Du hast die Steuerung",
   "computer.useOpenDesktop": "Nutze „Live-Desktop öffnen“ zum Steuern.",
   "computer.handBack": "Steuerung zurückgeben",

@@ -1844,6 +1844,7 @@
   "computer.twoDesktops": "दो डेस्कटॉप खोलें",
   "computer.takeControl": "नियंत्रण लें",
   "computer.youHaveWheel": "अभी नियंत्रण आपके पास है — जब तक आप लौटाते नहीं, बॉट के क्लिक और कीस्ट्रोक अस्वीकार होंगे।",
+  "computer.heldByOther": "कोई और इस साझा कंप्यूटर का उपयोग कर रहा है।",
   "computer.inControl": "नियंत्रण आपके पास है",
   "computer.useOpenDesktop": "चलाने के लिए “लाइव डेस्कटॉप खोलें” का उपयोग करें।",
   "computer.handBack": "नियंत्रण लौटाएँ",

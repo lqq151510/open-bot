@@ -5171,6 +5171,7 @@
   "computer.twoDesktops": "Abrir dois desktops",
   "computer.takeControl": "Assumir o controle",
   "computer.youHaveWheel": "Você está no controle. Os cliques e a digitação do bot ficam bloqueados até você devolver o controle.",
+  "computer.heldByOther": "Outra pessoa está usando este computador compartilhado.",
   "computer.inControl": "Você está no controle",
   "computer.useOpenDesktop": "Use “Abrir desktop ao vivo” para controlar.",
   "computer.simple.useFullScreen": "Use “Tela cheia” para controlar.",

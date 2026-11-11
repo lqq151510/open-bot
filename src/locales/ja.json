@@ -5250,6 +5250,7 @@
   "computer.twoDesktops": "2 つのデスクトップを開く",
   "computer.takeControl": "操作を代わる",
   "computer.youHaveWheel": "いまは操作があなたにあります。返すまでボットのクリックやキー入力は拒否されます。",
+  "computer.heldByOther": "他のボットがこの共有コンピュータを使っています。",
   "computer.inControl": "操作中",
   "computer.useOpenDesktop": "操作するには「ライブデスクトップを開く」を使ってください。",
   "computer.simple.useFullScreen": "操作するには「フルスクリーン」を使ってください。",

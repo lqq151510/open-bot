@@ -185,6 +185,7 @@ import {
 import { serveStatic } from "./static-files.ts";
 import { startUpkeep } from "./host/start-upkeep.ts";
 import { ComputerControl } from "./computer-control.ts";
+import { answerBotComputerControl, panelHoldFor, projectPanelHold, publishComputerControl } from "./computer-hold-broadcast.ts";
 import { resetPathCache } from "./env-path.ts";
 import { registerEnginesBinDir } from "./engine-install.ts"; import { engineUpdatesFor } from "./engine-updates-host.ts";
 import { appendUsage, flushUsageLedger, queuedTurnTrigger, usageTriggerFor, type UsageRow, type UsageTrigger } from "./usage-ledger.ts"; import { createUsageAttribution } from "./usage-attribution.ts";
@@ -2470,18 +2471,9 @@ function setupConnectedApps(bot: Pick<BotRecord, "composio" | "connectorTools">,
 }
 
 const computerControlRevision = new Map<string, number>();
-const computerControl = new ComputerControl((key, snapshot) => {
-  const members = key.startsWith("computer_")
-    ? store.bots.filter(bot => inheritedTeamComputer(bot)?.id === key.slice("computer_".length)).map(bot => bot.id)
-    : [key];
-  for (const botId of members) {
-  computerControlRevision.set(botId, (computerControlRevision.get(botId) ?? 0) + 1);
-  // One-way, fail-closed mirror into Electron: never send release, since a loopback caller can influence the server record.
-  if (snapshot.held && /^[A-Za-z0-9_-]{1,120}$/.test(botId)) {
-    postDesktopPrivateMessage({ type: "openbot:browser-control", botId, held: true });
-  }
-  broadcast({ kind: "computer-control", botId, held: snapshot.held, helpReason: snapshot.helpReason, ...(snapshot.help ? { help: snapshot.help } : {}) });
-  }
+const computerControl = new ComputerControl((key, snapshot, holderBotId) => {
+  const computerId = key.startsWith("computer_") ? key.slice("computer_".length) : "";
+  publishComputerControl({ key, snapshot, holderBotId, memberBotIds: computerId ? store.bots.filter((bot) => inheritedTeamComputer(bot)?.id === computerId).map((bot) => bot.id) : [key], revision: computerControlRevision, desktop: postDesktopPrivateMessage, broadcast });
 });
 const controlLeaseIdSchema = z.string().min(16).max(120).regex(/^[A-Za-z0-9_-]+$/);
 function controlIntegration(
@@ -12155,7 +12147,7 @@ ROUTES.push(createThreadRoutes({
   companionMutationToken: () => companionMutationToken,
   cliOwnerToken: () => cliOwnerToken,
   pageSize, messagePage, messageWindow, publicBotQueuedMessages, publicGroupState, wireBot,
-  botComputerControlSnapshot, messageFileRootsForThread, viewerFor, visibleTo, coordinator, groupThreadIsWorking, memberDefaultBot: CLOUD_TEAM ? (email) => { const own = ensureDefaultBot(store, { dataDir: DATA_DIR, person: email, team: CLOUD_TEAM.name }); if (own) void openbotOwnChat.claim(own); return own; } : undefined,
+  botComputerControlSnapshot, panelComputerControl: (botId: string) => { const record = store.bot(botId); const key = record ? botComputerControlKey(record) : botId; return panelHoldFor({ botId, key, computerHeld: botComputerControlSnapshot(botId).held, holderBotId: computerControl.holder(key) }); }, messageFileRootsForThread, viewerFor, visibleTo, coordinator, groupThreadIsWorking, memberDefaultBot: CLOUD_TEAM ? (email) => { const own = ensureDefaultBot(store, { dataDir: DATA_DIR, person: email, team: CLOUD_TEAM.name }); if (own) void openbotOwnChat.claim(own); return own; } : undefined,
   uploads: uploadsFor(createUploadOwners(DATA_DIR), Boolean(CLOUD_TEAM)),
   attachmentInUse: (name) => threadsReferencing(name).length > 0 || store.bots.some((bot) => bot.avatarUrl === `/api/attachments/${name}`),
   keptAttachments: CLOUD_TEAM ? undefined : () => { const routineFiles = routines?.attachmentPaths(); return routineFiles && calendarCalls ? keptAttachmentNames([...store.bots.map((bot) => bot.avatarUrl), cfg.profile?.avatarUrl], [workspaceBannerStore.current()?.name, ...routineFiles,
@@ -15238,7 +15230,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
     if (m) {
       const bot = store.bot(m[1]);
       if (!bot) return json(res, 404, { error: "no such bot" });
-      if (method === "GET") return json(res, 200, botComputerControlSnapshot(bot.id));
+      if (method === "GET") return json(res, 200, projectPanelHold(bot.id, botComputerControlKey(bot), computerControl.holder(botComputerControlKey(bot)), botComputerControlSnapshot(bot.id)));
       if (method === "POST") {
         if (!String(req.headers["content-type"] ?? "").toLowerCase().startsWith("application/json")) {
           return json(res, 415, { error: "content-type must be application/json" });
@@ -15260,23 +15252,8 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
         if (action === "take" && (boatLifecycleBusyBots.has(bot.id) || boatLifecycleBusyBots.has(controlKey))) {
           return json(res, 409, { error: "this bot's cloud computer is being changed — wait before taking control" });
         }
-        if (action === "take" && controlLeaseId) {
-          const result = computerControl.acquireLease(controlKey, controlLeaseId);
-          return json(res, 200, {
-            ...result.snapshot,
-            owned: result.owned,
-            acquired: result.acquired,
-          });
-        }
-        if (action === "release" && controlLeaseId) {
-          const result = computerControl.releaseLease(controlKey, controlLeaseId);
-          return json(res, 200, { ...result.snapshot, released: result.released });
-        }
-        if (action === "check" && controlLeaseId) {
-          return json(res, 200, { ...computerControl.snapshot(controlKey), owned: computerControl.ownsLease(controlKey, controlLeaseId) });
-        }
-        if (action === "take") return json(res, 200, computerControl.take(controlKey));
-        if (action === "release") return json(res, 200, computerControl.release(controlKey));
+        const answered = answerBotComputerControl(computerControl, currentBot.id, controlKey, action, controlLeaseId);
+        if (answered) return json(res, 200, answered);
         return json(res, 400, { error: "action must be take, release, or check" });
       }
       return json(res, 405, { error: "method not allowed" });

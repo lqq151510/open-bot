@@ -3707,6 +3707,7 @@
   "computer.twoDesktops": "Mở hai desktop",
   "computer.takeControl": "Tiếp quản",
   "computer.youHaveWheel": "Bạn đang nắm quyền điều khiển — các cú nhấp chuột và phím bấm của bot bị từ chối cho đến khi bạn trao quyền lại.",
+  "computer.heldByOther": "Người khác đang dùng máy tính dùng chung này.",
   "computer.inControl": "Bạn đang điều khiển",
   "computer.useOpenDesktop": "Sử dụng “Mở desktop trực tiếp” để điều khiển.",
   "computer.simple.useFullScreen": "Sử dụng “Toàn màn hình” để điều khiển.",

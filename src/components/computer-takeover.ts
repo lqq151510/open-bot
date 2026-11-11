@@ -5,6 +5,8 @@ export interface TakeoverSnapshot {
   held: boolean;
   /** This view's lease holds the computer; absent from a plain take or release. */
   owned?: boolean;
+  /** Another member holds the shared computer. */
+  heldByOther?: boolean;
 }
 
 /** Another device's hand-back and this view's next take can arrive out of order; only a release that lasts ends a session. */
@@ -47,7 +49,13 @@ export async function openProviderDesktop({ botId, title, held, request, join, c
   try {
     if (!held) {
       lease = newLeaseId();
-      if (!(await request("take", lease)).held) throw new LocalizedPanelError("computer.err.confirmControl");
+      const taken = await request("take", lease);
+      if (taken.heldByOther) {
+        fallbackTab?.close();
+        lease = null;
+        return;
+      }
+      if (!taken.held) throw new LocalizedPanelError("computer.err.confirmControl");
     }
     if (!current()) throw changed();
     const { joinUrl } = await join(AbortSignal.timeout(JOIN_TIMEOUT_MS));
@@ -115,6 +123,7 @@ export function useComputerTakeover({ botId, session, held, request, viewerClose
   const take = useCallback(async (expand = false) => {
     const id = newLeaseId();
     const snap = await request("take", id);
+    if (snap.heldByOther) return;
     if (!snap.held) throw new LocalizedPanelError("computer.err.confirmControl");
     lease.current = snap.owned ? { id, viewerClose: closeRef.current } : null;
     setHere(true);
