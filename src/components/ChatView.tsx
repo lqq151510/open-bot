@@ -125,6 +125,7 @@ import { appendComposerDraft, appendDraftAttachments, useReplyDraft } from "@/li
 import { botLineText, localDay, transcriptLookups, type TranscriptLookups } from "@/lib/transcript-derivations"; import { DaySeparator } from "./DaySeparator";
 import { splitTranscriptCitations, type CitationAttachment } from "@/lib/citations";
 import { EmptyChat } from "./ChatEmptyState";
+import { WhatICanDo } from "./WhatICanDo";
 import { PinnedBanner } from "./ChatPinnedBanner";
 import { highlightCitationSource } from "@/lib/citations-dom";
 import { useCanWriteIn, useReactor } from "@/lib/cloud-guest";
@@ -855,9 +856,8 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
   const liveTools = useLiveToolIds(messages, bot);
   const recordedRun = useMemo(() => runSteps(messages, liveTools), [messages, liveTools]);
   const recordedRunCounts = runSummary(recordedRun);
-  const engineSupportsAgents = Boolean(
-    state.instances.find((instance) => instance.instanceId === bot.modelSelection.instanceId)?.capabilities?.agentsMcp,
-  );
+  const engine = state.instances.find((instance) => instance.instanceId === bot.modelSelection.instanceId);
+  const engineSupportsAgents = Boolean(engine?.capabilities?.agentsMcp);
   const canSaveRun =
     skillAuthoringEnabled(state.config) && engineSupportsAgents && recordedRunCounts.passed > 0 && recordedRunCounts.running === 0 && recordedRunCounts.unverified === 0 && !bot.busy;
   const [runDismissed, setRunDismissed] = useState<ReadonlyMap<string, string>>(() => new Map());
@@ -1096,6 +1096,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
         </div>
         <div data-chathead-controls
           className={cn("flex shrink-0 items-center gap-2", !phone && (simpleHead ? "@max-[24rem]/chathead:ml-auto @max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:justify-end @min-[24rem]/chathead:col-start-3 @min-[24rem]/chathead:justify-self-end" : "@max-[30rem]/chathead:ml-auto @max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:justify-end @min-[30rem]/chathead:col-start-3 @min-[30rem]/chathead:justify-self-end"))}>
+          {simpleHead && <WhatICanDo bot={bot} engineName={engine?.displayName ?? null} teamName={team?.name} />}
           {!simpleHead && (bot.busy || bot.waitingForTeammates) && (
             <button
               onClick={() => dispatch({ type: "interrupt", botId: bot.id, threadId: bot.threadId })}
