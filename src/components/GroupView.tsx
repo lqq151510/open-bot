@@ -22,7 +22,7 @@ import { RoomHoldsBanner } from "./RoomHoldsBanner";
 import { ThreadChip } from "./ThreadChip";
 import { ToolActivity } from "./ToolActivity";
 import { ThreadRefText } from "./ThreadRefs";
-import { TurnPresence } from "./TurnPresence";
+import { TurnPresence } from "./TurnPresence"; import { ConversationRoutines } from "./ConversationRoutines";
 import { showToolCallsEnabled } from "@/lib/feature-flags";
 import { CompactionChip, DigestChip } from "./DigestChip";
 import { roomActivityVisible } from "@/lib/room-activity";
@@ -1151,7 +1151,7 @@ export function GroupView({ group }: { group: Group }) {
               </button>
             </div>
           )}
-          {(speaker || presenceVisible) && (
+          <ConversationRoutines botId={null} threadId={group.threadId} mainThreadId={group.threadId} messages={group.messages} /> {(speaker || presenceVisible) && (
             <TurnPresence
               avatar={
                 <BotAvatar
