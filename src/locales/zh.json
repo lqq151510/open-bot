@@ -6498,7 +6498,7 @@
   "settings.vault.privacyNote": "Grok Bot 永远看不到已保存卡片的卡号或安全码。它可以看到登录信息和联系信息，以便替你填写。",
   "settings.updates.grokBotUpdates": "Grok Bot 更新",
   "settings.updates.autoUpdate": "自动更新",
-  "settings.updates.autoUpdateSubtitle": "在你离开时自动重启应用并安装更新。",
+  "settings.updates.autoUpdateSubtitle": "在你离开时自动更新客户端",
   "settings.updates.autoUpdateSaveFailed": "无法保存自动更新设置，请重试。",
   "settings.updates.currentVersion": "版本 0.79.3",
   "settings.updates.alreadyLatest": "已是最新版本",
