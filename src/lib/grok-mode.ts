@@ -46,22 +46,30 @@ export const GROK_FUN_INSTRUCTION =
 export const GROK_THINK_INSTRUCTION =
   "[Thinking: Please perform detailed step-by-step reasoning inside <think>...</think> tags before presenting your final response.]";
 
-/**
- * Augments the outgoing user prompt with Grok's persona or thinking directives if enabled.
- */
-export function augmentPromptWithGrokMode(
-  text: string,
-  mode: GrokPersonaMode,
-  think: boolean,
-): string {
-  const directives: string[] = [];
-  if (mode === "fun") {
-    directives.push(GROK_FUN_INSTRUCTION);
-  }
-  if (think) {
-    directives.push(GROK_THINK_INSTRUCTION);
-  }
-  if (directives.length === 0) return text;
+const GROK_MODE_DIRECTIVES = [GROK_FUN_INSTRUCTION, GROK_THINK_INSTRUCTION];
 
-  return `${directives.join(" ")}\n\n${text}`;
+function withoutLeadingDirective(text: string): string | undefined {
+  const body = text.trimStart();
+  for (const directive of GROK_MODE_DIRECTIVES) {
+    if (!body.startsWith(directive)) continue;
+    let rest = body.slice(directive.length);
+    if (rest.startsWith("\n\n")) rest = rest.slice(2);
+    else if (rest.startsWith(" ")) rest = rest.slice(1);
+    return rest;
+  }
+  return undefined;
+}
+
+export function stripGrokModeDirectives(text: string): string {
+  let rest = text;
+  for (;;) {
+    const next = withoutLeadingDirective(rest);
+    if (next === undefined) return rest;
+    rest = next;
+  }
+}
+
+export function augmentPromptWithGrokMode(text: string, mode: GrokPersonaMode): string {
+  if (mode !== "fun") return text;
+  return `${GROK_FUN_INSTRUCTION}\n\n${stripGrokModeDirectives(text)}`;
 }

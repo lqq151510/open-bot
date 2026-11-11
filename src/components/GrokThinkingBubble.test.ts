@@ -1,5 +1,9 @@
+// @vitest-environment happy-dom
+import { createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
-import { extractThinkingBlock } from "./GrokThinkingBubble";
+import { GrokThinkingBubble, extractThinkingBlock } from "./GrokThinkingBubble";
 
 describe("extractThinkingBlock", () => {
   it("returns unchanged content when no think tag is present", () => {
@@ -40,5 +44,22 @@ describe("extractThinkingBlock", () => {
     expect(result.thought).toBe("Reasoning...");
     expect(result.inProgress).toBe(false);
     expect(result.content).toBe("Prefix info\n\nBody content");
+  });
+});
+
+describe("GrokThinkingBubble", () => {
+  it("stays open while reasoning and collapses once the thought is finished", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const button = () => host.querySelector("button");
+    flushSync(() => root.render(createElement(GrokThinkingBubble, { thought: "planning", inProgress: true })));
+    expect(button()?.getAttribute("aria-expanded")).toBe("true");
+    flushSync(() => root.render(createElement(GrokThinkingBubble, { thought: "planning", inProgress: false })));
+    expect(button()?.getAttribute("aria-expanded")).toBe("false");
+    flushSync(() => button()?.click());
+    expect(button()?.getAttribute("aria-expanded")).toBe("true");
+    root.unmount();
+    host.remove();
   });
 });

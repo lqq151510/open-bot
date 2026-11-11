@@ -117,7 +117,7 @@ export type SecretRequestCardData = Omit<import("../../shared/wire").SecretReque
 
 export type ComputerControlState = { held: boolean; helpReason: string | null; help?: import("../../shared/wire").ComputerHelpRef | null };
 
-export interface Message extends Pick<import("../../shared/wire").WireMessage, "widget" | "app" | "fromApp" | "pointed" | "routedBy" | "quickModel" | "automation" | "publishedPage" | "sender" | "setupSuggestion" | "helperIntro" | "helperFollowup" | "setupOffer" | "savedSteps" | "setupChoices" | "setupChoicesPending" | "setupChoicesUpdating" | "setupRequest" | "relay" | "inbox" | "sentDirectly" | "doneWhen" | "bugReport"> {
+export interface Message extends Pick<import("../../shared/wire").WireMessage, "widget" | "app" | "fromApp" | "pointed" | "routedBy" | "quickModel" | "automation" | "publishedPage" | "sender" | "setupSuggestion" | "helperIntro" | "helperFollowup" | "setupOffer" | "savedSteps" | "setupChoices" | "setupChoicesPending" | "setupChoicesUpdating" | "setupRequest" | "relay" | "inbox" | "sentDirectly" | "doneWhen" | "bugReport" | "reasoning"> {
   id: string;
   role: "bot" | "user";
   kind: "text" | "options" | "activity" | "screen" | "connector" | "secret" | "signin" | "routine.run" | "goal.run" | "digest" | "compaction" | "call" | "widget" | "app";
@@ -688,6 +688,7 @@ export type Action =
       replyToId?: string;
       threadId?: string;
       mode?: "chat" | "goal"; mentions?: string[];
+      effort?: import("../../shared/wire").EffortLevel;
       onError?: () => void;
     }
   | {
@@ -720,7 +721,8 @@ export type Action =
       replyToId?: string;
       threadId?: string;
       dataContext?: import("../../shared/data-context").DataContext; pointed?: import("../../shared/app-frame/point").PointedElement[]; mode?: "chat" | "goal";
-      followUp?: import("../../shared/follow-up").FollowUp; mentions?: string[]; onError?: () => void;
+      followUp?: import("../../shared/follow-up").FollowUp; mentions?: string[];
+      effort?: import("../../shared/wire").EffortLevel; onError?: () => void;
     }
   | { type: "pendingQueued"; threadId: string; queueId: string; text: string; reason?: SteerQueueReason }
   | { type: "consumePendingQueued"; threadId: string; queueId: string }
@@ -728,7 +730,7 @@ export type Action =
   | { type: "steerQueued"; botId: string; queueId: string; threadId?: string; onError?: () => void; onSettled?: () => void }
   | { type: "cancelGroupQueued"; groupId: string; threadId: string; queueId: string; onCancelled?: () => void }
   | { type: "steerGroupQueued"; groupId: string; queueId: string; threadId?: string; onError?: () => void; onSettled?: () => void }
-  | { type: "editMessage"; botId: string; messageId: string; text: string; threadId?: string; sendId?: string }
+  | { type: "editMessage"; botId: string; messageId: string; text: string; threadId?: string; sendId?: string; effort?: import("../../shared/wire").EffortLevel }
   | { type: "switchBranch"; botId: string; messageId: string; threadId?: string }
   | { type: "threadActive"; threadId: string; activeLeafId: string }
   | { type: "loadOlderMessages"; threadId: string }
@@ -2447,7 +2449,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           void waitForExecutionSettings(botBeforeSend ? [botBeforeSend] : [], threadId)
             .then(() => sendReconciled(() => api(`/api/bots/${action.botId}/messages`, {
                 method: "POST",
-                body: JSON.stringify({ text: action.text, replyToId: action.replyToId, threadId, sendId, ...(action.dataContext ? { dataContext: action.dataContext } : {}), ...(action.pointed?.length ? { pointed: action.pointed } : {}), ...(action.mode === "goal" ? { mode: "goal" } : {}), ...(action.followUp ? { followUp: action.followUp } : {}), ...(action.mentions?.length ? { mentions: action.mentions } : {}) }),
+                body: JSON.stringify({ text: action.text, replyToId: action.replyToId, threadId, sendId, ...(action.dataContext ? { dataContext: action.dataContext } : {}), ...(action.pointed?.length ? { pointed: action.pointed } : {}), ...(action.mode === "goal" ? { mode: "goal" } : {}), ...(action.followUp ? { followUp: action.followUp } : {}), ...(action.mentions?.length ? { mentions: action.mentions } : {}), ...(action.effort ? { effort: action.effort } : {}) }),
               }), arrived))
             .then((sent) => {
               if (!("body" in sent)) return;
@@ -2490,7 +2492,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           void waitForExecutionSettings(executionBotsBeforeAction, threadId)
             .then(() => api(`/api/bots/${action.botId}/messages/${action.messageId}/edit`, {
               method: "POST",
-              body: JSON.stringify({ text: action.text.trim(), threadId, sendId }),
+              body: JSON.stringify({ text: action.text.trim(), threadId, sendId, ...(action.effort ? { effort: action.effort } : {}) }),
             }))
             .then((body) => {
               if (body?.message && threadId) {
@@ -2698,6 +2700,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 threadId,
                 sendId,
                 mode: action.mode ?? "chat", ...(action.mentions?.length ? { mentions: action.mentions } : {}),
+                ...(action.effort ? { effort: action.effort } : {}),
               }),
             }))
             .then((body) => {
