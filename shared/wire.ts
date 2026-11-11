@@ -43,6 +43,9 @@ export type { LiveCallRecord, LiveCallState, LiveCallStatus, LiveClient, LiveEnd
 export const EFFORT_LEVELS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 
+/** Think mode asks for this level. Grok CLI 1.0.6 takes it as `--reasoning-effort`; it is the strongest level that CLI advertises. */
+export const THINK_EFFORT = "high" as const satisfies EffortLevel;
+
 export function isEffortLevel(value: unknown): value is EffortLevel {
   return typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value);
 }
@@ -457,6 +460,8 @@ export interface WireMessage extends ServerTextLine, HelperIntroField, SetupCard
   role: "bot" | "user";
   kind: "text" | "options" | "activity" | "screen" | "connector" | "secret" | "signin" | "routine.run" | "goal.run" | "digest" | "compaction" | "call" | "widget" | "app";
   text?: string;
+  /** Reasoning the engine sent for this reply, separate from `text`. Absent when the engine sent none. */
+  reasoning?: string;
   digest?: TurnDigest;
   compaction?: {
     summary: string;

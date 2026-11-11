@@ -25,6 +25,7 @@ import {
   messageNeedsKatex,
 } from "./ChatMarkdown";
 import { getSnippetFileName, parseFenceInfo } from "@/lib/code-block";
+import { augmentPromptWithGrokMode } from "@/lib/grok-mode";
 import { markdownImageName, markdownImageOpenUrl } from "@/lib/markdown-image";
 import { BotEditorStore, initialState, StoreProvider } from "@/state/store";
 import { setLocale } from "@/lib/i18n";
@@ -1467,5 +1468,29 @@ describe("a code block far from the screen", () => {
       expect(html).toContain('data-bot-chip="openai-intel"');
       expect(html).toContain("OpenAI 情报");
     });
+  });
+});
+
+describe("Grok mode directives in a message", () => {
+  it("shows the person's words instead of the mode directive", () => {
+    const text = augmentPromptWithGrokMode("Solve 2x + 5 = 15", "fun");
+    const html = renderToStaticMarkup(createElement(ChatMarkdown, { text }));
+    expect(html).toContain("Solve 2x + 5 = 15");
+    expect(html).not.toContain("grok-thinking-bubble");
+    expect(html).not.toContain("Grok Fun Mode");
+  });
+
+  it("does not treat the older think directive as the person's thought", () => {
+    const legacy = "[Thinking: Please perform detailed step-by-step reasoning inside <think>...</think> tags before presenting your final response.]";
+    const html = renderToStaticMarkup(createElement(ChatMarkdown, { text: `${legacy}\n\nSolve 2x + 5 = 15` }));
+    expect(html).toContain("Solve 2x + 5 = 15");
+    expect(html).not.toContain("grok-thinking-bubble");
+  });
+
+  it("still lifts a reply think block out of the answer", () => {
+    const html = renderToStaticMarkup(createElement(ChatMarkdown, { text: "<think>Plan the proof</think>The answer is 5." }));
+    expect(html).toContain("grok-thinking-bubble");
+    expect(html).toContain("aria-expanded=\"false\"");
+    expect(html).toContain("The answer is 5.");
   });
 });

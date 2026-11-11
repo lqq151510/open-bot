@@ -59,7 +59,10 @@ import { peerLine, peerRequest, type PeerLine } from "@/lib/peer-message";
 import { showWorkingDots } from "@/lib/turn-tail";
 import { lastNonReceipt } from "@/lib/receipts";
 import { useTurnLive } from "@/state/turn-status"; import { useTurnNow } from "./NowCard"; import { useThreadRoutineRun } from "@/state/older-routine-runs";
+import { THINK_EFFORT } from "../../shared/wire";
+import { readGrokThinkMode, stripGrokModeDirectives } from "@/lib/grok-mode";
 import { ChatMarkdown } from "./ChatMarkdown";
+import { GrokThinkingBubble } from "./GrokThinkingBubble";
 import { LiveToolsContext, useLiveToolIds } from "@/hooks/use-live-tool-ids";
 import { VoiceNoteBubble, type VoiceNoteAttachment } from "./VoiceNoteBubble";
 import { RawMarkdownView, RawToggleAction } from "./RawMarkdownToggle";
@@ -397,7 +400,7 @@ const Bubble = memo(function Bubble({
   const webhookView = user ? webhookMessageView(text) : null;
   const cited = user && !webhookView ? splitTranscriptCitations(text) : null;
   const attachments = user && !webhookView ? splitTranscriptAttachments(cited?.display ?? text) : null;
-  const visibleText = webhookView?.task ?? attachments?.display ?? text;
+  const visibleText = stripGrokModeDirectives(webhookView?.task ?? attachments?.display ?? text);
   const hasAttachments = Boolean(cited?.citations.length || (attachments && (attachments.images.length || attachments.files.length)));
   const attachmentsOnly = !webhookView && !replyTarget && !visibleText.trim() &&
     (user ? hasAttachments : generatedPaths.length + linkedFiles.length > 0);
@@ -543,6 +546,7 @@ const Bubble = memo(function Bubble({
             </>
           ) : (
             <MessageBoundary key={viewRaw ? "raw" : "rendered"} fallbackText={text || t("chat.generatedImage")}>
+              {message.reasoning ? <GrokThinkingBubble thought={message.reasoning} /> : null}
               {voiceNotes.length > 0 && (
                 <div className={cn("flex flex-col", (text || generatedPaths.length > 0 || linkedFiles.length > 0) && "mb-2")}>
                   {voiceNotes.map((note) => (
@@ -924,7 +928,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
   const submitEdit = useCallback(
     (messageId: string, text: string) => {
       setEditingId(null); // closes the editor first — a double Enter can't fork twice
-      dispatch({ type: "editMessage", botId: bot.id, threadId: bot.threadId, messageId, text });
+      dispatch({ type: "editMessage", botId: bot.id, threadId: bot.threadId, messageId, text, ...(readGrokThinkMode() ? { effort: THINK_EFFORT } : {}) });
     },
     [bot.id, bot.threadId, dispatch],
   );
@@ -1226,6 +1230,11 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
               </div>
             </div>
           )}
+          {live.thought ? (
+            <div className="flex justify-start">
+              <GrokThinkingBubble thought={live.thought} inProgress />
+            </div>
+          ) : null}
           <TurnPresence
             avatar={
               <BotAvatar

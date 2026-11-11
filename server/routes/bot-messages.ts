@@ -9,6 +9,7 @@ import { normalizeReaction, reactionAnswer } from "../../shared/reactions.ts";
 import type { WidgetAction } from "../../shared/widget.ts";
 import { parseFollowUp } from "../../shared/follow-up.ts";
 import type { ResolvedSender } from "../../shared/wire.ts";
+import { readTurnEffort } from "../member-turn.ts";
 import { admit } from "../admission.ts";
 import { dismissQuestionCard } from "../card-dismissal.ts";
 import { AppMessageRate, appContextBlock, prepareAppMessage } from "../chat-apps.ts";
@@ -72,6 +73,7 @@ export interface BotMessageRouteDeps {
   startTurn(botId: string, text: string, opts?: {
     threadId?: string; replyTo?: Message; sendId?: string; sender?: ResolvedSender; trigger?: UsageTrigger; relayed?: boolean;
     dataContext?: DataContext; compactOnly?: boolean; cardContinuation?: boolean; editedMessageId?: string;
+    effort?: import("../../shared/wire.ts").EffortLevel;
   }): Promise<Message>;
   usageTriggerFor(auth: RequestAuth): UsageTrigger;
   messageSender(auth: RequestAuth): ResolvedSender | undefined;
@@ -329,10 +331,12 @@ export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler 
       if (personPresent && sendId && !guarded && !press && !appSent) noteTypedSend(threadId, sendId, text);
       if (pressKey) pressesInFlight.set(pressKey, sendId);
       try {
+        const effort = readTurnEffort(body.effort);
         const receipt = await acceptDirectSend({
           botId: bot.id, threadId, text, sendId, replyTo, sender, trigger, dataContext, ...(app ? { app } : {}),
           personPresent, ...(followUp ? { followUp } : {}),
           ...(mentions?.length && !press && !appSent ? { mentions } : {}),
+          ...(effort && !press && !appSent ? { effort } : {}),
         }, guardedStart);
         press?.settle("queueId" in receipt ? receipt.queueId : undefined);
         appContext?.deliver();
@@ -509,6 +513,7 @@ export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler 
       const replyTo: ReplyTarget | undefined = quoted && source.reaction && text === source.text ? { ...quoted, reactedWith: source.reaction } : quoted;
       const dataContext = parseDataContext(body.dataContext) ?? (text === source.text ? source.dataContext : undefined);
       const message = await startTurn(bot.id, text, { threadId: bot.threadId, editedMessageId: messageId, replyTo, sendId, trigger: usageTriggerFor(auth), dataContext,
+        ...(readTurnEffort(body.effort) ? { effort: readTurnEffort(body.effort) } : {}),
         ...(CLOUD_HOME ? { sender: messageSender(auth) } : {}) });
       return json(res, 202, { ok: true, message });
     }

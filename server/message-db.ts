@@ -5,7 +5,7 @@ import { DatabaseSync, type StatementSync } from "node:sqlite";
 
 import { DATA_DIR } from "./config.ts";
 import { peerProvenanceAuthor, type WorkOrigin } from "./peer-provenance.ts";
-import type { ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
+import type { EffortLevel, ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
 import type { Message } from "./store.ts";
 import type { UsageTrigger } from "./usage-ledger.ts";
 import { ensureMemoryIndex } from "./message-db-memory-index.ts";
@@ -223,6 +223,7 @@ export interface FollowupPayload {
   origin?: WorkOrigin;
   queuedAt?: number;
   rowId?: string; mentions?: string[];
+  effort?: EffortLevel;
 }
 export type FollowupStatus = "pending" | "dispatching" | "interrupted" | "cancelled";
 export interface ChatFollowup {

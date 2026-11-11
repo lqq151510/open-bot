@@ -15,6 +15,8 @@ export interface TurnLive {
   /** The newest turn this thread showed has completed, failed or stopped. */
   ended: boolean;
   status: LiveStatus | null;
+  /** Reasoning text streamed for the open turn. Cleared when that reply is stored. */
+  thought?: string;
 }
 
 const UNKNOWN: TurnLive = { ended: false, status: null };
@@ -30,7 +32,7 @@ function sameStatus(a: LiveStatus | null, b: LiveStatus | null): boolean {
 
 function put(threadId: string, next: TurnLive): void {
   const current = threads.get(threadId);
-  if (current && current.turnId === next.turnId && current.ended === next.ended && sameStatus(current.status, next.status)) return;
+  if (current && current.turnId === next.turnId && current.ended === next.ended && sameStatus(current.status, next.status) && current.thought === next.thought) return;
   threads.delete(threadId);
   threads.set(threadId, next);
   if (threads.size > MAX_THREADS) threads.delete(threads.keys().next().value!);
@@ -59,13 +61,23 @@ export function noteTurnEvent(event: RuntimeEvent): void {
         ...(target ? { target } : {}), ...(detail ? { detail } : {}), ...(quiet ? { quiet } : {}), ...(tail?.length ? { tail } : {}),
       } });
     }
-    case "content.delta":
-      return put(threadId, { turnId, ended: false, status: { activity: event.streamKind === "reasoning_text" ? "thinking" : "reply" } });
+    case "content.delta": {
+      const thought = event.streamKind === "reasoning_text"
+        ? `${sameTurn ? current?.thought ?? "" : ""}${event.delta}`
+        : current?.thought;
+      return put(threadId, {
+        turnId, ended: false,
+        status: { activity: event.streamKind === "reasoning_text" ? "thinking" : "reply" },
+        ...(thought ? { thought } : {}),
+      });
+    }
     case "item.started":
       return put(threadId, { ...live, ended: false, status: live.status?.itemId && live.status.itemId === event.itemId ? live.status : null });
     case "item.completed":
-    case "request.opened":
+      if (event.itemType === "assistant_text") return put(threadId, { turnId: live.turnId, ended: live.ended, status: null });
       return put(threadId, { ...live, status: null });
+    case "request.opened":
+      return put(threadId, { turnId: live.turnId, ended: live.ended, status: null });
     default:
       if (live !== current) put(threadId, live);
   }

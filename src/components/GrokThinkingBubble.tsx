@@ -20,7 +20,8 @@ export function GrokThinkingBubble({
   inProgress = false,
   className,
 }: GrokThinkingBubbleProps) {
-  const [expanded, setExpanded] = useState(inProgress);
+  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+  const expanded = userExpanded ?? inProgress;
 
   const cleanThought = thought.trim();
   if (!cleanThought && !inProgress) return null;
@@ -36,7 +37,7 @@ export function GrokThinkingBubble({
     >
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setUserExpanded(!expanded)}
         aria-expanded={expanded}
         className={cn(
           "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left select-none hover:bg-raised/40 focus-visible:outline-2 focus-visible:outline-accent",

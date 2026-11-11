@@ -95,6 +95,7 @@ import {
 } from "@/lib/composer-commands";
 import { useSlashSkills } from "@/lib/use-slash-skills";
 import { randomUuid } from "@/lib/random-uuid";
+import { THINK_EFFORT } from "../../shared/wire";
 import { GrokModePill } from "./GrokModePill";
 import {
   augmentPromptWithGrokMode,
@@ -560,6 +561,7 @@ export function Composer({
       text: failed.requestText,
       replyToId: failed.replyToId,
       threadId: failed.threadId, mentions: failed.mentions,
+      ...(grokThink ? { effort: THINK_EFFORT } : {}),
       onError: () => {
         rememberFailedComposerSend(draftId, {
           sendId: failed.sendId,
@@ -587,7 +589,7 @@ export function Composer({
       dispatch({ type: "error", message: t("composer.error.noImages") });
       return;
     }
-    const composed = composeMessage(serializeThreadRefs(augmentPromptWithGrokMode(effectiveText, grokMode, grokThink), threads, currentBotId), attachments);
+    const composed = composeMessage(serializeThreadRefs(augmentPromptWithGrokMode(effectiveText, grokMode), threads, currentBotId), attachments);
     if (!composed) return;
     stopDictation();
     const body = restoredRequestText(draftId) ?? composed;
@@ -613,6 +615,7 @@ export function Composer({
         replyToId: replyTo?.id,
         threadId,
         mode: effectiveChannelMode, mentions: sentDraft.mentions,
+        ...(grokThink ? { effort: THINK_EFFORT } : {}),
         onError: () => restoreDraft(sentDraft),
       });
       roomMessageSent(effectiveChannelMode, busy);
@@ -620,6 +623,7 @@ export function Composer({
       const points = effectiveChannelMode === "goal" ? null : takePointedChips(threadId);
       dispatch({
         type: "send", botId: bot.id, text: body, sendId: sentDraft.sendId, replyToId: replyTo?.id, threadId, dataContext, mode: effectiveChannelMode, mentions: sentDraft.mentions,
+        ...(grokThink ? { effort: THINK_EFFORT } : {}),
         ...(points ? { pointed: points.pointed } : {}), ...(followUp ? { followUp } : {}),
         onError: () => { points?.restore(); restoreDraft(sentDraft); },
       });
@@ -858,7 +862,7 @@ export function Composer({
                   onPin={(surface) => dispatch({ type: "updateTask", botId: modeBot.id, threadId: modeBot.threadId, patch: { surface } })}
                 />
               )}
-              {advanced && <GrokModePill
+              {(advanced || grokMode === "fun" || grokThink) && <GrokModePill
                 mode={grokMode}
                 onToggleMode={toggleGrokMode}
                 think={grokThink}

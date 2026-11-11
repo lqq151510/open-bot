@@ -4,7 +4,7 @@
 import { newId } from "./contracts.ts";
 import { chatFollowups, saveChatFollowup, settleChatFollowups } from "./message-db.ts";
 import { drainCoalesceHead, DRAIN_COALESCE_MAX_ITEMS } from "./admission.ts";
-import type { ResolvedSender } from "../shared/wire.ts";
+import type { EffortLevel, ResolvedSender } from "../shared/wire.ts";
 import type { UsageTrigger } from "./usage-ledger.ts";
 
 export interface ChannelQueueItem {
@@ -19,6 +19,7 @@ export interface ChannelQueueItem {
   reaction?: string;
   /** Bot ids picked from the @ list; the turn that drains this line reads its @names with them. */
   mentions?: string[];
+  effort?: EffortLevel;
   queuedAt: number;
 }
 
@@ -65,6 +66,7 @@ export function queueChannelMessage(
     trigger?: UsageTrigger;
     reaction?: string;
     mentions?: string[];
+    effort?: EffortLevel;
   } = {},
 ): QueuedChannelMessage {
   const entry = queues.get(threadId) ?? { groupId, items: [] };
@@ -80,6 +82,7 @@ export function queueChannelMessage(
     trigger: options.trigger,
     ...(options.reaction ? { reaction: options.reaction } : {}),
     ...(options.mentions?.length ? { mentions: options.mentions } : {}),
+    ...(options.effort ? { effort: options.effort } : {}),
     queuedAt: Date.now(),
   };
   saveChatFollowup({ id: item.id, kind: "channel", ownerId: groupId, threadId, payload: item });

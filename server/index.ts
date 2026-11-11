@@ -107,7 +107,7 @@ import { createDataRoutes } from "./data/routes.ts";
 import { DataSheetRegistry } from "./data/sheet.ts";
 import { DataFailure } from "./data/types.ts";
 import { TeamComputers, teamComputerOwner, type TeamComputerRecord } from "./team-computers.ts";
-import { isEffortLevel, type CardAnswerer, type ResolvedSender, type SignInRequestCardData, type WireBot, type WireGroup, type WireTask } from "../shared/wire.ts";
+import { isEffortLevel, type CardAnswerer, type EffortLevel, type ResolvedSender, type SignInRequestCardData, type WireBot, type WireGroup, type WireTask } from "../shared/wire.ts";
 import { isPersistentQuestionCard, shouldSettleRequestCard } from "../shared/ask-question.ts";
 import { parseToolScope } from "../shared/tool-scope.ts";
 import type { TeamComputersPayload } from "../shared/team-computer.ts";
@@ -480,7 +480,7 @@ import { connectorAccessDecision, describeConnectorScopes } from "../shared/conn
 import { bindThreadLogCapProvider } from "./thread-log-rotation.ts";
 import { listenWebhookIngress, type WebhookIngress } from "./webhook-ingress.ts"; import { createBotApiHost } from "./bot-api-host.ts"; import { BOT_API_PARTS, BOT_API_REFUSAL, BOT_API_TOOLS, botApiRouteRefused } from "./bot-api-fence.ts";
 import { addressFor } from "./webhook-address.ts";
-import { assertModelVariantSupported, memberTurnSelection } from "./member-turn.ts";
+import { assertModelVariantSupported, memberTurnSelection, thinkEffortForTurn } from "./member-turn.ts";
 import { WebhookManager } from "./webhooks.ts";
 import { tieAutomationsToBots } from "./bot-automations.ts"; import { WaitManager } from "./waits.ts"; import { cancelWaitFromCard, createWaitHost, waitRunChat } from "./wait-host.ts"; import { createWaitRoutes, findWaitPeer, hostWaitRefusal, waitSourceRefusal, type WaitRouteContext } from "./routes/waits.ts";
 import type { WebhookTrigger } from "../shared/webhooks.ts";
@@ -6316,8 +6316,43 @@ async function localVmInventoryPayload() {
 
 const usageTrace = createTraceRecorder({ dataDir: DATA_DIR });
 bus.subscribe((event: RuntimeEvent) => { if (!shouldIgnoreProviderEvent(event)) usageTrace.observe(event); });
+
+const thinkClaims = new Map<string, string>();
+const requestedThinkEffort = new Map<string, EffortLevel>();
+const reasoningByThread = new Map<string, string>();
+
+function noteThinkTurn(threadId: string, claimId: string): void {
+  thinkClaims.set(threadId, claimId);
+}
+
+function noteEngineReasoning(event: RuntimeEvent): void {
+  if (event.type !== "content.delta" || event.streamKind !== "reasoning_text" || !event.delta || !thinkClaims.has(event.threadId)) return;
+  reasoningByThread.set(event.threadId, `${reasoningByThread.get(event.threadId) ?? ""}${event.delta}`);
+}
+
+function takeThinkReasoning(threadId: string): string | undefined {
+  const text = reasoningByThread.get(threadId)?.trim();
+  reasoningByThread.delete(threadId);
+  return text || undefined;
+}
+
+function abandonThinkTurn(threadId: string, claimId: string): void {
+  if (thinkClaims.get(threadId) !== claimId) return;
+  thinkClaims.delete(threadId);
+  reasoningByThread.delete(threadId);
+}
+
+function finishThinkTurn(threadId: string, turnId: string | undefined): void {
+  if (!thinkClaims.delete(threadId)) return;
+  const reasoning = takeThinkReasoning(threadId);
+  if (!reasoning || !turnId) return;
+  const last = store.messagesFor(threadId).findLast((message) => message.role === "bot" && message.kind === "text" && message.turnId === turnId && !message.reasoning);
+  if (last) store.patchMessage(threadId, last.id, { reasoning });
+}
+
 bus.subscribe((event: RuntimeEvent) => {
   if (shouldIgnoreProviderEvent(event)) return;
+  noteEngineReasoning(event);
   const localVmTarget = localVmThreadTargets.get(event.threadId);
   if (localVmTarget) {
     localVmLeaseFor(localVmTarget).touch(event.threadId);
@@ -6410,7 +6445,8 @@ bus.subscribe((event: RuntimeEvent) => {
       pushStoppedTurn(turnId);
       return;
     }
-    pushMessage({ role: "bot", kind: "text", text: spoken.text, turnId });
+    const reasoning = thinkClaims.has(event.threadId) ? takeThinkReasoning(event.threadId) : undefined;
+    pushMessage({ role: "bot", kind: "text", text: spoken.text, turnId, ...(reasoning ? { reasoning } : {}) });
     lastReply.set(event.threadId, spoken.text);
   };
   const landParkedFiles = () => {
@@ -6704,6 +6740,7 @@ bus.subscribe((event: RuntimeEvent) => {
       }
       break;
     case "turn.completed": {
+      finishThinkTurn(event.threadId, event.turnId ?? completedTurnId);
       askCards.settleWaitingOnPersonChips(event.threadId);
       const internal = isInternalTurn(event.threadId);
       clearInternalTurn(event.threadId);
@@ -7162,6 +7199,7 @@ function drainQueuedSendsNow() {
       void startTurn(botId, prompt, {
         threadId, userMessage, excludeMessageIds: excludeIds, unattended, onTurnSettled: resolve, allowRoomTurnElsewhere: !head.peerAsk,
         trigger: queuedTurnTrigger(head), ...(head.origin ? { origin: head.origin } : {}), ...(head.mentions ? { mentions: head.mentions } : {}),
+        ...(head.effort ? { effort: head.effort } : {}),
       }).catch((err) => {
         const why = err instanceof Error ? err.message : String(err);
         const chief = head.peerAsk?.incident ? store.bot(botId) : null;
@@ -7181,7 +7219,7 @@ function drainQueuedSendsNow() {
   );
 }
 
-async function startOrQueueDirectMessage(botId: string, threadId: string, text: string, replyTo?: ReplyTarget, sendId?: string, sender?: ResolvedSender, trigger?: UsageTrigger, via?: "call", callId?: string, dataContext?: DataContext, app?: { context?: string; fromApp?: Message["fromApp"]; pointed?: Message["pointed"] }, mentions?: string[]) {
+async function startOrQueueDirectMessage(botId: string, threadId: string, text: string, replyTo?: ReplyTarget, sendId?: string, sender?: ResolvedSender, trigger?: UsageTrigger, via?: "call", callId?: string, dataContext?: DataContext, app?: { context?: string; fromApp?: Message["fromApp"]; pointed?: Message["pointed"] }, mentions?: string[], effort?: EffortLevel) {
   const decision = admit("direct", {}, {
     atCapacity: botAtThreadCapacity(botId, threadId),
     threadBusy: threadBusy(botId, threadId),
@@ -7200,10 +7238,11 @@ async function startOrQueueDirectMessage(botId: string, threadId: string, text: 
       via,
       callId,
       reaction: replyTo?.reactedWith,
+      ...(effort ? { effort } : {}),
     });
     return { ok: true as const, queued: true as const, queueId: queued.id, threadId, reason: decision.reason, why: waitWords.queued(threadId, decision.reason) };
   }
-  const message = await startTurn(botId, text, { threadId, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions, allowRoomTurnElsewhere: true });
+  const message = await startTurn(botId, text, { threadId, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions, allowRoomTurnElsewhere: true, ...(effort ? { effort } : {}) });
   return { ok: true as const, threadId, message };
 }
 
@@ -7233,7 +7272,7 @@ async function acceptDirectSend(
   input: DirectSendInput,
   guardedStart?: (currentAtStart: BotRecord) => Promise<DirectSendReceipt>,
 ): Promise<DirectSendReceipt> {
-  const { botId, threadId, text, sendId, replyTo, sender, trigger, via, callId, dataContext, personPresent, app, followUp, mentions } = input;
+  const { botId, threadId, text, sendId, replyTo, sender, trigger, via, callId, dataContext, personPresent, app, followUp, mentions, effort } = input;
   const refused = directSendRefusal(botId, threadId);
   if (refused) throw refused;
   return sendSequencer.run(
@@ -7339,11 +7378,11 @@ async function acceptDirectSend(
           store.setTaskAskedAt(botId, threadId, message.at);
           handoffs.steered(threadId, steerTarget, instance?.instanceId, message.id);
           signInSettle.answerInChat(botId, threadId);
-          if (personsOwn) personFirst.wait(threadId, { requeue: (note) => void queueSteeredMessage(current.id, threadId, text, { prompt: note ? `${queuedPrompt}\n\n${note}` : queuedPrompt, rowId: message.id, first: true, queuedAt: message.at, replyToId: replyTo?.id, dataContext, sender, trigger, via, callId, mentions }) });
+          if (personsOwn) personFirst.wait(threadId, { requeue: (note) => void queueSteeredMessage(current.id, threadId, text, { prompt: note ? `${queuedPrompt}\n\n${note}` : queuedPrompt, rowId: message.id, first: true, queuedAt: message.at, replyToId: replyTo?.id, dataContext, sender, trigger, via, callId, mentions, ...(effort ? { effort } : {}) }) });
           return { ok: true as const, steered: true as const, threadId, message };
         }
         if (!current.busy) {
-          return startOrQueueDirectMessage(botId, threadId, text, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions);
+          return startOrQueueDirectMessage(botId, threadId, text, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions, effort);
         }
         const queued = queueSteeredMessage(current.id, threadId, text, {
           replyToId: replyTo?.id,
@@ -7355,12 +7394,13 @@ async function acceptDirectSend(
           via,
           callId,
           first: personsOwn || chose === "restart",
+          ...(effort ? { effort } : {}),
         });
         if (personsOwn && !chose) personFirst.wait(threadId, {});
         if (chose === "restart") await restartForPerson(botId, threadId, trigger);
         return { ok: true as const, queued: true as const, queueId: queued.id, threadId };
       }
-      return startOrQueueDirectMessage(botId, threadId, text, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions);
+      return startOrQueueDirectMessage(botId, threadId, text, replyTo, sendId, sender, trigger, via, callId, dataContext, app, mentions, effort);
     },
   );
 }
@@ -7558,6 +7598,7 @@ async function beginTurn(
     via?: "call"; callId?: string;
     relayed?: boolean;
     dataContext?: DataContext; mentions?: string[];
+    effort?: EffortLevel;
     app?: { context?: string; fromApp?: Message["fromApp"]; pointed?: Message["pointed"] };
     onDispatchError?: (message: string) => void;
     compactOnly?: boolean;
@@ -7670,7 +7711,9 @@ async function beginTurn(
   const automated = commsDepth > 0 || opts?.automationSource !== undefined
     || Boolean(opts?.unattended || opts?.cardContinuation || opts?.peerAsk || opts?.coordination || opts?.compactOnly || opts?.computerSelectionContinuation);
   const route = routeDirectTurn(bot, task, store.activePath(threadId), resolvedImages, instance, automated, quickFallback.refused(instance.instanceId));
-  const { model, effort, variant } = route;
+  const { model, effort: routedEffort, variant } = route;
+  const thinkEffort = thinkEffortForTurn(opts?.effort, instance.adapter.capabilities.effortLevels, variant);
+  const effort = thinkEffort ?? routedEffort;
   assertModelVariantSupported({ variant, effort }, instance.adapter.capabilities);
   if (effort && !instance.adapter.capabilities.effortLevels?.includes(effort)) {
     throw Object.assign(
@@ -7789,6 +7832,7 @@ async function beginTurn(
   turnContext.delete(threadId);
 
   void (async () => {
+    let thinkDispatched = false;
     try {
       const engineRead = registry.engineRead(instance.instanceId);
       if (engineRead) {
@@ -8441,6 +8485,7 @@ async function beginTurn(
         throw new DirectTurnSetupCancelled("turn stopped before dispatch");
       }
       runningTurnEngines.set(threadId, instance);
+      if (thinkEffort) noteThinkTurn(threadId, dispatchClaimId);
       // Re-decide from the soul actually sent, except on an unattended continuation wake, so a session started under an old soul never survives a soul change by laundering its record.
       const dispatchedConfig = sessionConfig(liveBot?.soul ?? bot.soul);
       if (strictResume && !(opts?.cardContinuation && continuingRoutine) && dispatchedConfig !== plannedConfig) dispatchContext = decideContext(dispatchedConfig);
@@ -8481,6 +8526,7 @@ async function beginTurn(
       }, (input) => quickFallback.sendTurn(instance, input, route.quickModel ? { model, own: bot.modelSelection, onFallback: () => store.patchMessage(threadId, userMessage.id, { quickModel: undefined }) } : undefined))), () => companyShutdown || !directTurnClaimExists(bot.id, dispatchClaimId, threadId), async () => {
         await (runningTurnEngines.get(threadId) ?? instance).adapter.interruptTurn(threadId).catch(() => {});
       });
+      thinkDispatched = true;
       if (dispatch.cancelled) {
         retireProviderTurn(dispatch.value.turnId);
         throw new DirectTurnSetupCancelled("turn stopped during provider setup");
@@ -8523,6 +8569,7 @@ async function beginTurn(
         drainQueuedSends();
       }
     } catch (cause) {
+      if (!thinkDispatched) abandonThinkTurn(threadId, dispatchClaimId);
       let e = cause;
       // Only the driver can prove a task was never submitted; an error string is not that proof.
       const mayRecover = e instanceof TurnNotStartedError &&
@@ -10374,9 +10421,14 @@ async function runClaimedGroupMemberTurn(
         ...(integrations.browser && browserIsThePlace(roomPlan) ? { preloadBrowserTools: true } : {}),
         ...settingsTurnFields(cfg, DATA_DIR, managedPolicy.restrictsMcp()),
         botSettingsFile: botSettingsFile(readyBot),
-        ...(instance.instanceId === readyBot.modelSelection.instanceId
-          ? memberTurnSelection(readyBot.modelSelection)
-          : { model: instance.models.default }),
+        ...(() => {
+          const selection = instance.instanceId === readyBot.modelSelection.instanceId
+            ? memberTurnSelection(readyBot.modelSelection)
+            : { model: instance.models.default };
+          const thinkEffort = thinkEffortForTurn(requestedThinkEffort.get(threadId), instance.adapter.capabilities.effortLevels, "variant" in selection ? selection.variant : undefined);
+          if (thinkEffort) noteThinkTurn(threadId, internalGeneration);
+          return { ...selection, ...(thinkEffort ? { effort: thinkEffort } : {}) };
+        })(),
       })), () => abandoned || Boolean(isCancelled?.()), async () => {
         // Stop may have landed before the adapter had a process to interrupt: interrupt again now.
         await instance.adapter.interruptTurn(threadId).catch(() => {});
@@ -10399,6 +10451,7 @@ async function runClaimedGroupMemberTurn(
         onProviderHandshakeSettled?.();
       })
       .catch((err) => {
+        abandonThinkTurn(threadId, internalGeneration);
         onProviderHandshakeSettled?.();
         clearCancelledProviderHandshake(threadId, retirementOwner);
         if (abandoned) return;
@@ -10757,6 +10810,7 @@ type StartGroupTurnOptions = {
   via?: "api";
   sender?: ResolvedSender;
   trigger?: UsageTrigger;
+  effort?: EffortLevel;
   queuedGroup?: ChannelQueueItem[];
 };
 
@@ -10775,6 +10829,8 @@ function startGroupTurn(
     throw Object.assign(new Error("finish room setup before sending the first message"), { status: 409 });
   }
   const threadId = options.threadId ?? group.threadId;
+  if (options.effort) requestedThinkEffort.set(threadId, options.effort);
+  else requestedThinkEffort.delete(threadId);
   const ownsThread = group.dm
     ? group.threadId === threadId
     : Boolean(store.groupTaskByThread(group.id, threadId));
@@ -11041,6 +11097,7 @@ function drainQueuedChannelSendsNow(): void {
           sender: head.sender,
           trigger: queuedTurnTrigger({ trigger: head.trigger, sender: head.sender }),
           queuedGroup: items, mentions: items.flatMap((item) => item.mentions ?? []),
+          ...(items.findLast((item) => item.effort)?.effort ? { effort: items.findLast((item) => item.effort)!.effort } : {}),
         });
       } catch (error) {
         for (const item of items) {

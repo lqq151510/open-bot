@@ -104,6 +104,8 @@ afterEach(() => {
   flushSync(() => root.unmount());
   container.remove();
   document.body.innerHTML = "";
+  localStorage.removeItem("omb-grok-mode");
+  localStorage.removeItem("omb-grok-think");
   vi.clearAllMocks();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -133,6 +135,13 @@ describe("the Simple composer in a bot chat", () => {
     const row = menu()!.querySelector("[data-menu-key='attach']")!.className.split(" ");
     expect(row).toEqual(expect.arrayContaining(["h-[34px]", "gap-2", "px-3", "text-[15px]"]));
     expect(menu()!.className.split(" ")).toEqual(expect.arrayContaining(["popover-surface", "rounded-[14px]", "w-max", "min-w-[200px]", "max-w-[280px]"]));
+  });
+
+  it("keeps the Grok mode controls in view while Think is on", () => {
+    localStorage.setItem("omb-grok-think", "true");
+    render({ bot });
+    expect(container.querySelector("[data-testid='grok-mode-pill']")).not.toBeNull();
+    expect(container.querySelector("[aria-label='Turn off Think mode']")).not.toBeNull();
   });
 
   it("starts a /learn draft from Teach a task, ahead of anything already typed", () => {

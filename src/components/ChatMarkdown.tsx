@@ -32,6 +32,7 @@ export { CodeBlock, HIGHLIGHT_CACHE_MAX, HIGHLIGHT_CACHE_MAX_CHARS, HIGHLIGHT_MA
 import { FilePreviewButton } from "./FilePreviewButton";
 import { SaveIconButton, useHtmlPreview } from "./HtmlFilePreview";
 import { useRevealOriginalMenu } from "./RevealOriginalMenu";
+import { stripGrokModeDirectives } from "@/lib/grok-mode";
 import { GrokThinkingBubble, extractThinkingBlock } from "./GrokThinkingBubble";
 
 const mermaidCache = new Map<string, string>();
@@ -785,8 +786,9 @@ function ChatMarkdownComponent({ text, message, mentionPeers = NO_MENTION_PEERS,
   /** Delivered copies by file name, and the originals those copies came from (copy path -> original). */
   delivered?: DeliveredFiles; originals?: DeliveredFiles;
 }) {
-  const { thought, inProgress, content } = extractThinkingBlock(text);
-  const targetText = thought !== null ? content : text;
+  const visible = stripGrokModeDirectives(text);
+  const { thought, inProgress, content } = extractThinkingBlock(visible);
+  const targetText = thought !== null ? content : visible;
   // use() may be called conditionally: only a message that can hold a thread link subscribes to the thread list.
   const { threads, bots, currentBotId } = MAY_LINK_THREAD.test(targetText) ? use(ThreadRefsContext) : NO_THREAD_REFS;
   const { source, imageOffsets } = normalizeMessageMarkdown(targetText);
