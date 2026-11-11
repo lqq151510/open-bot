@@ -207,6 +207,11 @@ const notify = (method: string, params: any) => out({
 });
 
 // The response and restored usage notification may share one stdout chunk; force that ordering.
+const resolvedApproval = (params: Record<string, unknown>) => ({
+  approvalPolicy: process.env.FAKE_CODEX_RESOLVED_APPROVAL_POLICY ?? params.approvalPolicy,
+  approvalsReviewer: params.approvalsReviewer,
+});
+
 const resolvedSandbox = (params: Record<string, unknown>) => {
   if (process.env.FAKE_CODEX_RESOLVED_SANDBOX) return JSON.parse(process.env.FAKE_CODEX_RESOLVED_SANDBOX);
   if (params.sandbox === "danger-full-access") return { type: "dangerFullAccess" };
@@ -580,12 +585,12 @@ process.stdin.on("data", (chunk) => {
           const id = msg.params?.threadId;
           out({ jsonrpc: "2.0", id: msg.id, error: { code: -32600, message: `session ${id} is archived. Run \`codex unarchive ${id}\` to unarchive it first.` } });
         } else if (process.env.FAKE_CODEX_ARCHIVED) {
-          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: msg.params?.threadId }, sandbox: resolvedSandbox(msg.params ?? {}) } });
+          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: msg.params?.threadId }, ...resolvedApproval(msg.params ?? {}), sandbox: resolvedSandbox(msg.params ?? {}) } });
         } else if (msg.params?.permissions && (!experimentalApi || mode === "config-profile-unsupported")) {
           out({ jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "experimental API required for permissions" } });
-        } else if (mode === "resume" || mode === "review-events" || mode === "helper-events" || mode === "instructions-unsupported" || mode === "config-profile" || mode === "config-profile-unsupported" || mode === "async-question" ||
+        } else if (mode === "resume" || mode === "rule-approval" || mode === "review-events" || mode === "helper-events" || mode === "instructions-unsupported" || mode === "config-profile" || mode === "config-profile-unsupported" || mode === "async-question" ||
             (mode === "resume-then-missing" && !existsSync(process.env.FAKE_CODEX_STATE ?? ""))) {
-          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: msg.params?.threadId, ...(process.env.FAKE_CODEX_ROLLOUT ? { path: process.env.FAKE_CODEX_ROLLOUT } : {}) }, sandbox: resolvedSandbox(msg.params ?? {}) } });
+          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: msg.params?.threadId, ...(process.env.FAKE_CODEX_ROLLOUT ? { path: process.env.FAKE_CODEX_ROLLOUT } : {}) }, ...resolvedApproval(msg.params ?? {}), sandbox: resolvedSandbox(msg.params ?? {}) } });
         } else {
           out({ jsonrpc: "2.0", id: msg.id, error: { code: -32600, message: `no rollout found for thread id ${msg.params?.threadId}` } });
         }
@@ -637,10 +642,10 @@ process.stdin.on("data", (chunk) => {
           out({ jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "experimental API required for permissions" } });
         } else if (process.env.FAKE_CODEX_MCP_START === "1") {
           // Codex starts MCP servers with the thread; one that fails leaves the thread without its tools.
-          const reply = { jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1" }, model: "fake-codex-model", sandbox: resolvedSandbox(msg.params ?? {}) } };
+          const reply = { jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1" }, model: "fake-codex-model", ...resolvedApproval(msg.params ?? {}), sandbox: resolvedSandbox(msg.params ?? {}) } };
           void startMcpServers().then((startup) => { mcpStartup = startup; dump(); threadReply(reply); });
         } else {
-          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1", ...(process.env.FAKE_CODEX_ROLLOUT ? { path: process.env.FAKE_CODEX_ROLLOUT } : {}) }, model: "fake-codex-model", sandbox: resolvedSandbox(msg.params ?? {}) } });
+          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1", ...(process.env.FAKE_CODEX_ROLLOUT ? { path: process.env.FAKE_CODEX_ROLLOUT } : {}) }, model: "fake-codex-model", ...resolvedApproval(msg.params ?? {}), sandbox: resolvedSandbox(msg.params ?? {}) } });
         }
         break;
       case "turn/start": {
@@ -1020,8 +1025,8 @@ process.stdin.on("data", (chunk) => {
             dump();
             finishTurn();
           });
-        } else if (mode === "approval" || mode === "windows-command") {
-          const approvalCommand = mode === "windows-command" ? command : "rm -rf scratch";
+        } else if (mode === "approval" || mode === "windows-command" || (mode === "rule-approval" && msg.params?.approvalPolicy === "untrusted")) {
+          const approvalCommand = mode === "rule-approval" ? "pwd" : mode === "windows-command" ? command : "rm -rf scratch";
           const approval = process.env.FAKE_CODEX_APPROVAL_REQUEST
             ? JSON.parse(process.env.FAKE_CODEX_APPROVAL_REQUEST)
             : { method: "execCommandApproval", params: { command: approvalCommand } };

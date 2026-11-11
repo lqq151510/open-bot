@@ -1,9 +1,10 @@
 import { pageIsThisComputer } from "@/lib/companion-bridge";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { CheckCircle2, ExternalLink, Monitor, Search, Smartphone } from "lucide-react";
-import { useStore, type AppSettingsSection } from "@/state/store";
+import { Monitor, Search } from "lucide-react";
+import { api, useStore, type AppSettingsSection } from "@/state/store";
 import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { t } from "@/lib/i18n";
+import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { appVersion } from "@/lib/app-links";
 import type { LocaleKey } from "@/locales";
 import { productName } from "../lib/brand";
@@ -41,6 +42,9 @@ import { ThemeRow } from "./ThemeRow";
 import { AccentRow } from "./AccentRow";
 import { MicrophoneRow } from "./MicrophoneRow";
 import { AdminOnly } from "./AdminOnly";
+import { CommandAllowlistDialog } from "./CommandAllowlistDialog";
+import { AlwaysAskRules } from "./AlwaysAskRules";
+import { ComputerExecutionRows, ComputerImageUpdates } from "./ComputerPolicyRows";
 import { LoginsSettings } from "./LoginsSettings";
 
 export type SimpleDisclosureId = "ai-more" | "ai-keys" | "computer-elsewhere" | "billing-limits";
@@ -144,84 +148,55 @@ export function SimpleAiPage({ has, disclose, connections }: { has: Has; disclos
   );
 }
 
-function ComputerExecutionRows() {
-  const [execPermission, setExecPermission] = useState("always");
-  const [forwardTraffic, setForwardTraffic] = useState(true);
-
-  return (
-    <SettingsRows>
-      <SettingRow
-        title={t("settings.computer.executeOnThis")}
-        subtitle={t("settings.computer.executeOnThisSubtitle")}
-      >
-        <Select
-          size="sm"
-          value={execPermission}
-          onChange={(e) => setExecPermission(e.target.value)}
-          aria-label={t("settings.computer.executeOnThis")}
-        >
-          <option value="always">{t("settings.computer.alwaysAllow")}</option>
-          <option value="ask">{t("settings.computer.askEveryTime")}</option>
-        </Select>
-      </SettingRow>
-      <SettingRow
-        title={t("settings.computer.forwardTraffic")}
-        subtitle={t("settings.computer.forwardTrafficSubtitle")}
-      >
-        <Switch
-          checked={forwardTraffic}
-          aria-label={t("settings.computer.forwardTraffic")}
-          onChange={() => setForwardTraffic(!forwardTraffic)}
-        />
-      </SettingRow>
-    </SettingsRows>
-  );
+function computerLabel(value: unknown): string | null {
+  if (!value || typeof value !== "object" || !("label" in value)) return null;
+  const label = value.label;
+  return typeof label === "string" && label.trim() ? label.trim() : null;
 }
 
 function ManagedDevicesList() {
-  const devices = [
-    {
-      id: "macbook",
-      icon: Monitor,
-      title: "MacBook-Pro-3728.local",
-      statusText: `${t("settings.computer.deviceComputer")} · ${t("settings.computer.online")}`,
-      online: true,
-    },
-    {
-      id: "android-1",
-      icon: Smartphone,
-      title: "V2606A",
-      statusText: "Android · 上次打开：4天前",
-      online: false,
-    },
-    {
-      id: "android-2",
-      icon: Smartphone,
-      title: "V2606A (2)",
-      statusText: "Android · 上次打开：上周",
-      online: false,
-    },
-  ];
+  const [name, setName] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "empty">("loading");
+  useEffect(() => {
+    const controller = new AbortController();
+    void api("/.well-known/openbot/environment", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]) })
+      .then((body: unknown) => {
+        if (controller.signal.aborted) return;
+        const label = computerLabel(body);
+        if (!label) {
+          setPhase("empty");
+          return;
+        }
+        setName(label);
+        setPhase("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setPhase("empty");
+      });
+    return () => controller.abort();
+  }, []);
 
+  if (phase === "loading") {
+    return <p role="status" data-managed-devices="loading" className="text-[13px] text-ink-secondary">{t("settings.computer.devicesLoading")}</p>;
+  }
+  if (phase !== "ready" || !name) {
+    return <p data-managed-devices="empty" className="text-[13px] text-ink-secondary">{t("settings.computer.devicesEmpty")}</p>;
+  }
   return (
-    <div className="flex flex-col rounded-xl border border-ink/[0.08] bg-ink/[0.02] divide-y divide-ink/[0.06]">
-      {devices.map((device) => {
-        const Icon = device.icon;
-        return (
-          <div key={device.id} className="flex items-center gap-3 px-3 py-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.06] text-ink-secondary">
-              <Icon size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-ink">{device.title}</div>
-              <div className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
-                <span className={`size-1.5 rounded-full ${device.online ? "bg-emerald-500" : "bg-ink-secondary/50"}`} />
-                <span>{device.statusText}</span>
-              </div>
-            </div>
+    <div data-managed-devices="this-computer" className="flex flex-col rounded-xl border border-ink/[0.08] bg-ink/[0.02]">
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.06] text-ink-secondary">
+          <Monitor size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium text-ink">{name}</div>
+          <div className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
+            <span className="size-1.5 rounded-full bg-emerald-500" />
+            <span>{t("settings.computer.deviceComputer")} · {t("settings.computer.online")}</span>
           </div>
-        );
-      })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -233,17 +208,7 @@ export function SimpleComputerPage({ has, remoteAccess, servers, disclose }: { h
     <>
       {has("computer") && (
         <SettingsGroup label={t("settings.simple.computer.bots")} block="computer">
-          <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4 mb-2">
-            <div className="text-[14px] font-medium text-ink">{t("settings.computer.updateBotsComputer")}</div>
-            <div className="text-[13px] leading-relaxed text-ink-secondary">
-              {t("settings.computer.updateBotsComputerSubtitle")}
-            </div>
-            <div className="mt-1 flex items-center gap-2 rounded-lg bg-blue-500/10 px-3 py-2 text-[13px] font-medium text-blue-600 dark:text-blue-400">
-              <CheckCircle2 size={16} className="shrink-0" />
-              <span>{t("settings.computer.upToDate")}</span>
-            </div>
-          </div>
-          <AdminOnly><LocalComputerSection /></AdminOnly>
+          <AdminOnly><ComputerImageUpdates /><LocalComputerSection /></AdminOnly>
         </SettingsGroup>
       )}
       {has("companion") && (
@@ -279,80 +244,15 @@ export function SimpleBillingPage({ has, disclose, cloudAccount }: { has: Has; d
   const signedOut = plan?.view.kind === "signed-out" || plan?.view.kind === "removed";
   return (
     <div className="flex flex-col gap-5">
-      {/* 每周用量限额卡片 */}
-      <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
-        <div className="text-[13px] font-medium text-ink">{t("settings.billing.weeklyLimit")}</div>
-        <div className="text-[26px] font-semibold text-ink tracking-tight mt-1">
-          {t("settings.billing.usedPercent")}
-        </div>
-        <div className="h-1.5 w-full bg-ink/[0.08] rounded-full overflow-hidden my-1">
-          <div className="h-full bg-blue-500 rounded-full w-[91%]" />
-        </div>
-        <div className="text-[13px] text-ink-secondary">{t("settings.billing.resetsIn")}</div>
-        <div className="text-[12px] text-ink-secondary/80 mt-1 border-t border-ink/[0.06] pt-2">
-          {t("settings.billing.weeklySubtitle")}
-        </div>
-      </div>
-
-      {/* 用量上限重置卡片 */}
-      <div className="flex flex-col gap-1.5 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
-        <div className="text-[13px] font-medium text-ink">{t("settings.billing.limitResets")}</div>
-        <div className="text-[13px] text-ink-secondary mt-1">{t("settings.billing.noResets")}</div>
-      </div>
-
-      {/* 额外用量额度卡片 */}
-      <div className="flex flex-col gap-3 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-[13px] font-medium text-ink">{t("settings.billing.extraCredits")}</div>
-          <div className="flex items-center gap-2">
-            <button type="button" className="rounded-full bg-blue-500/10 px-3 py-1 text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors">
-              {t("settings.billing.buyCredits")}
-            </button>
-            <button type="button" className="rounded-full bg-ink px-3 py-1 text-[12px] font-medium text-canvas hover:bg-ink/90 transition-colors">
-              {t("settings.billing.autoRecharge")}
-            </button>
-          </div>
-        </div>
-        <div className="text-[26px] font-semibold text-ink tracking-tight mt-0.5">
-          {t("settings.billing.remainingBalance")}
-        </div>
-        <div className="flex flex-col gap-1.5 text-[13px] border-t border-ink/[0.06] pt-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-ink-secondary">{t("settings.billing.monthlyExtraUsage")}</span>
-            <span className="font-medium text-ink">$3.91</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-ink-secondary">{t("settings.billing.monthlyExtraLimit")}</span>
-            <span className="text-ink"><span className="font-medium">$10.00</span> · <span className="text-blue-500 hover:underline cursor-pointer">编辑</span></span>
-          </div>
-        </div>
-        <div className="text-[12px] text-ink-secondary/80">
-          {t("settings.billing.creditsExpiry")}
-        </div>
-      </div>
-
-      {/* 管理计划卡片 */}
-      <div className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4 divide-y divide-ink/[0.06]">
-        <div className="flex items-center justify-between pb-3">
-          <div>
-            <div className="text-[14px] font-medium text-ink">{t("settings.billing.currentPlan")}</div>
-            <div className="text-[13px] text-ink-secondary">{t("settings.billing.cursorManage")}</div>
-          </div>
-          <button type="button" className="ui-button flex items-center gap-1.5 shrink-0 text-[13px]">
-            {t("settings.billing.managePlan")} <ExternalLink size={13} />
-          </button>
-        </div>
-        <div className="flex items-center justify-between pt-3">
-          <div className="text-[14px] font-medium text-ink">{t("settings.billing.manageBilling")}</div>
-          <button type="button" className="ui-button flex items-center gap-1.5 shrink-0 text-[13px]">
-            {t("settings.billing.manageBilling")} <ExternalLink size={13} />
-          </button>
-        </div>
-      </div>
-
       <div data-settings-block="usage" className="scroll-mt-4">
-        {usage ? <CloudUsageSummaryView usage={usage} upgrade={upgrade}>{dialog}</CloudUsageSummaryView> : <AdminOnly note="settings.adminOnly.usage"><PlanUsageSummary /></AdminOnly>}
+        {usage ? <CloudUsageSummaryView usage={usage} upgrade={upgrade}>{dialog}</CloudUsageSummaryView> : (
+          <section data-billing-empty className="flex flex-col gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
+            <p className="text-[13px] leading-relaxed text-ink">{t("settings.simple.billing.ownAi")}</p>
+            <p className="text-[13px] leading-relaxed text-ink-secondary">{t("usageMeter.empty")}</p>
+          </section>
+        )}
       </div>
+      {!usage && <AdminOnly note="settings.adminOnly.usage"><PlanUsageSummary /></AdminOnly>}
       {(usage || has("usage")) && (
         <SettingsDisclosureRow title={t("settings.simple.billing.limits")} {...disclose("billing-limits")}>
           {usage && <CloudUsageDetails usage={usage} upgrade={upgrade} />}
@@ -386,22 +286,10 @@ function ServerUpdatesRow() {
 }
 
 export function SimpleUpdatesPage({ remoteActive }: { remoteActive: boolean }) {
-  const [autoUpdate, setAutoUpdate] = useState(true);
-
   return (
     <div className="flex flex-col gap-4">
       <SettingsGroup label={t("settings.updates.grokBotUpdates")} block="updates">
         <SettingsRows>
-          <SettingRow
-            title={t("settings.updates.autoUpdate")}
-            subtitle={t("settings.updates.autoUpdateSubtitle")}
-          >
-            <Switch
-              checked={autoUpdate}
-              aria-label={t("settings.updates.autoUpdate")}
-              onChange={() => setAutoUpdate(!autoUpdate)}
-            />
-          </SettingRow>
           {window.ogb?.updater ? <UpdatesRow title={versionTitle()} /> : <ServerUpdatesRow />}
           <UpdatesConsentRow />
           {!remoteActive && <ReplayTourRow />}
@@ -419,10 +307,22 @@ const permissionLevel = (bot: Parameters<typeof approvalModeFor>[0]): "ask" | "a
 
 export function SimplePermissionsPage() {
   const { state, dispatch } = useStore();
+  const ownerOrAdmin = useOwnerOrAdmin();
   const bots = state.bots.filter((bot) => !bot.hidden);
   const autoReview = bots.length > 0 && bots.every((bot) => permissionLevel(bot) !== "ask");
+  const [allowlist, setAllowlist] = useState<{ botId: string; botName: string } | null>(null);
+  const [pickingAllowlist, setPickingAllowlist] = useState(false);
   const setAll = (mode: "ask" | "auto") => {
     for (const bot of bots) dispatch({ type: "updateBot", botId: bot.id, patch: { approvalMode: mode, applyToAllThreads: true } });
+  };
+  const openAllowlist = () => {
+    const [only] = bots;
+    if (bots.length === 1 && only) {
+      setAllowlist({ botId: only.id, botName: only.name });
+      setPickingAllowlist(false);
+      return;
+    }
+    setPickingAllowlist(true);
   };
   return (
     <div data-settings-block="permissions" className="flex scroll-mt-4 flex-col gap-6">
@@ -431,29 +331,44 @@ export function SimplePermissionsPage() {
           <Switch
             checked={autoReview}
             aria-label={t("settings.permissions.autoReview.title")}
-            onChange={() => setAll(autoReview ? "ask" : "auto")}
+            onClick={() => setAll(autoReview ? "ask" : "auto")}
           />
         </SettingRow>
       </SettingsRows>
 
       <SettingsRows>
-        <SettingRow
-          title={t("settings.permissions.alwaysAsk.title")}
-          subtitle={t("settings.permissions.alwaysAsk.subtitle")}
-        >
-          <button type="button" className="ui-button shrink-0">
-            {t("settings.permissions.addRule")}
-          </button>
-        </SettingRow>
+        <AlwaysAskRules canManage={ownerOrAdmin === true} />
         <SettingRow
           title={t("settings.permissions.directAllow.title")}
           subtitle={t("settings.permissions.directAllow.subtitle")}
         >
-          <button type="button" className="ui-button shrink-0">
-            {t("settings.permissions.addRule")}
-          </button>
+          {ownerOrAdmin === true && bots.length > 0 ? (
+            <button type="button" data-permission-allow-rule className="ui-button shrink-0" onClick={openAllowlist}>
+              {t("settings.permissions.addRule")}
+            </button>
+          ) : bots.length === 0 ? (
+            <span className="text-[13px] text-ink-secondary">{t("settings.permissions.noBots")}</span>
+          ) : null}
         </SettingRow>
       </SettingsRows>
+      {pickingAllowlist && bots.length > 1 && (
+        <div role="group" aria-label={t("settings.permissions.directAllow.choose")} data-permission-allow-bots className="flex flex-col gap-1">
+          {bots.map((bot) => (
+            <button
+              key={bot.id}
+              type="button"
+              data-permission-allow-bot={bot.id}
+              className="rounded-lg px-3 py-2 text-left text-[13px] text-ink hover:bg-ink/[0.04]"
+              onClick={() => {
+                setAllowlist({ botId: bot.id, botName: bot.name });
+                setPickingAllowlist(false);
+              }}
+            >
+              {bot.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {bots.length > 0 && (
         <SettingsGroup label={t("settings.permissions.modes.title")} footnote={t("settings.permissions.modes.subtitle")}>
@@ -482,6 +397,7 @@ export function SimplePermissionsPage() {
           </SettingsRows>
         </SettingsGroup>
       )}
+      {allowlist && <CommandAllowlistDialog key={`command-allowlist:${allowlist.botId}`} {...allowlist} onClose={() => setAllowlist(null)} />}
     </div>
   );
 }

@@ -108,6 +108,28 @@ describe("Always allow this session", () => {
     later.close();
   });
 
+  it("does not use or create a session grant while workspace approval rules are active", async () => {
+    const granted = new Set(["remembered"]);
+    const open = vi.fn();
+    let rulesActive = true;
+    const gate = createChatToolApproval({
+      signal: new AbortController().signal, open, resolved: vi.fn(), openQuestion: vi.fn(), resolvedQuestion: vi.fn(),
+      granted, sessionGrantsAllowed: () => !rulesActive,
+    });
+
+    const covered = gate.ask("audit_write", "Write", "remembered");
+    expect(open.mock.calls[0][0]).not.toHaveProperty("grant");
+    expect(gate.answer(open.mock.calls[0][0].id, "deny")).toBe("rejected");
+    await expect(covered).resolves.toBe(false);
+
+    rulesActive = false;
+    const newer = gate.ask("audit_edit", "Edit", "new");
+    rulesActive = true;
+    expect(gate.answer(open.mock.calls[1][0].id, "allow", undefined, true)).toBe("allowed-once");
+    await expect(newer).resolves.toBe(true);
+    expect(granted).toEqual(new Set(["remembered"]));
+  });
+
   it("keeps nothing for an allow once, a denial, a timeout or a gate without a conversation's set", async () => {
     vi.useFakeTimers();
     const granted = new Set<string>();

@@ -1,0 +1,177 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e6]:
+    - complementary "机器人与导航" [ref=f3e54]:
+      - generic [ref=f3e8]:
+        - generic [ref=f3e9]:
+          - generic [ref=f3e11]:
+            - button "搜索机器人和消息" [ref=f3e55] [cursor=pointer]
+            - button "新建或分享" [ref=f3e56] [cursor=pointer]
+          - button "收件箱" [ref=f3e57] [cursor=pointer]
+          - generic [ref=f3e58]:
+            - button "Fixture Starter · 总协调机器人" [ref=f3e59] [cursor=pointer]:
+              - img "Fixture Starter" [ref=f3e62]
+              - button "重命名 Fixture Starter" [ref=f3e71]: Fixture Starter
+            - status [ref=f3e72]
+        - separator "调整侧栏大小" [ref=f3e73]
+        - generic [ref=f3e74]:
+          - generic [ref=f3e75]:
+            - button "Grok Bot 重命名 Grok Bot hello from fake claude 模型：Claude Sonnet 5（Verification fixture）" [ref=f3e76] [cursor=pointer]:
+              - img "Grok Bot" [ref=f3e79]
+              - generic [ref=f3e90]:
+                - button "重命名 Grok Bot" [ref=f3e93]: Grok Bot
+                - generic [ref=f3e94]:
+                  - generic [ref=f3e95]: hello from fake claude
+                  - img "模型：Claude Sonnet 5（Verification fixture）" [ref=f3e97]
+            - button "Grok Bot 的操作"
+          - generic [ref=f3e101]:
+            - button "Pepper 重命名 Pepper Hi, I'm Pepper. What would you like me to do? 模型：Claude Sonnet 5（Verification fixture）" [ref=f3e102] [cursor=pointer]:
+              - img "Pepper" [ref=f3e105]
+              - generic [ref=f3e116]:
+                - button "重命名 Pepper" [ref=f3e119]: Pepper
+                - generic [ref=f3e120]:
+                  - generic [ref=f3e121]: Hi, I'm Pepper. What would you like me to do?
+                  - img "模型：Claude Sonnet 5（Verification fixture）" [ref=f3e123]
+            - button "Pepper 的操作"
+        - paragraph [ref=f3e31]
+        - generic [ref=f3e34]:
+          - button "你" [ref=f3e127] [cursor=pointer]
+          - button "连接应用" [ref=f3e128] [cursor=pointer]
+    - main [ref=f3e129]:
+      - generic [ref=f3e130]:
+        - generic [ref=f3e133]:
+          - generic [ref=f3e134]:
+            - button "打开 Grok Bot 的资料" [expanded] [ref=f3e135] [cursor=pointer]:
+              - img "Grok Bot" [ref=f3e137]
+              - generic [ref=f3e148]: Grok Bot
+            - status [ref=f3e151]
+          - button "共享" [expanded] [active] [ref=f3e154] [cursor=pointer]
+        - log "与 Grok Bot 的对话" [ref=f3e160]:
+          - generic [ref=f3e374]:
+            - generic [ref=f3e375]: 今天 16:12
+            - generic [ref=f3e377]:
+              - generic:
+                - button "消息操作"
+              - generic "2026/11/9 16:12:17" [ref=f3e378]: 你会什么
+              - generic [ref=f3e380]: 16:12
+          - generic [ref=f3e383]:
+            - generic "已工作 · 2026/11/9 16:12:17" [ref=f3e384]:
+              - paragraph [ref=f3e387]: hello from fake claude
+            - generic:
+              - generic:
+                - button "添加表情回应"
+              - button "回复消息"
+              - button "消息操作"
+            - generic [ref=f3e388]: 16:12
+        - status [ref=f3e176]
+        - generic [ref=f3e181]:
+          - button "添加" [ref=f3e184] [cursor=pointer]
+          - textbox "给 Grok Bot 发消息" [ref=f3e188]
+          - generic [ref=f3e189]:
+            - button "开始听写" [disabled] [ref=f3e190]
+            - button "与 Grok Bot 的实时通话" [ref=f3e195] [cursor=pointer]
+    - dialog [ref=f3e197]:
+      - generic [ref=f3e198]:
+        - generic [ref=f3e199]:
+          - button "共享" [ref=f3e201] [cursor=pointer]
+          - button "机器人设置" [ref=f3e206] [cursor=pointer]
+          - button "关闭设置" [ref=f3e207] [cursor=pointer]
+        - generic [ref=f3e208]:
+          - generic [ref=f3e210]:
+            - button "编辑头像" [ref=f3e211] [cursor=pointer]:
+              - img "Grok Bot" [ref=f3e213]
+              - generic [aria-hidden]: 编辑头像
+            - heading [level=2] [ref=f3e225]:
+              - button "Grok Bot" [ref=f3e226] [cursor=pointer]
+          - tablist "机器人设置" [ref=f3e231]:
+            - tab "动态" [selected] [ref=f3e232] [cursor=pointer]
+            - tab "资料库" [ref=f3e233] [cursor=pointer]
+          - tabpanel [ref=f3e234]:
+            - generic [ref=f3e235]:
+              - generic [ref=f3e236]:
+                - generic [ref=f3e237]:
+                  - generic [ref=f3e238]: 建议
+                  - button "隐藏" [ref=f3e239] [cursor=pointer]
+                - generic [ref=f3e240]:
+                  - button "添加到 Slack" [ref=f3e241] [cursor=pointer]
+                  - button "创建例行任务" [ref=f3e256] [cursor=pointer]
+              - generic [ref=f3e264]:
+                - generic [ref=f3e265]: 电脑
+                - button "Grok Bot 的屏幕 当前没有在使用它的电脑 Grok Bot" [ref=f3e268] [cursor=pointer]:
+                  - generic [ref=f3e272]:
+                    - generic [ref=f3e273]: Grok Bot 的屏幕
+                    - generic [ref=f3e274]: 当前没有在使用它的电脑
+                  - img "Grok Bot" [ref=f3e278]
+              - generic [ref=f3e291]:
+                - generic [ref=f3e292]: 语音聊天
+                - generic [ref=f3e295]:
+                  - generic [ref=f3e296]:
+                    - generic [ref=f3e297]: 语音
+                    - combobox "语音" [ref=f3e299] [cursor=pointer]:
+                      - option "Marin (default)" [selected]
+                      - option "Cedar"
+                      - option "Alloy"
+                      - option "Ash"
+                      - option "Ballad"
+                      - option "Coral"
+                      - option "Echo"
+                      - option "Sage"
+                      - option "Shimmer"
+                      - option "Verse"
+                      - option "Gleam — North American, feminine"
+                      - option "Meridian — North American, masculine"
+                      - option "Quartz — Australian, feminine"
+                      - option "Ripple — Australian, masculine"
+                      - option "Vesper — British, masculine"
+                      - option "Willow — Irish, feminine"
+                      - option "Stone — Irish, masculine"
+                      - option "Delta — Southern U.S., feminine"
+                      - option "Cinder — Southern U.S., masculine"
+                      - option "Beacon — Filipino, masculine"
+                      - option "Bossa — Brazilian Portuguese, feminine"
+                      - option "Tempo — Brazilian Portuguese, masculine"
+                  - generic [ref=f3e300]:
+                    - generic [ref=f3e301]: 语速
+                    - combobox "语速" [ref=f3e303] [cursor=pointer]:
+                      - option "0.75x"
+                      - option "1x" [selected]
+                      - option "1.25x"
+                      - option "1.5x"
+                  - generic [ref=f3e304]:
+                    - generic [ref=f3e305]: 语言
+                    - combobox "语言" [ref=f3e307] [cursor=pointer]:
+                      - option "自动识别" [selected]
+                      - option "英语"
+                      - option "简体中文"
+              - region "对话" [ref=f3e308]:
+                - generic [ref=f3e309]:
+                  - button "新对话" [ref=f3e310] [cursor=pointer]
+                  - button "搜索对话" [ref=f3e315] [cursor=pointer]
+                - list "对话" [ref=f3e319]:
+                  - listitem [ref=f3e320]:
+                    - generic [ref=f3e321]:
+                      - button "你会什么 hello from fake claude" [ref=f3e322] [cursor=pointer]:
+                        - generic [ref=f3e323]:
+                          - generic [ref=f3e324]: 你会什么
+                          - generic [ref=f3e326]: hello from fake claude
+                      - time [ref=f3e328]: 1 小时前
+                      - button "你会什么 的操作" [ref=f3e329] [cursor=pointer]
+                  - listitem [ref=f3e334]:
+                    - generic [ref=f3e335]:
+                      - button "新建对话 Hi, I'm Grok Bot. What would you like me to do?" [ref=f3e336] [cursor=pointer]:
+                        - generic [ref=f3e337]:
+                          - generic [ref=f3e338]: 新建对话
+                          - generic [ref=f3e340]: Hi, I'm Grok Bot. What would you like me to do?
+                      - time [ref=f3e342]: 1 小时前
+                      - button "新建对话 的操作" [ref=f3e343] [cursor=pointer]
+              - generic [ref=f3e348]:
+                - generic [ref=f3e349]: 这个对话
+                - generic [ref=f3e351]:
+                  - button "在对话中查找" [ref=f3e352] [cursor=pointer]:
+                    - generic [aria-hidden] [ref=f3e359]: ⌘ F
+                  - button "用量 US$0.01 · 已用 0% 上下文" [ref=f3e360] [cursor=pointer]:
+                    - generic [ref=f3e365]: 用量
+                    - generic "1 轮 10 未缓存输入 · 2 缓存输入 · 5 输出 上一条消息：10 未缓存输入 · 2 缓存输入 · 5 输出 上下文 12（占 200k 的 0%） US$0.01 等价金额——包含在你的订阅中，不另计费" [ref=f3e367]: US$0.01 · 已用 0% 上下文
+                  - button "活动" [ref=f3e368] [cursor=pointer]
+  - menu "共享" [ref=f3e389]:
+    - menuitem "复制对话" [ref=f3e391] [cursor=pointer]
+    - menuitem "下载对话" [ref=f3e398] [cursor=pointer]

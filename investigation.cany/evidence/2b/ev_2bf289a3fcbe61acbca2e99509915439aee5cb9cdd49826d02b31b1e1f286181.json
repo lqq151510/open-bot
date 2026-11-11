@@ -1,0 +1,51 @@
+{
+  "id": "ev_2bf289a3fcbe61acbca2e99509915439aee5cb9cdd49826d02b31b1e1f286181",
+  "subject": {
+    "kind": "directory",
+    "sha256": "a7c7c1454fc1a9169eca436fe6cf6fdf363e2c359da7312c49c22945170e36fd",
+    "name": "Grok Bot.app"
+  },
+  "operation": "core_target_triage",
+  "params": {
+    "path": "/Applications/Grok Bot.app"
+  },
+  "result": {
+    "description": "A folder",
+    "kind": "directory",
+    "next_steps": [
+      {
+        "tool": "core_archive_show",
+        "why": "inventory the folder"
+      },
+      {
+        "tool": "core_target_triage",
+        "why": "triage the main executable inside it by path"
+      }
+    ],
+    "plain_english": "Grok Bot.app is a folder (an app bundle, an unpacked app or a project).",
+    "recommended_toolsets": [
+      "core"
+    ],
+    "size": 0
+  },
+  "summary": "Grok Bot.app is a folder (an app bundle, an unpacked app or a project).",
+  "confidence": "inferred",
+  "authority": "original-files",
+  "environment": {
+    "clean_room": false,
+    "engine": "builtin",
+    "engine_version": "0.5.0",
+    "host": "macos-aarch64"
+  },
+  "limitations": [
+    {
+      "code": "detected_by_content",
+      "message": "the kind is detected from the first bytes and, to break ties, the file name"
+    }
+  ],
+  "coverage": {
+    "status": "unknown"
+  },
+  "locations": [],
+  "links": []
+}

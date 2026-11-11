@@ -9,6 +9,8 @@ import { ASK_USER_TOOL, formatQuestionAnswers, MAX_OPTIONS, MAX_QUESTIONS, parse
 import { CALL_TOOL, directoryCallTarget, isDirectoryTool } from "../mcp-directory.ts";
 import { REMOTE_MCP_STARTUP_MS } from "../mcp-http.ts";
 import { AGENTS_TOOL_TIMEOUT_SECONDS } from "./agents-tool-limit.ts";
+import { PI_TOOL_REVIEW_TITLE } from "./tool-rule-approval.ts";
+import { bridgedCallTarget } from "./agents-bridge.ts";
 
 interface McpServerDef {
   command: string;
@@ -23,6 +25,7 @@ interface McpConfig {
   mcpServers?: Record<string, McpServerDef>;
   toolScope?: unknown;
   scopeReadyPath?: string;
+  approvalReviewReadyPath?: string;
   approvalMode?: string;
   /** Register the ask_user tool: the driver sets it when the turn may ask. */
   askUser?: boolean;
@@ -75,7 +78,7 @@ interface PiToolDefinition {
 /** The slice of Pi 0.84's ExtensionAPI this standalone file uses; the user's installed Pi supplies it. */
 interface PiExtensionApi {
   registerTool(definition: PiToolDefinition): void;
-  on(event: string, handler: (event?: Record<string, unknown>, context?: { abort?(): void }) => unknown): void;
+  on(event: string, handler: (event?: Record<string, unknown>, context?: { abort?(): void; ui?: PiToolContext["ui"] }) => unknown): void;
   getActiveTools?(): string[];
   setActiveTools?(names: string[]): void;
 }
@@ -594,10 +597,11 @@ export default async function (pi: PiExtensionApi): Promise<void> {
   const clients: StdioMcp[] = [];
   const serverEntries = Object.entries(config.mcpServers ?? {}).filter(([name]) => scope === undefined || canUseMcpServer(scope, name));
 
+  const approvalReview = config.approvalReviewReadyPath !== undefined;
+  const allowed = (name: string) => directoryTools.has(name)
+    ? canUseMcpServer(scope, directoryTools.get(name)!)
+    : allowsTool(scope, identities.get(name) ?? { kind: "native", name });
   if (scope !== undefined) {
-    const allowed = (name: string) => directoryTools.has(name)
-      ? canUseMcpServer(scope, directoryTools.get(name)!)
-      : allowsTool(scope, identities.get(name) ?? { kind: "native", name });
     const intersect = () => {
       if (enforcementFailed) throw new Error("Pi tool selection enforcement is unavailable");
       try {
@@ -618,7 +622,6 @@ export default async function (pi: PiExtensionApi): Promise<void> {
       }
     };
     for (const event of ["session_start", "session_switch", "model_select", "before_agent_start", "context"]) pi.on(event, () => { intersect(); });
-    pi.on("tool_call", (event) => !enforcementFailed && typeof event?.toolName === "string" && allowed(event.toolName) ? undefined : { block: true, reason: "Tool selection excludes this tool" });
     // Providers serialize tools before this hook, so the final payload is filtered too.
     pi.on("before_provider_request", (event, context) => {
       let selected = new Set<string>();
@@ -641,6 +644,23 @@ export default async function (pi: PiExtensionApi): Promise<void> {
         return typeof name === "string" && declared(name) ? [tool] : [];
       });
       return payload;
+    });
+  }
+
+  if (scope !== undefined || approvalReview) {
+    pi.on("tool_call", async (event, ctx) => {
+      const tool = event?.toolName;
+      if (enforcementFailed || typeof tool !== "string" || !allowed(tool)) {
+        return { block: true, reason: "Tool selection excludes this tool" };
+      }
+      if (!approvalReview || tool === ASK_USER_TOOL || identities.has(tool)) return;
+      const input = event?.input as { command?: unknown } | undefined;
+      const command = tool === "bash" && typeof input?.command === "string" ? input.command : undefined;
+      const details = JSON.stringify({ tool, command, ask: false, summary: summarizeParams(input) || tool });
+      try {
+        if (await ctx?.ui?.confirm(PI_TOOL_REVIEW_TITLE, details)) return;
+      } catch {}
+      return { block: true, reason: "Tool approval was denied or unavailable" };
     });
   }
 
@@ -700,15 +720,16 @@ export default async function (pi: PiExtensionApi): Promise<void> {
                 (directoryTool && toolName === CALL_TOOL ? (params as { arguments?: unknown } | undefined)?.arguments : params) ?? {})))) {
               throw new Error("Tool selection excludes this tool");
             }
-            // Host tools ask first through pi's native card (ctx.ui.confirm → extension_ui_request).
-            if (gated && target !== undefined) {
-              const shown = target;
-              const detail = summarizeParams(directoryTool && toolName === CALL_TOOL ? (params as { arguments?: unknown } | undefined)?.arguments : params);
-              const allowed = await ctx.ui.confirm(
-                def.scope === "local-computer" ? `Allow ${shown} on your computer?` : `Allow ${serverName}:${shown}?`,
-                detail || `Run ${serverName}:${shown}`,
-              );
-              if (!allowed) {
+            if (approvalReview || (gated && target !== undefined)) {
+              const nested = serverName === "agents" ? bridgedCallTarget(toolName, params) : undefined;
+              const shown = nested ?? target ?? toolName;
+              const localComputer = def.scope === "local-computer";
+              const tool = `${serverName}:${shown}`;
+              const summary = summarizeParams(directoryTool && toolName === CALL_TOOL ? (params as { arguments?: unknown } | undefined)?.arguments : params) || `Run ${tool}`;
+              const allowed = approvalReview
+                ? await ctx.ui.confirm(PI_TOOL_REVIEW_TITLE, JSON.stringify({ tool: name, alias: shown === toolName ? tool : sanitizeToolName(serverName, shown), ask: gated && target !== undefined, localComputer, summary }))
+                : await ctx.ui.confirm(localComputer ? `Allow ${shown} on your computer?` : `Allow ${tool}?`, summary);
+              if (!allowed || signal?.aborted) {
                 return { content: [{ type: "text", text: "Blocked by the user." }], details: {} };
               }
             }
@@ -738,6 +759,7 @@ export default async function (pi: PiExtensionApi): Promise<void> {
     else client.dispose();
   }
 
+  if (config.approvalReviewReadyPath) writeFileSync(config.approvalReviewReadyPath, "", { mode: 0o600 });
   pi.on("session_shutdown", () => {
     for (const c of clients) c.dispose();
     clients.length = 0;

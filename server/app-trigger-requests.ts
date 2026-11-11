@@ -114,7 +114,7 @@ export class AppTriggerRequestService {
     return trigger;
   }
 
-  async submit(args: { botId: string; threadId: string; operation: unknown; from?: { botId: string; name: string; color: string }; canCommit?: () => boolean }): Promise<AppTriggerRequestResult> {
+  async submit(args: { botId: string; threadId: string; operation: unknown; from?: { botId: string; name: string; color: string }; canCommit?: () => boolean; approvalCreator?: string }): Promise<AppTriggerRequestResult> {
     const parsed = operationSchema.safeParse(args.operation);
     if (!parsed.success) throw new AppTriggerError(parsed.error.issues[0]?.message ?? "Invalid automation request");
     const operation = parsed.data as AppTriggerRequestOperation;
@@ -127,7 +127,7 @@ export class AppTriggerRequestService {
     switch (operation.action) {
       case "create": {
         const { instructions, ...definition } = operation.trigger;
-        after = await triggers.create({ ...definition, prompt: instructions, botId: owner, sourceThreadId: args.threadId });
+        after = await triggers.create({ ...definition, prompt: instructions, botId: owner, sourceThreadId: args.threadId }, args.approvalCreator);
         break;
       }
       case "update": {

@@ -25,7 +25,7 @@ export function linkUrl(origin, path) {
  * now, read on every stream, so My Cloud is never taken at its word. `chrome`: the Chrome door's options, or an object
  * with its own `open` to stand in for the door.
  */
-export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocket: Socket = globalThis.WebSocket, pingMs = PING_MS, silentMs = SILENT_MS, openMs = OPEN_MS, lends = () => ({ internet: true, chrome: false }), chrome = {}, onOpen = () => {}, onStream = () => {}, traffic = () => {}, now = Date.now }) {
+export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocket: Socket = globalThis.WebSocket, pingMs = PING_MS, silentMs = SILENT_MS, openMs = OPEN_MS, lends = () => ({ internet: true, chrome: false }), chrome = {}, onOpen = () => {}, onStream = () => {}, onInternetGate = () => {}, traffic = () => {}, now = Date.now }) {
   return new Promise((done) => {
     let seenAs = null;
     let heard = now();
@@ -44,6 +44,7 @@ export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocke
       try { onStream(target, result); } catch {}
       return result;
     } });
+    onInternetGate(() => mux.closeInternet());
     let pinger = null;
     const opening = setTimeout(() => finish(1006, "timeout"), openMs);
     opening.unref?.();
@@ -54,6 +55,7 @@ export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocke
       clearInterval(pinger);
       signal?.removeEventListener("abort", stop);
       mux.close();
+      onInternetGate(null);
       try { ws.close(); } catch {}
       done({ code, reason });
     };
@@ -61,6 +63,7 @@ export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocke
     if (signal?.aborted) { stop(); return; }
     signal?.addEventListener("abort", stop, { once: true });
     ws.onopen = () => {
+      if (finished) return;
       clearTimeout(opening);
       heard = now();
       onOpen();
@@ -71,6 +74,7 @@ export function runDeviceLink({ url, headers = {}, egress = {}, signal, WebSocke
       pinger.unref?.();
     };
     ws.onmessage = ({ data }) => {
+      if (finished) return;
       heard = now();
       if (typeof data === "string") {
         let message;

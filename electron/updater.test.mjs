@@ -5,6 +5,7 @@ import { join } from "node:path";
 import vm from "node:vm";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cloudTarget } from "./cloud-account.mjs";
+import { createDesktopPrefs } from "./desktop-prefs.mjs";
 import { myCloudOrigin, rememberedCloudHome, savedCloudHomeOrigin } from "./cloud-home.mjs";
 import { cloudPageSenderAllowed } from "./cloud-home.mjs";
 import { otherOwnClouds, ownCloud } from "./cloud-list.mjs";
@@ -153,7 +154,7 @@ function bridgeFor(origin, { clicked = false, rule = null } = {}) {
 
 it("My Cloud's page gets the update bridge, and it restarts the app only on the person's click", async () => {
   const local = bridgeFor(LOCAL);
-  expect(Object.keys(local.bridge.updater).sort()).toEqual(["check", "install", "onState", "seen"]);
+  expect(Object.keys(local.bridge.updater).sort()).toEqual(["check", "install", "onState", "seen", "setAutoUpdateWhenIdle"]);
   expect(local.asked, "this computer's page has the whole bridge without asking").toEqual([]);
   await local.bridge.updater.install();
   expect(local.invoked).toEqual([["update:install"]]);
@@ -161,14 +162,16 @@ it("My Cloud's page gets the update bridge, and it restarts the app only on the 
   const rule = mainRule();
   rule.show(page(CLOUD), "cloud");
   const cloud = bridgeFor(CLOUD, { rule });
-  expect(Object.keys(cloud.bridge.updater).sort()).toEqual(["check", "install", "onState", "seen"]);
+  expect(Object.keys(cloud.bridge.updater).sort()).toEqual(["check", "install", "onState", "seen", "setAutoUpdateWhenIdle"]);
   await expect(cloud.bridge.updater.install()).rejects.toThrow(/Restart to update/);
+  await expect(cloud.bridge.updater.setAutoUpdateWhenIdle(true)).rejects.toThrow(/Choose whether/);
   await cloud.bridge.updater.check();
   cloud.bridge.updater.onState(() => {});
   expect(cloud.invoked).toEqual([["update:check"], ["update:get-state"]]);
   const clicked = bridgeFor(CLOUD, { clicked: true, rule });
   await clicked.bridge.updater.install();
-  expect(clicked.invoked).toEqual([["update:install"]]);
+  await clicked.bridge.updater.setAutoUpdateWhenIdle(true);
+  expect(clicked.invoked).toEqual([["update:install"], ["update:set-auto-update-when-idle", true]]);
 });
 
 it("another server's page never gets the update bridge; My Cloud's does, even while the sign-in restores", () => {
@@ -269,7 +272,8 @@ it("a downloaded update installs by itself at a quiet moment on macOS and Window
       if (image) process.env.APPIMAGE = image;
       else delete process.env.APPIMAGE;
       const { updater, autoUpdater, handlers } = await load(() => true);
-      updater.startUpdater(quiet);
+      const prefs = createDesktopPrefs({ read: () => ({ autoUpdateWhenIdle: true }), write: () => {} });
+      updater.startUpdater(quiet, prefs);
       await vi.advanceTimersByTimeAsync(15_000);
       await settle();
       expect(autoUpdater.quitAndInstall, `${os} ${marker ?? image ?? ""} waits for a quiet moment`).not.toHaveBeenCalled();
@@ -284,6 +288,44 @@ it("a downloaded update installs by itself at a quiet moment on macOS and Window
     if (appImage === undefined) delete process.env.APPIMAGE;
     else process.env.APPIMAGE = appImage;
     rmSync(resources, { recursive: true, force: true });
+  }
+});
+
+it("the desktop choice gates quiet installation and preserves update checks and manual install", async () => {
+  const platform = Object.getOwnPropertyDescriptor(process, "platform");
+  const trusted = {};
+  let saved;
+  const prefs = createDesktopPrefs({ read: () => saved, write: next => { saved = next; } });
+  const quiet = { locked: () => true, idleMs: () => 0, typedAt: () => 0, shown: () => true, busy: () => null, work: vi.fn(async () => null), watch: () => {} };
+  try {
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    const { updater, autoUpdater, handlers } = await load(event => event === trusted);
+    const get = () => handlers.get("update:get-state")(trusted);
+    const set = (on) => handlers.get("update:set-auto-update-when-idle")(trusted, on);
+    updater.startUpdater(quiet, prefs);
+    expect(get().autoUpdateWhenIdle).toBe(false);
+    expect(() => handlers.get("update:set-auto-update-when-idle")({}, true)).toThrow(/only available/);
+    expect(() => set("true")).toThrow(TypeError);
+    expect(saved).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(45_000);
+    expect(autoUpdater.checkForUpdates).toHaveBeenCalledOnce();
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledOnce();
+    expect(quiet.work).not.toHaveBeenCalled();
+    expect(get()).toMatchObject({ status: "downloaded", installsByItself: false });
+
+    set(true);
+    expect(saved.autoUpdateWhenIdle).toBe(true);
+    expect(get()).toMatchObject({ autoUpdateWhenIdle: true, installsByItself: true });
+    set(false);
+    expect(get()).toMatchObject({ autoUpdateWhenIdle: false, installsByItself: false });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    expect(autoUpdater.autoInstallOnAppQuit).toBe(false);
+    handlers.get("update:install")(trusted);
+    expect(autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true);
+  } finally {
+    Object.defineProperty(process, "platform", platform);
   }
 });
 
@@ -339,11 +381,14 @@ it("downloads an update by itself: the first check after launch starts it, and n
 it("My Cloud's page reads and drives the update channels, and another server's page is refused", async () => {
   const rule = mainRule();
   const { handlers } = await load(rule.pageAllowed);
-  expect([...handlers.keys()].sort()).toEqual(["update:check", "update:get-state", "update:install", "update:seen"]);
+  const updateChannels = ["update:check", "update:get-state", "update:install", "update:seen"];
+  const preferenceChannel = "update:set-auto-update-when-idle";
+  expect([...handlers.keys()].sort()).toEqual([...updateChannels, preferenceChannel]);
 
   const cloud = page(CLOUD);
   rule.show(cloud, "cloud");
-  for (const channel of handlers.keys()) expect(() => handlers.get(channel)(cloud.event), channel).not.toThrow();
+  for (const channel of updateChannels) expect(() => handlers.get(channel)(cloud.event), channel).not.toThrow();
+  expect(() => handlers.get(preferenceChannel)(cloud.event, true)).toThrow(/installation is unavailable/);
   rule.context.cloudAccount = { homeTarget: () => null, state: () => ({ status: "unavailable", account: { id: "a1" } }), isOwnCloud: () => false };
   rule.context.rememberedHome = { accountId: "a1", origin: CLOUD };
   expect(() => handlers.get("update:get-state")(cloud.event)).not.toThrow();
@@ -364,7 +409,8 @@ it("My Cloud's page reads and drives the update channels, and another server's p
 
   const local = page(LOCAL);
   rule.show(local);
-  for (const channel of handlers.keys()) expect(() => handlers.get(channel)(local.event), channel).not.toThrow();
+  for (const channel of updateChannels) expect(() => handlers.get(channel)(local.event), channel).not.toThrow();
+  expect(() => handlers.get(preferenceChannel)(local.event, true)).toThrow(/installation is unavailable/);
 });
 
 it("sends update news only to a page allowed to read it", async () => {

@@ -78,6 +78,18 @@ describe("the header's right side", () => {
     return { markup, controls: markup.slice(markup.indexOf("data-chathead-controls"), markup.indexOf("role=\"log\"")) };
   };
 
+  it("shows What I can do on the simple header and leaves it off the advanced header", () => {
+    fixture.advanced = false;
+    try {
+      const { controls } = header();
+      expect(controls).toContain("data-what-i-can-do");
+      expect(controls).toContain(en["chat.canDo.label"]);
+    } finally {
+      fixture.advanced = true;
+    }
+    expect(header().controls).not.toContain("data-what-i-can-do");
+  });
+
   it("keeps the resident share button in Simple mode, with model picker and computer hidden from the header", () => {
     fixture.advanced = false;
     try {

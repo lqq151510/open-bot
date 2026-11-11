@@ -22,6 +22,7 @@ export interface MeetingRouteContext {
   threadId: string;
   /** Still this turn's: a send is never made for a turn that ended while it waited. */
   active(): boolean;
+  checkOutboundRules(tool: string): Promise<{ mustAsk: boolean; changed(): boolean }>;
 }
 
 export interface MeetingRouteDeps {
@@ -98,10 +99,13 @@ export function createMeetingRoutes(deps: MeetingRouteDeps) {
         meetings.status(input.meeting_id, botId);
         const tool = "post_in_meeting_chat";
         const fullAccess = deps.sendsFreely(botId, ctx.threadId);
-        const held = await deps.outbound().hold({ bot: ctx.bot, threadId: ctx.threadId, tool, calls: [{ slug: tool, arguments: { text: input.text } }], opaque: false, fullAccess, active: ctx.active });
+        const rule = await ctx.checkOutboundRules(tool);
+        if (!ctx.active()) return { status: 409, error: "The turn ended before the message was sent." };
+        const held = await deps.outbound().hold({ bot: ctx.bot, threadId: ctx.threadId, tool, calls: [{ slug: tool, arguments: { text: input.text } }], opaque: false, fullAccess, mustAsk: rule.mustAsk, active: ctx.active });
         if (!held.ok) return { status: 403, error: held.text };
+        if (!ctx.active()) return { status: 409, error: "The turn ended before the message was sent." };
         try {
-          deps.outbound().beforeDispatch({ bot: ctx.bot, threadId: ctx.threadId, tool, opaque: false, fullAccess: fullAccess && deps.sendsFreely(botId, ctx.threadId), approved: held.approved });
+          deps.outbound().beforeDispatch({ bot: ctx.bot, threadId: ctx.threadId, tool, opaque: false, fullAccess: fullAccess && deps.sendsFreely(botId, ctx.threadId), mustAsk: rule.mustAsk || rule.changed(), approved: held.approved });
         } catch (error) {
           return { status: 403, error: error instanceof Error ? error.message : String(error) };
         }

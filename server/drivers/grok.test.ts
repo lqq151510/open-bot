@@ -61,6 +61,20 @@ describe("GrokDriver turns (fake fetch)", () => {
     await instance?.dispose();
   });
 
+  it("keeps chat completions free of a reasoning effort field", async () => {
+    let body: Record<string, unknown> = {};
+    globalThis.fetch = (async (_url, init) => {
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return sseResponse(SSE_BODY("ok"));
+    }) as typeof fetch;
+    await create();
+    await instance.adapter.sendTurn({ threadId: "t-effort", text: "hi", effort: "high" });
+    await recorder.until((e) => e.type === "turn.completed");
+    expect(String(body.model)).toBeTruthy();
+    expect(body).not.toHaveProperty("reasoning_effort");
+    expect(body).not.toHaveProperty("reasoning");
+  });
+
   it("normalizes a full turn into the canonical event sequence", async () => {
     script = [];
     await create();

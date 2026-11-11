@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -943,6 +943,34 @@ describe("PiDriver turns (fake CLI)", () => {
     const done = await recorder.until((e) => e.type === "turn.completed");
     expect(done).toMatchObject({ ok: true, stopReason: "end_turn" });
     expect(recorder.events.some((e) => e.type === "request.resolved")).toBe(true);
+  });
+
+  it("holds an exact native shell command before acknowledging its execution", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "omb-pi-tool-review-"));
+    try {
+      const receipt = join(directory, "receipt");
+      await create("tool-review", { FAKE_PI_TOOL_RECEIPT: receipt });
+      await instance.adapter.sendTurn({
+        threadId: "pi-rule", text: "fixture", approvalMode: "full", approvalRulesActive: () => true,
+        approvalRuleForTool: ({ command }) => command === "echo exact fixture",
+      });
+      const opened = await recorder.until(event => event.type === "request.opened");
+      expect(opened).toMatchObject({ tool: "bash", alwaysAskRequired: true });
+      expect(existsSync(receipt)).toBe(false);
+      await instance.adapter.respondToRequest("pi-rule", opened.requestId!, { behavior: "allow" });
+      await recorder.until(event => event.type === "turn.completed");
+      expect(readFileSync(receipt, "utf8")).toBe("approved");
+    } finally {
+      await removeTempDir(directory);
+    }
+  });
+
+  it("refuses a Pi turn with active rules if the approval extension has not reported ready", async () => {
+    await create();
+    await expect(instance.adapter.sendTurn({
+      threadId: "pi-rule-no-extension", text: "fixture", approvalRulesActive: () => true,
+      approvalRuleForTool: () => true,
+    })).rejects.toThrow("Pi's tool approval extension did not start.");
   });
 
   it("per-bot Ask restores host approval on a legacy full-auto instance", async () => {

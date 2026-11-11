@@ -1,0 +1,143 @@
+--- Craft Anything 0.5.0: a run started 2026-11-09 04:38:16 UTC ---
+04:38:16 stage Looking inside it (nothing is run)…
+04:38:16 start core target triage
+04:38:16 done  core target triage
+04:38:16 stage Couldn't find the program to decompile, so Ghidra can't be used. Pick the game's or app's main folder or its program.
+04:38:16 stage Getting the builder ready…
+04:38:18 stage Building the first version…
+04:38:18 note  Asking Antigravity…
+04:39:19 start run command
+04:39:19 done  run command: Command exited with code 0. Command output: total 1240 drwxr-xr-x@ 73 liuyongze staff 2336 Nov 9 12:39 . drwx------@ 17 liuyongze staff 544 Nov 9 12:21 .. -rwx------@ 1 liuyongze
+04:39:24 start read file
+04:39:24 done  read file: 31 lines, 724 bytes
+04:39:36 start run command
+04:39:36 done  run command: Command exited with code 0. Command output: adb_activity_open.json js_exports_compare.json adb_app_download.json js_function_explain.json adb_app_force_stop.json js_runtime_code_match.json a
+04:39:42 start run command
+04:39:42 done  run command: Command exited with code 0. Command output: total 0 drwxr-xr-x@ 3 liuyongze staff 96 Nov 7 07:22 . drwxrwxr-x 71 root admin 2272 Nov 9 10:38 .. drwxr-xr-x@ 10 liuyongze staff 320
+04:39:50 start run command
+04:39:50 done  run command: Command exited with code 0. Command output: total 32 drwxr-xr-x@ 10 liuyongze staff 320 Nov 7 07:24 . drwxr-xr-x@ 3 liuyongze staff 96 Nov 7 07:22 .. -rw-r--r--@ 1 liuyongze staff 226
+04:39:56 start run command
+04:39:56 done  run command: Command exited with code 0. Command output: total 104 drwxr-xr-x@ 3 liuyongze staff 96 Nov 7 07:23 . drwxr-xr-x@ 10 liuyongze staff 320 Nov 7 07:24 .. -rwxr-xr-x@ 1 liuyongze staff
+04:40:01 start run command
+04:40:02 done  run command: Command exited with code 0. Command output: {"name":"core_target_open","description":"Open a file, app bundle or folder as the active target. Detects what it is from its contents. For raw machine cod
+04:40:06 note  Stopped.
+04:40:06 note  The builder's turn ended (0 tokens in, 0 out)
+04:40:06 stage Paused.
+--- Craft Anything 0.5.0: a run started 2026-11-09 04:40:06 UTC ---
+04:40:06 stage Getting the builder ready…
+04:40:07 stage Building the first version…
+04:40:07 note  Asking Antigravity…
+04:40:50 start run command
+04:40:50 done  run command: Command exited with code 0. Command output: total 18304 drwxr-xr-x@ 15 liuyongze staff 480 Nov 9 12:39 . drwxr-xr-x@ 74 liuyongze staff 2368 Nov 9 12:40 .. -rw-r--r--@ 1 liuyongze sta
+04:40:57 start run command
+04:40:57 done  run command: Command exited with code 0. Command output: not found
+04:41:02 start read file
+04:41:02 done  read file
+04:41:35 start read file
+04:41:35 done  read file
+04:42:15 note  Stopped.
+04:42:15 note  The builder's turn ended (0 tokens in, 0 out)
+04:42:15 stage Paused.
+--- Craft Anything 0.5.0: a run started 2026-11-09 04:42:15 UTC ---
+04:42:15 stage Getting the builder ready…
+04:42:16 stage Building the first version…
+04:42:16 note  Asking Antigravity…
+04:44:09 start read file
+04:44:09 done  read file
+04:45:19 start read file
+04:45:19 done  read file
+04:47:20 start read file
+04:47:21 done  read file
+04:49:40 stage The builder is checking its work against the original…
+04:50:39 stage The builder checked its work: 1 of 2 checks pass.
+04:50:39 start read file
+04:50:39 done  read file
+04:52:00 start read file
+04:52:00 done  read file
+04:54:43 start read file
+04:54:43 done  read file
+04:56:38 start read file
+04:56:39 done  read file
+04:58:52 start read file
+04:58:53 done  read file
+05:01:53 start read file
+05:01:53 done  read file
+05:06:10 out   error: UNAUTHENTICATED (code 401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.
+05:06:10 out   AGY_ERROR: {"short_error":"UNAUTHENTICATED (code 401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.","status":"UNAUTHENTICATED","error_code":401,"code_kind":"http","retryable":false,"error_id":"8d1b972c-2492-4999-a6ec-f31f5a4fede3-45"}
+05:06:10 ERROR Antigravity: UNAUTHENTICATED (code 401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.
+05:06:15 note  The details are in /Users/liuyongze/Library/Application Support/craft-anything/logs/agent-2026-11-09-050615-80778-0.log
+05:06:15 note  The builder's turn ended (852216 tokens in, 7730 out)
+05:06:15 stage The builder stopped (Antigravity: UNAUTHENTICATED (code 401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authenticati). Picking up where it left off…
+05:06:45 note  Asking Antigravity…
+05:09:30 start read file
+05:09:30 done  read file
+05:13:34 start read file
+05:13:34 done  read file
+05:17:43 start run command
+05:17:43 done  run command: Command exited with code 0. Command output: {"name":"rebuild_check","description":"For the builder: test the project's current build against the original now, with the same checks Craft Anything runs
+05:20:52 start call mcp tool
+05:20:52 FAIL  call mcp tool: {"error":{"category":"input","code":"bad_input","message":"No project given.","remediation":"Pass project: the project's folder (it holds craft.json).","retryable":false}}
+05:26:21 stage The builder is checking its work against the original…
+05:27:15 stage The builder checked its work: 1 of 2 checks pass.
+05:35:04 stage The builder is checking its work against the original…
+05:36:30 stage The builder checked its work: 1 of 2 checks pass.
+05:41:13 start call mcp tool
+05:41:13 stage The builder is checking its work against the original…
+05:42:04 stage The builder checked its work: 1 of 2 checks pass.
+05:42:04 done  call mcp tool (50 s): {"result":{"project":"/Users/liuyongze/Documents/openbot","report":"build: passed — Build succeeded.\napp-screenshot: failed — There's no built program to start yet.\nNot good enough yet: fix what it
+05:45:39 start read file
+05:45:39 done  read file: 66 lines, 1508 bytes
+05:50:33 start read file
+05:50:34 done  read file: 90 lines, 6377 bytes
+05:59:47 start run command
+05:59:47 done  run command: Command exited with code 0. Command output: total 32 drwxr-xr-x@ 7 liuyongze staff 224 Nov 9 13:06 . drwx------+ 188 liuyongze staff 6016 Nov 9 10:39 .. -rw-r--r--@ 1 liuyongze staff
+06:04:29 start run command
+06:04:29 done  run command: The tool's output was truncated due to being too long. You can find the full output in a file at file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_gene
+06:08:17 start run command
+06:08:18 done  run command: The tool's output was truncated due to being too long. You can find the full output in a file at file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_gene
+06:11:57 start run command
+06:11:57 done  run command: The tool's output was truncated due to being too long. You can find the full output in a file at file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_gene
+06:14:18 start run command
+06:14:18 done  run command: Command exited with code 0. Command output: Give the game a `--self-test <file.json>` option too: start a game the way a player would, drive the player with scripted input for a few seconds, measure
+06:16:49 start run command
+06:16:49 done  run command: The tool's output was truncated due to being too long. You can find the full output in a file at file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_gene
+06:20:07 start run command
+06:20:07 done  run command: Command exited with code 0. Command output: Found at 0x14844e1 b" options instead.COPILOT_ALLOW_ALLCOPILOT_ASSISTED_APPROVALChoose OpenCode's model in its model setting, rather than in extra argumen
+06:22:38 start run command
+06:22:39 done  run command: Command exited with code 0. Command output: /Users/liuyongze/.cargo/bin/craft-anything-cli: Mach-O 64-bit executable arm64
+06:25:10 start run command
+06:25:13 done  run command (2 s): Command exited with code 0. No output from the command.
+06:28:17 start run command
+06:28:18 done  run command: Command exited with code 0. Command output: 0000000100098db8 T __RINvNtNtCs1SSuMAdGM58_3std3sys9backtrace28___rust_begin_short_backtraceNCNCNCINvNtNtB6_6thread9lifecycle15spawn_uncheckedNCNvMNtNtCsdk
+06:31:54 start run command
+06:31:57 done  run command (2 s): Command exited with code 0. Command output: /Users/liuyongze/.cargo/bin/craft-anything-cli: (__TEXT,__text) section __RNvXNtNtNtCsdkAJ0osQzky_17craft_anything_ai7rebuild5kinds10screenshotNtB2_15Scr
+06:35:32 start run command
+06:35:35 done  run command (2 s): Command exited with code 0. Command output: /Users/liuyongze/.cargo/bin/craft-anything-cli: (__TEXT,__text) section __RNvNtNtNtCsdkAJ0osQzky_17craft_anything_ai7rebuild5kinds10screenshot8run_with:
+06:38:27 start run command
+06:38:29 done  run command (2 s): Command exited with code 0. Command output: /Users/liuyongze/.cargo/bin/craft-anything-cli: (__TEXT,__text) section __RNvNtCs4qtq4P2CQza_21craft_anything_engine7outputs6launch: 0000000100698db4 su
+06:42:57 start run command
+06:42:58 done  run command: Command exited with code 0. Command output: string: b'project.godota kept '
+07:13:16 start run command
+07:13:20 done  run command (3 s): Command exited with code 0. Command output: 0000000100698e98 ldr x11, [x11] 0000000100698e9c cmp x11, x10 0000000100698ea0 b.ne 0x100698e7c 0000000100698ea4 mov w24, #0x1 0000000100698ea8 b 0x100
+07:13:31 start run command
+07:13:31 done  run command: Command exited with code 0. Command output: 0x10149fe4f b'node_modules' 0x10148a7e8 b'electron' 0x101486994 b'dist' 0x1014a68ce b'Electron.app' 0x1014ec7f8 b'Contents'
+07:13:42 start run command
+07:13:44 done  run command (1 s): Command exited with code 0. Command output: 0000000100698fd8 cbz x8, 0x100698fe4 0000000100698fdc mov x0, x23 0000000100698fe0 bl 0x101337e64 ; symbol stub for: _free 0000000100698fe4 ldr x8, [sp,
+07:13:55 start run command
+07:13:55 done  run command: Command exited with code 1. Command output: ls: node_modules/electron/dist/Electron.app/Contents/MacOS/Electron: No such file or directory
+07:15:45 start run command
+07:15:45 done  run command: Command exited with code 0. Command output: lrwx------@ 1 liuyongze staff 65 Nov 9 12:26 node_modules/electron -> .pnpm/electron@43.7.9_supports-color@10.2.2/node_modules/electron
+07:16:04 start run command
+07:16:04 done  run command: Command exited with code 0. Command output: total 2304 drwx------@ 12 liuyongze staff 384 Nov 8 22:49 . drwx------@ 6 liuyongze staff 192 Nov 8 19:57 .. -rwx------@ 1 liuyongze st
+07:16:20 start run command
+07:16:20 done  run command: Command exited with code 0. Command output: /Users/liuyongze/Library/Caches/electron: total 0 drwxr-xr-x@ 4 liuyongze staff 128 Nov 8 15:19 . drwx------+ 157 liuyongze staff 5024 Nov 9 15
+07:16:31 start run command
+07:16:31 done  run command: Command exited with code 0. Command output: /Users/liuyongze/Library/Caches/electron/76e52e1d7e6cba25d99de953b62befc28a37d2e1947737ea488711d4335349fd: total 241736 drwxr-xr-x@ 3 liuyongze staff
+07:16:42 start run command
+07:17:30 done  run command (47 s): The tool's output was truncated due to being too long. You can find the full output in a file at file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_gene
+07:17:30 start manage task
+07:17:30 done  manage task: Task: 65f3cc24-55c7-47df-aef3-a62de6275cc8/task-120 Status: RUNNING Log: file:///Users/liuyongze/.gemini/antigravity-cli/brain/65f3cc24-55c7-47df-aef3-a62de6275cc8/.system_generated/tasks/task-120.log
+07:17:30 start read file
+07:17:30 done  read file
+07:17:30 start read file
+07:17:30 done  read file: 118 lines, 3564 bytes

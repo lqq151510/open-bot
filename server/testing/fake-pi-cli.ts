@@ -9,7 +9,7 @@
 //   FAKE_PI_STEER_REFUSE  answer a steer with an explicit success:false
 //   FAKE_PI_STEER_OUT_OF_ORDER  hold the first steer until a second arrives, then refuse the first and accept the second
 
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 
 const mode = process.env.FAKE_PI_MODE ?? "happy";
 const modelPairs = (process.env.FAKE_PI_MODELS ?? "ollama-cloud/glm-5.2,openai/gpt-4o")
@@ -47,6 +47,11 @@ if (process.env.FAKE_PI_DUMP) {
       }) + "\n",
     );
   } catch {}
+}
+
+if (mode === "tool-review" && process.env.OMB_MCP_CONFIG) {
+  const config = JSON.parse(readFileSync(process.env.OMB_MCP_CONFIG, "utf8"));
+  if (config.approvalReviewReadyPath) writeFileSync(config.approvalReviewReadyPath, "", { mode: 0o600 });
 }
 
 if (argv[0] === "update" && argv.includes("--models")) {
@@ -372,6 +377,12 @@ function handle(cmd: any) {
       else if (mode === "priced") streamPricedTurn();
       else if (mode === "priced-stop") startPricedToolTurn();
       else if (mode === "permission") streamPermissionTurn();
+      else if (mode === "tool-review") {
+        send({ type: "agent_start" });
+        send({ type: "turn_start" });
+        send({ type: "extension_ui_request", id: "rule-1", method: "confirm", title: "OpenBot tool review",
+          message: JSON.stringify({ tool: "bash", command: "echo exact fixture", summary: "echo exact fixture", ask: false }) });
+      }
       else if (mode === "question-select") streamQuestionSelectTurn();
       else if (mode === "question-input") streamQuestionInputTurn();
       else if (mode === "interleave") streamInterleaveTurn();
@@ -414,7 +425,10 @@ function handle(cmd: any) {
           appendFileSync(process.env.FAKE_PI_DUMP, JSON.stringify({ uiResponse: cmd }) + "\n");
         } catch {}
       }
-      if (cmd.id === "ask-1") finishPermissionTurn();
+      if (cmd.id === "rule-1") {
+        if (cmd.confirmed && process.env.FAKE_PI_TOOL_RECEIPT) writeFileSync(process.env.FAKE_PI_TOOL_RECEIPT, "approved", "utf8");
+        finishPermissionTurn();
+      } else if (cmd.id === "ask-1") finishPermissionTurn();
       else if (cmd.id === "ask-select" || cmd.id === "ask-input") finishPermissionTurn();
       return;
     case "abort":

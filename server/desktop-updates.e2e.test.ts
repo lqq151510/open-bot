@@ -177,6 +177,11 @@ describe.skipIf(process.platform === "win32")("a bot's old desktop after an app 
     expect(sent.mcpConfig?.mcpServers?.computer, "neither the old desktop nor this computer is mounted").toBeUndefined();
     expect(sent.systemPrompt).toContain("This bot's Local VM desktop is being updated to the new version");
     expect(sent.systemPrompt).toContain("do not use another computer");
+    expect(await apiOk("GET", "/api/computers/image-updates")).toMatchObject({
+      status: "waiting",
+      computers: [{ id: "shared", provider: "local-vm", status: "waiting" }],
+      unverified: true,
+    });
     expect((await api("GET", "/api/local-computer")).body.problem).toBe(LOCAL_VM_UPDATING_PROBLEM);
     const token = sent.mcpConfig.mcpServers.agents.env.OMB_COMMS_TOKEN as string;
     const offered = await fetch(`${base}/api/internal/computer/select`, { headers: { authorization: `Bearer ${token}` } }).then(r => r.json() as any);
@@ -194,6 +199,11 @@ describe.skipIf(process.platform === "win32")("a bot's old desktop after an app 
     expect(actions()).toEqual(["pull", "stop", "rescue", "remove", "run"]);
     const after = await until(() => api("GET", "/api/local-computer").then(({ body }) => body), body => body.ready === true, "the new desktop");
     expect(after.problem).toBeNull();
+    expect(await apiOk("GET", "/api/computers/image-updates")).toMatchObject({
+      status: "current",
+      computers: [{ id: "shared", provider: "local-vm", status: "current" }],
+      unverified: false,
+    });
     console.info(`automatic update after the image was ready: ${updateMs} ms`);
 
     const nextThread = await send(bot.id, "Now check the dashboard again.");

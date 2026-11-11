@@ -27,7 +27,11 @@ import { Select } from "./Select";
 export function UpdatesRow({ title = t("settings.updates.title") }: { title?: string }) {
   const s = useUpdaterState();
   const updater = window.ogb?.updater;
+  const [savingAutoUpdate, setSavingAutoUpdate] = useState(false);
+  const [autoUpdateFailed, setAutoUpdateFailed] = useState(false);
   if (!s || !updater) return null;
+  const autoUpdate = s.autoUpdateWhenIdle;
+  const changeAutoUpdate = updater.setAutoUpdateWhenIdle;
   const label =
     s.status === "checking"
       ? t("settings.updates.checking")
@@ -52,33 +56,55 @@ export function UpdatesRow({ title = t("settings.updates.title") }: { title?: st
                   ? t("settings.updates.failed", { message: updaterMessage(s) ?? t("settings.updates.unknownError") })
                   : t("settings.updates.latest");
   return (
-    <SettingRow title={title} subtitle={label}>
-      <button
-        onClick={() => {
-          if (s.status === "downloaded") return void updater.install();
-          void updater.check();
-        }}
-        disabled={
-          s.status === "checking" || s.status === "downloading" || s.status === "preparing" ||
-          s.status === "installing" || s.retryable === false
-        }
-        className="ui-button"
-      >
-        {s.retryable === false
-          ? t("settings.updates.quitReopen")
-          : s.status === "downloaded"
-            ? s.installMode === "handoff"
-              ? t("settings.updates.install")
-              : t("settings.updates.restart")
-            : s.status === "preparing"
-              ? t("settings.updates.preparingShort")
-              : s.status === "installing"
-                ? s.installMode === "handoff"
-                  ? t("settings.updates.opening")
-                  : t("settings.updates.restartingShort")
-                : t("settings.updates.check")}
-      </button>
-    </SettingRow>
+    <>
+      {typeof autoUpdate === "boolean" && changeAutoUpdate && (
+        <SettingRow
+          title={t("settings.updates.autoUpdate")}
+          subtitle={t("settings.updates.autoUpdateSubtitle")}
+          message={autoUpdateFailed && <span role="alert">{t("settings.updates.autoUpdateSaveFailed")}</span>}
+        >
+          <Switch
+            checked={autoUpdate}
+            aria-label={t("settings.updates.autoUpdate")}
+            disabled={savingAutoUpdate}
+            onClick={() => {
+              setSavingAutoUpdate(true);
+              setAutoUpdateFailed(false);
+              void changeAutoUpdate(!autoUpdate)
+                .catch(() => setAutoUpdateFailed(true))
+                .finally(() => setSavingAutoUpdate(false));
+            }}
+          />
+        </SettingRow>
+      )}
+      <SettingRow title={title} subtitle={label}>
+        <button
+          onClick={() => {
+            if (s.status === "downloaded") return void updater.install();
+            void updater.check();
+          }}
+          disabled={
+            s.status === "checking" || s.status === "downloading" || s.status === "preparing" ||
+            s.status === "installing" || s.retryable === false
+          }
+          className="ui-button"
+        >
+          {s.retryable === false
+            ? t("settings.updates.quitReopen")
+            : s.status === "downloaded"
+              ? s.installMode === "handoff"
+                ? t("settings.updates.install")
+                : t("settings.updates.restart")
+              : s.status === "preparing"
+                ? t("settings.updates.preparingShort")
+                : s.status === "installing"
+                  ? s.installMode === "handoff"
+                    ? t("settings.updates.opening")
+                    : t("settings.updates.restartingShort")
+                  : t("settings.updates.check")}
+        </button>
+      </SettingRow>
+    </>
   );
 }
 

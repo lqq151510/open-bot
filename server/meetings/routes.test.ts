@@ -28,7 +28,7 @@ function fakeMeetings(current: MeetingRecord) {
   } as unknown as Meetings & Record<string, ReturnType<typeof vi.fn>>;
 }
 
-function setup(current: MeetingRecord, over: Partial<MeetingRouteDeps> = {}) {
+function setup(current: MeetingRecord, over: Partial<MeetingRouteDeps> = {}, rule = { mustAsk: false, changed: () => false }) {
   const meetings = fakeMeetings(current);
   const hold = vi.fn(async () => ({ ok: true as const, approved: true }));
   const beforeDispatch = vi.fn();
@@ -43,6 +43,7 @@ function setup(current: MeetingRecord, over: Partial<MeetingRouteDeps> = {}) {
     let out: { status: number; body: any } | undefined;
     const handled = await routes.internal({
       method: "POST", path: `/api/internal/meetings/${action}`, res: {} as ServerResponse, readBody: async () => body, bot, threadId: "t1", active: () => true,
+      checkOutboundRules: async () => rule,
       json: ((_res: ServerResponse, status: number, value: unknown) => { out = { status, body: value }; }) as never,
     });
     return handled === PASS ? "pass" : out!;
@@ -62,6 +63,15 @@ describe("meeting routes", () => {
     refused.hold.mockResolvedValueOnce({ ok: false, text: "The person said no." } as never);
     expect(await refused.call("chat", { meeting_id: "m-1", text: "hi" })).toEqual({ status: 403, body: { error: "The person said no." } });
     expect(refused.meetings.chat).not.toHaveBeenCalled();
+  });
+
+  it("passes an always-ask rule to both approval checks even at Full access", async () => {
+    const { call, hold, beforeDispatch, meetings } = setup(record(), { sendsFreely: () => true }, { mustAsk: true, changed: () => false });
+    beforeDispatch.mockImplementationOnce(() => { throw new Error("No approval to send."); });
+    expect(await call("chat", { meeting_id: "m-1", text: "hi" })).toEqual({ status: 403, body: { error: "No approval to send." } });
+    expect(hold).toHaveBeenCalledWith(expect.objectContaining({ fullAccess: true, mustAsk: true }));
+    expect(beforeDispatch).toHaveBeenCalledWith(expect.objectContaining({ fullAccess: true, mustAsk: true }));
+    expect(meetings.chat).not.toHaveBeenCalled();
   });
 
   it("marks the conversation as reading outside text and fences the transcript", async () => {

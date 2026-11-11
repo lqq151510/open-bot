@@ -1,0 +1,21 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [ref=e5] [cursor=pointer]
+        - tab "Generate" [ref=e6] [cursor=pointer]
+        - tab "Upload" [selected] [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - generic [ref=e208]:
+          - img "Preview Bot avatar preview" [ref=e254]
+          - generic [ref=e212]:
+            - generic [ref=e213]: Zoom
+            - generic [ref=e214]: 100%
+          - slider "Zoom avatar" [ref=e215]: "1"
+          - generic [ref=e216]: Drag the picture to reposition it. Scroll to zoom.
+        - paragraph [ref=e255]: invalid.png
+        - generic [ref=e256]:
+          - button "Start over" [ref=e257] [cursor=pointer]
+          - button "Set avatar" [disabled] [ref=e258]
+        - alert [ref=e259]: Choose a PNG, JPEG, GIF, or WebP image under 10 MB.

@@ -1,0 +1,65 @@
+- generic [ref=f6e6]:
+  - complementary "Bots and navigation" [ref=f6e7]:
+    - generic [ref=f6e8]:
+      - generic [ref=f6e9]:
+        - generic [ref=f6e11]:
+          - button "Search bots and messages" [ref=f6e12] [cursor=pointer]
+          - button "New or share" [ref=f6e17] [cursor=pointer]
+        - button "Inbox" [ref=f6e20] [cursor=pointer]
+        - generic [ref=f6e54]:
+          - button "Fixture Starter · Chief of Staff" [ref=f6e55] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f6e58]
+            - button "Rename Fixture Starter" [ref=f6e67]: Fixture Starter
+          - status [ref=f6e68]
+      - separator "Resize sidebar" [ref=f6e26]
+      - generic [ref=f6e69]:
+        - generic [ref=f6e70]:
+          - 'button "Replica Chat Rename Replica Chat Hi, I''m Replica Chat. What would you like me to do? Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e71] [cursor=pointer]':
+            - img "Replica Chat" [ref=f6e74]
+            - generic [ref=f6e85]:
+              - button "Rename Replica Chat" [ref=f6e88]: Replica Chat
+              - generic [ref=f6e89]:
+                - generic [ref=f6e90]: Hi, I'm Replica Chat. What would you like me to do?
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e92]'
+          - button "Actions for Replica Chat" [ref=f6e221] [cursor=pointer]
+        - generic [ref=f6e96]:
+          - 'button "Pepper Rename Pepper hello from fake claude Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e97] [cursor=pointer]':
+            - img "Pepper" [ref=f6e100]
+            - generic [ref=f6e111]:
+              - button "Rename Pepper" [ref=f6e114]: Pepper
+              - generic [ref=f6e115]:
+                - generic [ref=f6e116]: hello from fake claude
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e118]'
+          - button "Actions for Pepper"
+      - paragraph [ref=f6e31]
+      - generic [ref=f6e34]:
+        - button "You" [ref=f6e36] [cursor=pointer]
+        - button "Connect apps" [ref=f6e42] [cursor=pointer]
+  - main [ref=f6e122]:
+    - generic [ref=f6e123]:
+      - generic [ref=f6e126]:
+        - generic [ref=f6e127]:
+          - button "Open Replica Chat's profile" [ref=f6e226] [cursor=pointer]:
+            - img "Replica Chat" [ref=f6e227]
+            - generic [ref=f6e141]: Replica Chat
+          - status [ref=f6e144]
+        - button "Share" [ref=f6e230] [cursor=pointer]
+      - log "Conversation with Replica Chat" [ref=f6e235]:
+        - generic [ref=f6e236]:
+          - generic [ref=f6e237]: Today 2:44 PM
+          - generic [ref=f6e239]:
+            - generic "11/9/2026, 2:44:01 PM" [ref=f6e240]:
+              - paragraph [ref=f6e243]: Hi, I'm Replica Chat. What would you like me to do?
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f6e244]: 2:44 PM
+      - status [ref=f6e199]
+      - generic [ref=f6e249]:
+        - button "Add" [ref=f6e252] [cursor=pointer]
+        - textbox "Message Replica Chat" [active] [ref=f6e256]
+        - generic [ref=f6e257]:
+          - button "Start dictation" [disabled] [ref=f6e258]
+          - button "Live call with Replica Chat" [ref=f6e263] [cursor=pointer]

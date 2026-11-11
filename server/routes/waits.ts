@@ -158,6 +158,7 @@ export interface WaitRouteContext {
   readBody: () => Promise<unknown>;
   sourceRefusal: () => string | null;
   hostRefusal: () => string | null;
+  approvalCreator?: () => string | undefined;
   /** A Cloud guest's turn: its follow-up would run later as the owner's, so a guest's wait only tells. */
   guest: () => boolean;
   peer: (nameOrId: string) => { id: string; name: string } | "self" | null;
@@ -217,14 +218,16 @@ export function createWaitRoutes(deps: { waits: Pick<WaitManager, "create" | "li
       condition = { kind: request.kind, path: request.path! };
     }
 
-    const result = await deps.waits.create({
+    const input = {
       botId: ctx.botId,
       threadId: ctx.threadId,
       label: request.label,
       condition,
       ...(request.followUp ? { followUp: request.followUp } : {}),
       hours: request.hours,
-    });
+    };
+    const creator = ctx.approvalCreator?.();
+    const result = await (creator ? deps.waits.create(input, creator) : deps.waits.create(input));
     if (result.state === "refused") return void json(res, result.status, { error: result.error });
     if (result.state === "already") return void json(res, 200, { text: result.text });
     const { wait, note } = result;

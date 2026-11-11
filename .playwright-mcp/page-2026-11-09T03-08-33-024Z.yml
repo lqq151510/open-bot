@@ -1,0 +1,15 @@
+- generic [ref=e6]:
+  - complementary "Bots and navigation" [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - button "Search bots and messages" [ref=e12] [cursor=pointer]
+          - button "New or share" [ref=e17] [cursor=pointer]
+        - button "Inbox" [ref=e20] [cursor=pointer]
+      - separator "Resize sidebar" [ref=e26]
+      - paragraph [ref=e31]
+      - generic [ref=e34]:
+        - button "You" [ref=e36] [cursor=pointer]
+        - button "Connect apps" [ref=e42] [cursor=pointer]
+  - main [ref=e48]:
+    - generic [ref=e51]: Connecting to your bots…

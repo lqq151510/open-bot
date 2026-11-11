@@ -1,0 +1,101 @@
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - complementary "机器人与导航" [ref=e52]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e11]:
+            - button "搜索机器人和消息" [ref=e53] [cursor=pointer]
+            - button "新建或分享" [ref=e54] [cursor=pointer]
+          - button "收件箱" [ref=e55] [cursor=pointer]
+          - generic [ref=e56]:
+            - button "Preview Bot · 总协调机器人" [ref=e57] [cursor=pointer]:
+              - img "Preview Bot" [ref=e60]
+              - button "重命名 Preview Bot" [ref=e75]: Preview Bot
+            - status [ref=e76]
+        - separator "调整侧栏大小" [ref=e77]
+        - generic [ref=e79]:
+          - button "Fixture Starter 重命名 Fixture Starter 嗨！我是 Fixture Starter，这里所有事情都可以找我这个帮手。 模型：Claude Opus 5（Verification fixture）" [ref=e193] [cursor=pointer]:
+            - img "Fixture Starter" [ref=e83]
+            - generic [ref=e88]:
+              - button "重命名 Fixture Starter" [ref=e91]: Fixture Starter
+              - generic [ref=e92]:
+                - generic [ref=e93]: 嗨！我是 Fixture Starter，这里所有事情都可以找我这个帮手。
+                - img "模型：Claude Opus 5（Verification fixture）" [ref=e194]
+          - button "Fixture Starter 的操作"
+        - paragraph [ref=e31]
+        - generic [ref=e34]:
+          - button "你" [ref=e104] [cursor=pointer]
+          - button "连接应用" [ref=e105] [cursor=pointer]
+    - main [ref=e106]:
+      - generic [ref=e107]:
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - button "打开 Fixture Starter 的资料" [ref=e112] [cursor=pointer]:
+              - img "Fixture Starter" [ref=e114]
+              - generic [ref=e119]: Fixture Starter
+            - status [ref=e122]
+          - generic [ref=e123]:
+            - button "Claude Opus 5" [ref=e195] [cursor=pointer]
+            - button "机器人的屏幕" [ref=e133] [cursor=pointer]
+        - log "与 Fixture Starter 的对话" [ref=e137]:
+          - generic [ref=e138]:
+            - generic [ref=e139]: 今天 11:05
+            - generic [ref=e140]:
+              - generic [ref=e141]: 嗨！我是 Fixture Starter，这里所有事情都可以找我这个帮手。
+              - generic [ref=e142]: 这里怎么操作都可以问我。我可以和你一起设置机器人、应用和例行任务，并帮你留意每天的事。
+              - generic [ref=e143]: 我先四处看看有没有能帮你接手的事，稍后回复你。
+              - generic [ref=e144]: 我看了一圈，目前没有事情在等你。 你有 1 个其他机器人 和 没有例行任务，目前还没有连接任何应用。 如果你想让我帮你留意每天的事，我可以连接你的邮箱和日历，每天早上提醒你重要事项。跟我说一声就行，或者把今天手上的事直接交给我。
+        - status [ref=e145]
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - button "添加" [ref=e153] [cursor=pointer]
+            - generic [ref=e156]:
+              - button "Switch to Fun mode" [ref=e157] [cursor=pointer]:
+                - generic [ref=e161]: Normal
+              - button "Turn on Think mode" [ref=e162] [cursor=pointer]:
+                - generic [ref=e171]: Think
+          - textbox "给 Fixture Starter 发消息" [ref=e173]
+          - button "与 Fixture Starter 的实时通话" [ref=e176] [cursor=pointer]
+  - dialog "新建机器人" [ref=e197]:
+    - generic [ref=e198]:
+      - heading "新建机器人" [level=2] [ref=e199]
+      - button "关闭" [ref=e200] [cursor=pointer]
+    - generic [ref=e202]:
+      - text: 谁可以查看
+      - combobox "谁可以查看" [ref=e204] [cursor=pointer]:
+        - option "所有能登录的人" [selected]
+        - option "仅限管理员"
+        - option "仅限这些人"
+    - generic [ref=e205]:
+      - group [ref=e206]:
+        - generic [ref=e207]:
+          - generic [ref=e220]: 名称
+          - textbox "名称" [active] [ref=e221]
+          - group "身体" [ref=e222]:
+            - button "使用光标形状" [pressed] [ref=e223] [cursor=pointer]
+            - button "使用团块形状" [ref=e236] [cursor=pointer]
+            - button "使用圆形形状" [ref=e249] [cursor=pointer]
+            - button "使用圆角方形形状" [ref=e262] [cursor=pointer]
+            - button "使用胶囊形状" [ref=e275] [cursor=pointer]
+            - button "使用水滴形状" [ref=e288] [cursor=pointer]
+            - button "使用盾牌形状" [ref=e301] [cursor=pointer]
+            - button "使用六边形形状" [ref=e314] [cursor=pointer]
+            - button "使用菱形形状" [ref=e327] [cursor=pointer]
+            - button "使用星形形状" [ref=e340] [cursor=pointer]
+          - group "颜色" [ref=e353]:
+            - button "使用绿色机器人颜色" [pressed] [ref=e354] [cursor=pointer]
+            - button "使用蓝色机器人颜色" [ref=e356] [cursor=pointer]
+            - button "使用红色机器人颜色" [ref=e358] [cursor=pointer]
+            - button "使用橙色机器人颜色" [ref=e360] [cursor=pointer]
+            - button "使用紫色机器人颜色" [ref=e362] [cursor=pointer]
+            - button "使用青色机器人颜色" [ref=e364] [cursor=pointer]
+            - button "使用粉色机器人颜色" [ref=e366] [cursor=pointer]
+            - button "使用黄色机器人颜色" [ref=e368] [cursor=pointer]
+            - button "使用蓝绿色机器人颜色" [ref=e370] [cursor=pointer]
+            - button "使用珊瑚色机器人颜色" [ref=e372] [cursor=pointer]
+            - button "使用银色机器人颜色" [ref=e374] [cursor=pointer]
+            - button "使用铬色机器人颜色" [ref=e376] [cursor=pointer]
+      - button "机器人设置" [ref=e379] [cursor=pointer]
+    - generic [ref=e380]:
+      - button "取消" [ref=e381] [cursor=pointer]
+      - button "创建机器人" [disabled] [ref=e382]

@@ -12,7 +12,7 @@ import type { GroupGoalRunStatus } from "../shared/group-goal-run.ts";
 import type { RoutineRequestOperation } from "../shared/routine-request.ts";
 import type { ModelSelection } from "../shared/wire.ts";
 import { intervalAllowsOccurrence, intervalHasRestrictions, isSameLocalDay, latestIntervalOccurrence } from "./routine-intervals.ts";
-import { cloneSchedule, limitResetOccurrence, mergeScheduleUpdate, nextOccurrence, RoutineScheduleError, type RoutineSchedule, type RoutineScheduleInput } from "./routine-schedules.ts";
+import { limitResetOccurrence, mergeScheduleUpdate, nextOccurrence, RoutineScheduleError, type RoutineSchedule, type RoutineScheduleInput } from "./routine-schedules.ts";
 import { runsOnce } from "../shared/limit-reset.ts";
 import {
   isRoutineProblemRun, type RoutineAccess, type RoutineCheck, type RoutineContextAttachment, type RoutineDelivery, type RoutineIntervalWindow, type RoutineRetryCause,
@@ -29,8 +29,8 @@ import {
 import { activeMs, askOf, settleAsk, waitingFor, type RoutineRunAsk } from "./routine-waits.ts";
 import { failsLikeLastOutcome, outcomesNewestFirst } from "./routine-outcomes.ts";
 import { EVENT_RETRY_WINDOW_MS, loadEventReceipts, MAX_EVENT_RECEIPTS, type EventRunReceipt } from "./routine-event-receipts.ts";
-import { attachmentPathsOf, attachmentsMalformed, cloneAttachments } from "./routine-attachments.ts";
-import { loadInstalledPackage, loadRequestReceipts, loadRoutine, loadRun } from "./routine-load.ts";
+import { attachmentPathsOf, attachmentsMalformed } from "./routine-attachments.ts";
+import { cloneRoutine, cloneRun as storedRun, loadInstalledPackage, loadRequestReceipts, loadRoutine, loadRun, publicRoutineRun as cloneRun } from "./routine-load.ts";
 import { applyHolds, holdCauses, type AppliedHolds } from "./routine-holds.ts";
 import { sanitizeInput } from "./routine-input.ts";
 import { applyCheckResult, routineLine, runLineFields, type RoutineLineCodes, type RoutineTroubleCode } from "./routine-lines.ts";
@@ -80,6 +80,7 @@ export interface Routine extends RoutineTroubleCode {
   sourceThreadId?: string;
   resultsThreadId?: string;
   installedPackage?: RoutinePackageStamp;
+  approvalCreator?: string;
   nextRunAt: number | null;
   createdAt: number;
   updatedAt: number;
@@ -119,7 +120,7 @@ export interface RoutineRun extends RoutineLineCodes {
   waitedMs?: number;
   triggerSource?: RoutineRunTrigger;
   /** "app": a connected-app event started it; "wait": a wait's follow-up did (its triggerSource stays "webhook", an outside event). */
-  eventSource?: "app" | "wait";
+  eventSource?: "app" | "wait"; approvalCreator?: string;
   webhookId?: string;
   deliveryId?: string;
   sourceThreadId?: string;
@@ -281,21 +282,6 @@ const WAKE_HORIZON_MS = 60 * 60_000;
 
 export const ROUTINE_RESTARTED = "OpenBot restarted while this routine was running";
 const MAX_RUNS = 2_000;
-function cloneRoutine(routine: Routine): Routine {
-  return {
-    ...routine,
-    schedule: cloneSchedule(routine.schedule),
-    attachments: cloneAttachments(routine.attachments),
-  };
-}
-
-function cloneRun(run: RoutineRun): RoutineRun {
-  return {
-    ...run,
-    attachments: cloneAttachments(run.attachments),
-    denials: run.denials ? [...run.denials] : undefined,
-  };
-}
 
 export class RoutineManager {
   private readonly file: string; private readonly disk: OwnedFile;
@@ -396,11 +382,19 @@ export class RoutineManager {
     this.saveLater();
   }
 
+  approvalCreator(id: string): string | undefined {
+    return this.routines.find((routine) => routine.id === id)?.approvalCreator;
+  }
+
+  eventApprovalCreator(runId: string): string | undefined {
+    return this.runs.find((run) => run.id === runId)?.approvalCreator;
+  }
+
   private routineWithHealth(routine: Routine): Routine {
     const outcomes = outcomesNewestFirst(this.runs, routine.id);
     const success = outcomes.findIndex(run => run.status === "completed");
     const failures = success < 0 ? outcomes.length : success;
-    const { installedPackage: _installedPackage, ...visible } = cloneRoutine(routine);
+    const { installedPackage: _installedPackage, approvalCreator: _approvalCreator, ...visible } = cloneRoutine(routine);
     const warning = routineHostWarning(routine), week = weekRuns(this.runs, routine.id, this.now());
     return { ...visible, ...(failures ? { failureStreak: failures } : {}), ...(week ? { weekRuns: week } : {}), ...(warning ? { warning } : {}) };
   }
@@ -518,7 +512,7 @@ export class RoutineManager {
     return cloneRun(run);
   }
 
-  create(input: RoutineInput, request?: RoutineRequestCommitFor<"create">): Routine {
+  create(input: RoutineInput, request?: RoutineRequestCommitFor<"create">, approvalCreator?: string): Routine {
     this.assertWritable();
     if (request) {
       const receipt = this.matchingRoutineRequestReceipt(request);
@@ -541,6 +535,7 @@ export class RoutineManager {
       ...clean,
       // Only a confirmed chat card supplies `request`: the calendar API cannot pick an arbitrary transcript.
       sourceThreadId: request?.threadId,
+      approvalCreator,
       nextRunAt,
       createdAt: at,
       updatedAt: at,
@@ -751,7 +746,7 @@ export class RoutineManager {
 
   enqueueWebhook(input: {
     webhookId: string; webhookName: string; prompt: string; botId: string; runOn: RoutineRunOn; deliveryId: string; receivedAt: number;
-    eventSource?: "app" | "wait";
+    eventSource?: "app" | "wait"; approvalCreator?: string;
     /** Where the run reports, instead of the event's own results chat. */
     resultsThreadId?: string;
   }): { id: string } {
@@ -764,7 +759,7 @@ export class RoutineManager {
     const run: RoutineRun = {
       id: randomUUID(), routineId: input.webhookId, routineName: input.webhookName, prompt: input.prompt, target: "bot",
       botId: input.botId, runOn: input.runOn, scheduledFor: input.receivedAt, status: "queued", manual: false,
-      triggerSource: "webhook", webhookId: input.webhookId, deliveryId: input.deliveryId, attachments: [], createdAt: this.now(),
+      triggerSource: "webhook", webhookId: input.webhookId, deliveryId: input.deliveryId, attachments: [], createdAt: this.now(), approvalCreator: input.approvalCreator,
       resultsThreadId: input.resultsThreadId ?? this.options.eventResultsThread?.(input), ...(input.eventSource ? { eventSource: input.eventSource } : {}),
     };
     this.commitEvent(run, input.deliveryId, () => { this.runs.push(run); });
@@ -1521,7 +1516,7 @@ export class RoutineManager {
   private commitMutation(mutate: () => void, rollback?: () => void): void {
     const before = {
       routines: this.routines.map(cloneRoutine),
-      runs: this.runs.map(cloneRun),
+      runs: this.runs.map(storedRun),
       receipts: this.routineRequestReceipts.map((receipt) => ({ ...receipt })),
     };
     try {

@@ -9,6 +9,7 @@ import { normalizeReaction, reactionAnswer } from "../../shared/reactions.ts";
 import type { WidgetAction } from "../../shared/widget.ts";
 import { parseFollowUp } from "../../shared/follow-up.ts";
 import type { ResolvedSender } from "../../shared/wire.ts";
+import { readTurnEffort } from "../member-turn.ts";
 import { admit } from "../admission.ts";
 import { dismissQuestionCard } from "../card-dismissal.ts";
 import { AppMessageRate, appContextBlock, prepareAppMessage } from "../chat-apps.ts";
@@ -65,16 +66,18 @@ export interface BotMessageRouteDeps {
   directTurnDispatchClaims: { get(threadId: string): { threadId: string } | undefined };
   groupSpeakers: ReadonlyMap<string, { botId: string }>;
   desktopManaged: boolean;
-  cloudHome: boolean;
   DirectSendRefused: abstract new (...args: never[]) => { readonly status: number; readonly body: Record<string, unknown> };
   acceptDirectSend(input: DirectSendInput, guardedStart?: (currentAtStart: BotRecord) => Promise<DirectSendReceipt>): Promise<DirectSendReceipt>;
   directSendRefusal(botId: string, threadId: string): { status: number; body: Record<string, unknown> } | null;
   startTurn(botId: string, text: string, opts?: {
     threadId?: string; replyTo?: Message; sendId?: string; sender?: ResolvedSender; trigger?: UsageTrigger; relayed?: boolean;
     dataContext?: DataContext; compactOnly?: boolean; cardContinuation?: boolean; editedMessageId?: string;
+    approvalPerson?: string | null;
+    effort?: import("../../shared/wire.ts").EffortLevel;
   }): Promise<Message>;
   usageTriggerFor(auth: RequestAuth): UsageTrigger;
   messageSender(auth: RequestAuth): ResolvedSender | undefined;
+  approvalPerson(auth: RequestAuth): string | undefined;
   cloudGuestSendRefusal(auth: RequestAuth, threadId: string): string | null;
   cloudThreadRefusal(auth: RequestAuth, threadId: string): string | null;
   cardAnswerRefusal(auth: RequestAuth, threadId: string, requestId: string, behavior: string): string | null;
@@ -161,7 +164,7 @@ const guardedSendSchema = z.object({
 export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler {
   const {
     store, registry, handoffs, liveTurn, phoneSecretSubmissions, directTurnDispatchClaims, groupSpeakers,
-    desktopManaged: DESKTOP_MANAGED, cloudHome: CLOUD_HOME, DirectSendRefused,
+    desktopManaged: DESKTOP_MANAGED, DirectSendRefused,
     acceptDirectSend, directSendRefusal, startTurn, usageTriggerFor, messageSender, cloudGuestSendRefusal, cloudThreadRefusal,
     cardAnswerRefusal, commandRememberRefusal, requestBehavior, requestedTaskBot, botForThread, threadBusy,
     botAtThreadCapacity, parksBehindCoordination, activeGroupTurnForBot, runningTurnInstance, engineSteersImages, resolveReplyTarget,
@@ -239,7 +242,7 @@ export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler 
         const accepted = goalSendId ? acceptedSendMatch(store.messagesFor(threadId), goalSendId, typed, undefined, "goal") : null;
         if (accepted?.kind === "conflict") return json(res, 409, { error: "sendId already belongs to another message" });
         if (accepted?.kind === "match") return json(res, 202, { ok: true, threadId, message: accepted.message });
-        const message = goals.start(bot.id, threadId, typed, { sendId: goalSendId, sender: messageSender(auth) });
+        const message = goals.start(bot.id, threadId, typed, { sendId: goalSendId, sender: messageSender(auth), approvalPerson: deps.approvalPerson(auth) });
         return json(res, 202, { ok: true, threadId, message });
       }
       const onBehalfOf = guardedBody?.data?.onBehalfOf;
@@ -329,10 +332,12 @@ export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler 
       if (personPresent && sendId && !guarded && !press && !appSent) noteTypedSend(threadId, sendId, text);
       if (pressKey) pressesInFlight.set(pressKey, sendId);
       try {
+        const effort = readTurnEffort(body.effort);
         const receipt = await acceptDirectSend({
           botId: bot.id, threadId, text, sendId, replyTo, sender, trigger, dataContext, ...(app ? { app } : {}),
           personPresent, ...(followUp ? { followUp } : {}),
           ...(mentions?.length && !press && !appSent ? { mentions } : {}),
+          ...(effort && !press && !appSent ? { effort } : {}),
         }, guardedStart);
         press?.settle("queueId" in receipt ? receipt.queueId : undefined);
         appContext?.deliver();
@@ -509,7 +514,8 @@ export function createBotMessageRoutes(deps: BotMessageRouteDeps): RouteHandler 
       const replyTo: ReplyTarget | undefined = quoted && source.reaction && text === source.text ? { ...quoted, reactedWith: source.reaction } : quoted;
       const dataContext = parseDataContext(body.dataContext) ?? (text === source.text ? source.dataContext : undefined);
       const message = await startTurn(bot.id, text, { threadId: bot.threadId, editedMessageId: messageId, replyTo, sendId, trigger: usageTriggerFor(auth), dataContext,
-        ...(CLOUD_HOME ? { sender: messageSender(auth) } : {}) });
+        ...(readTurnEffort(body.effort) ? { effort: readTurnEffort(body.effort) } : {}),
+        sender: messageSender(auth), approvalPerson: deps.approvalPerson(auth) ?? null });
       return json(res, 202, { ok: true, message });
     }
 

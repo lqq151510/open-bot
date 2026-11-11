@@ -1,0 +1,156 @@
+- generic [ref=f1e6]:
+  - complementary "Bots and navigation" [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e178]:
+          - button "Search bots and messages" [ref=f1e179] [cursor=pointer]
+          - button "New or share" [ref=f1e185] [cursor=pointer]
+        - button "Inbox" [ref=f1e187] [cursor=pointer]
+      - generic [ref=f1e45]:
+        - 'generic "Fixture Starter · Chief of Staff · Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e192]':
+          - button "Fixture Starter · Chief of Staff" [ref=f1e193] [cursor=pointer]:
+            - generic [ref=f1e194]:
+              - img "Fixture Starter" [ref=f1e196]
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e201]'
+              - img "Chief of Staff" [ref=f1e206]
+        - 'generic "Pepper · Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e208]':
+          - button "Pepper" [ref=f1e209] [cursor=pointer]:
+            - generic [ref=f1e49]:
+              - img "Pepper" [ref=f1e51]
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e211]'
+      - paragraph [ref=f1e73]
+      - generic [ref=f1e215]:
+        - button "Connect apps" [ref=f1e216] [cursor=pointer]
+        - button "You" [ref=f1e220] [cursor=pointer]
+  - main [ref=f1e90]:
+    - generic [ref=f1e91]:
+      - generic [ref=f1e94]:
+        - generic [ref=f1e95]:
+          - button "Open Pepper's profile" [expanded] [ref=f1e96] [cursor=pointer]:
+            - img "Pepper" [ref=f1e98]
+            - generic [ref=f1e109]: Pepper
+          - status [ref=f1e112]
+        - button "Share" [ref=f1e115] [cursor=pointer]
+      - log "Conversation with Pepper" [ref=f1e121]:
+        - generic [ref=f1e122]:
+          - generic [ref=f1e123]: Today 2:27 PM
+          - generic [ref=f1e125]:
+            - generic "11/9/2026, 2:27:01 PM" [ref=f1e126]:
+              - paragraph [ref=f1e129]: Hi, I'm Pepper. What would you like me to do?
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f1e130]: 2:27 PM
+          - region "What should I help you with first?" [ref=f1e131]:
+            - generic [ref=f1e132]:
+              - heading "What should I help you with first?" [level=3] [ref=f1e133]
+              - button "Close" [ref=f1e134] [cursor=pointer]
+            - generic [ref=f1e138]:
+              - button "A Research and digging into topics" [ref=f1e139] [cursor=pointer]:
+                - generic [ref=f1e140]: A
+                - generic [ref=f1e141]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [ref=f1e142] [cursor=pointer]:
+                - generic [ref=f1e143]: B
+                - generic [ref=f1e144]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [ref=f1e145] [cursor=pointer]:
+                - generic [ref=f1e146]: C
+                - generic [ref=f1e147]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [ref=f1e148] [cursor=pointer]:
+                - generic [ref=f1e149]: D
+                - generic [ref=f1e150]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [ref=f1e151] [cursor=pointer]:
+                - generic [ref=f1e152]: E
+                - generic [ref=f1e153]: Data, spreadsheets and reports
+              - button "F Something else" [ref=f1e154] [cursor=pointer]:
+                - generic [ref=f1e155]: F
+                - generic [ref=f1e156]: Something else
+      - status [ref=f1e157]
+      - generic [ref=f1e162]:
+        - button "Add" [ref=f1e165] [cursor=pointer]
+        - textbox "Message Pepper" [ref=f1e169]
+        - generic [ref=f1e170]:
+          - button "Start dictation" [disabled] [ref=f1e171]
+          - button "Live call with Pepper" [ref=f1e176] [cursor=pointer]
+  - dialog [active] [ref=f1e226]:
+    - generic [ref=f1e227]:
+      - generic [ref=f1e228]:
+        - button "Share" [ref=f1e230] [cursor=pointer]
+        - button "Bot settings" [ref=f1e235] [cursor=pointer]
+        - button "Close settings" [ref=f1e236] [cursor=pointer]
+      - generic [ref=f1e237]:
+        - generic [ref=f1e239]:
+          - button "Edit avatar" [ref=f1e240] [cursor=pointer]:
+            - img "Pepper" [ref=f1e242]
+            - generic [aria-hidden]: Edit avatar
+          - heading [level=2] [ref=f1e254]:
+            - button "Pepper" [ref=f1e255] [cursor=pointer]
+        - tablist "Bot settings" [ref=f1e260]:
+          - tab "Activity" [selected] [ref=f1e261] [cursor=pointer]
+          - tab "Library" [ref=f1e262] [cursor=pointer]
+        - tabpanel [ref=f1e263]:
+          - generic [ref=f1e264]:
+            - generic [ref=f1e265]:
+              - generic [ref=f1e266]:
+                - generic [ref=f1e267]: Suggestions
+                - button "Hide" [ref=f1e268] [cursor=pointer]
+              - generic [ref=f1e269]:
+                - button "Add to Slack" [ref=f1e270] [cursor=pointer]
+                - button "Create a routine" [ref=f1e285] [cursor=pointer]
+            - generic [ref=f1e293]:
+              - generic [ref=f1e294]: Computer
+              - button "Pepper's screen Not using its computer right now Pepper" [ref=f1e297] [cursor=pointer]:
+                - generic [ref=f1e301]:
+                  - generic [ref=f1e302]: Pepper's screen
+                  - generic [ref=f1e303]: Not using its computer right now
+                - img "Pepper" [ref=f1e307]
+            - generic [ref=f1e320]:
+              - generic [ref=f1e321]: Voice chat
+              - generic [ref=f1e324]:
+                - generic [ref=f1e325]:
+                  - generic [ref=f1e326]: Voice
+                  - combobox "Voice" [ref=f1e328] [cursor=pointer]:
+                    - option "Marin (default)" [selected]
+                    - option "Cedar"
+                    - option "Alloy"
+                    - option "Ash"
+                    - option "Ballad"
+                    - option "Coral"
+                    - option "Echo"
+                    - option "Sage"
+                    - option "Shimmer"
+                    - option "Verse"
+                    - option "Gleam — North American, feminine"
+                    - option "Meridian — North American, masculine"
+                    - option "Quartz — Australian, feminine"
+                    - option "Ripple — Australian, masculine"
+                    - option "Vesper — British, masculine"
+                    - option "Willow — Irish, feminine"
+                    - option "Stone — Irish, masculine"
+                    - option "Delta — Southern U.S., feminine"
+                    - option "Cinder — Southern U.S., masculine"
+                    - option "Beacon — Filipino, masculine"
+                    - option "Bossa — Brazilian Portuguese, feminine"
+                    - option "Tempo — Brazilian Portuguese, masculine"
+                - generic [ref=f1e329]:
+                  - generic [ref=f1e330]: Speed
+                  - combobox "Speed" [ref=f1e332] [cursor=pointer]:
+                    - option "0.75x"
+                    - option "1x" [selected]
+                    - option "1.25x"
+                    - option "1.5x"
+                - generic [ref=f1e333]:
+                  - generic [ref=f1e334]: Language
+                  - combobox "Language" [ref=f1e336] [cursor=pointer]:
+                    - option "Auto-detect" [selected]
+                    - option "English"
+                    - option "Chinese"
+            - region "Conversations" [ref=f1e337]:
+              - button "New conversation" [ref=f1e339] [cursor=pointer]
+            - generic [ref=f1e344]:
+              - generic [ref=f1e345]: This conversation
+              - generic [ref=f1e347]:
+                - button "Find in conversation" [ref=f1e348] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f1e355]: ⌘ F
+                - button "Activity" [ref=f1e356] [cursor=pointer]

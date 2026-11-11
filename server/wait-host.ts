@@ -71,7 +71,7 @@ export function createWaitHost(deps: WaitHostDeps): Pick<WaitManagerOptions, "so
       if (notice.status === "fired") deps.notify(buildNotification("wait", bot, wait.threadId, notice.text, { avatarUrl: bot.avatarUrl }));
       return true;
     },
-    followUp(wait) {
+    followUp(wait, approvalCreator) {
       deps.enqueue({
         webhookId: `wait:${wait.id}`,
         webhookName: wait.label,
@@ -81,6 +81,7 @@ export function createWaitHost(deps: WaitHostDeps): Pick<WaitManagerOptions, "so
         deliveryId: wait.id,
         receivedAt: now(),
         eventSource: "wait",
+        ...(approvalCreator ? { approvalCreator } : {}),
         ...(deps.cloudHome ? {} : { resultsThreadId: wait.threadId }),
       });
     },

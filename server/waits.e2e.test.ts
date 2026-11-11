@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
+import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 
@@ -47,7 +50,8 @@ async function scout(name: string) {
   const settledTurn = () => expect.poll(busy, { timeout: 15_000 }).toBe(false);
   const transcript = async (): Promise<any[]> => (await api("GET", `/api/threads/${bot.threadId}/messages?limit=100`)).messages;
   const send = (text: string) => runControlOmb(["send", "--bot", bot.id, "--task", bot.threadId, "--text", text, "--url", fixture.info.url]);
-  return { folder, gate, api, bot, busy, settledTurn, transcript, send, turnPrompt, turnToken, close };
+  return { folder, gate, api, bot, busy, settledTurn, transcript, send, turnPrompt, turnToken, close,
+    approvalSocket: () => dump().mcpConfig.mcpServers.ogb.args.at(-1) as string };
 }
 
 it("waits for a file with no AI, posts once in the asked chat, notifies, and continues there; Cancel on its card stops another", async () => {
@@ -78,6 +82,40 @@ it("waits for a file with no AI, posts once in the asked chat, notifies, and con
     await close();
   }
 }, 120_000);
+
+it("requires the wait creator's personal approval before executing a delayed Full-access follow-up", async () => {
+  const { folder, gate, api, bot, settledTurn, transcript, send, turnPrompt, turnToken, approvalSocket, close } = await scout("personal-approval");
+  const marker = join(folder, "approval-trigger.txt");
+  try {
+    await api("PATCH", `/api/bots/${bot.id}`, { approvalMode: "full", applyToAllThreads: true });
+    await api("POST", "/api/permission-rules/always-ask?scope=personal", { text: "tool:Bash" });
+    await send("When the fixture is ready, run the check.");
+    await api("POST", "/api/internal/waits", { label: "the approval fixture", kind: "file_exists", path: marker, follow_up: "Run the fixture check." }, 201, await turnToken());
+    writeFileSync(gate, "finish");
+    await settledTurn();
+    unlinkSync(gate);
+    writeFileSync(marker, "ready");
+    await expect.poll(turnPrompt, { timeout: 30_000 }).toContain("[Wait finished: the approval fixture]");
+    const socket = connect(approvalSocket());
+    const lines = createInterface({ input: socket });
+    try {
+      await new Promise<void>((resolve, reject) => { socket.once("connect", resolve); socket.once("error", reject); });
+      const requestId = randomUUID();
+      let reply: unknown;
+      lines.once("line", (line) => { reply = JSON.parse(line); });
+      socket.write(JSON.stringify({ t: "ask", id: requestId, tool: "Bash", input: { command: "printf 'wait fixture'" } }) + "\n");
+      await expect.poll(async () => (await transcript()).find((message) => message.card?.requestId === requestId)?.card?.heldCode).toBe("approval.held.alwaysAsk");
+      expect(reply).toBeUndefined();
+      await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId, behavior: "deny" });
+      await expect.poll(() => reply).toMatchObject({ id: requestId, behavior: "deny" });
+    } finally {
+      lines.close();
+      socket.destroy();
+    }
+  } finally {
+    await close();
+  }
+}, 60_000);
 
 it("refuses a new wait in the run a wait's follow-up started, so a wait never renews itself", async () => {
   const { folder, gate, api, busy, settledTurn, transcript, send, turnPrompt, turnToken, close } = await scout("renew");

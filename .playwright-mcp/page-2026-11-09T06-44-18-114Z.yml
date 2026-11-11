@@ -1,0 +1,18 @@
+- generic [ref=f6e6]:
+  - complementary "Bots and navigation" [ref=f6e7]:
+    - generic [ref=f6e8]:
+      - generic [ref=f6e9]:
+        - generic [ref=f6e11]:
+          - button "Search bots and messages" [ref=f6e12] [cursor=pointer]
+          - button "New or share" [ref=f6e17] [cursor=pointer]
+        - button "Inbox" [ref=f6e20] [cursor=pointer]
+      - separator "Resize sidebar" [ref=f6e26]
+      - paragraph [ref=f6e31]
+      - generic [ref=f6e34]:
+        - button "You" [ref=f6e36] [cursor=pointer]
+        - button "Connect apps" [ref=f6e42] [cursor=pointer]
+  - main [ref=f6e48]:
+    - generic [ref=f6e51]: Connecting to your bots…
+    - generic [ref=f6e52]:
+      - text: Start it with
+      - code [ref=f6e53]: pnpm dev:server

@@ -3,7 +3,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, openSync, readFileSync, rmSync } from "node:fs";
-import { connect, type Socket } from "node:net";
+import { createServer, type Server } from "node:http";
+import { connect, type AddressInfo, type Socket } from "node:net";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -11,11 +12,12 @@ import { expect, it } from "vitest";
 import { launchVerificationServer, verificationServerEnvironment } from "../scripts/control-omb.ts";
 import { waitForExit } from "./testing/cleanup.ts";
 
-it("remembers real permission requests, scopes and revokes grants, and preserves them across restart", async () => {
+it("remembers native command grants, honors always-ask rules, and preserves both across restart", async () => {
   const fixture = await launchVerificationServer({ FAKE_CLAUDE_MODE: "hang" });
   const { url, dataDir, logPath } = fixture.info;
   const sockets: Socket[] = [];
   let restarted: ChildProcess | undefined;
+  let reviewer: Server | undefined;
   const api = async (method: string, path: string, body?: unknown, status = 200, token?: string) => {
     const response = await fetch(url + path, { method, headers: {
       origin: url, "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -67,6 +69,12 @@ it("remembers real permission requests, scopes and revokes grants, and preserves
     await api("PATCH", `/api/bots/${bot.id}`, { approvalMode: "ask" });
     const rulesPath = `/api/bots/${bot.id}/command-allowlist`;
     expect((await api("GET", rulesPath)).rules).toEqual([]);
+    const alwaysAskPath = "/api/permission-rules/always-ask";
+    expect(await api("GET", alwaysAskPath)).toEqual({
+      rules: [], teamRules: [], personalRules: [], canEditPersonal: true, canEditTeam: true, semanticReview: false,
+    });
+    await api("POST", alwaysAskPath, { text: "tool:" }, 400);
+    const askRule = (await api("POST", alwaysAskPath, { text: "tool:Read" })).rules[0];
     const socket = await start(bot);
     const command = "printf 'allowlist fixture'";
     const first = await ask(socket, command);
@@ -77,6 +85,10 @@ it("remembers real permission requests, scopes and revokes grants, and preserves
 
     const pairing = await api("POST", "/api/auth/pairing", { label: "Member fixture", scopes: ["client"] });
     const paired = await api("POST", "/api/auth/pair", { code: pairing.code });
+    await api("GET", alwaysAskPath, undefined, 403, paired.token);
+    await api("POST", alwaysAskPath, { text: "tool:Bash" }, 403, paired.token);
+    await api("PATCH", alwaysAskPath + "/" + askRule.id, { text: "tool:Bash" }, 403, paired.token);
+    await api("DELETE", alwaysAskPath + "/" + askRule.id, undefined, 403, paired.token);
     await api("GET", rulesPath, undefined, 403, paired.token);
     await api("POST", rulesPath, candidate, 403, paired.token);
     await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: first.id, behavior: "allow", rememberCommand: true }, 403, paired.token);
@@ -91,6 +103,51 @@ it("remembers real permission requests, scopes and revokes grants, and preserves
     expect(await repeated.reply).toMatchObject({ id: repeated.id, behavior: "allow" });
     expect(await card(bot.threadId, repeated.id)).toBeUndefined();
     await expect.poll(async () => (await api("GET", "/api/decisions")).decisions.some((row: any) => row.requestId === repeated.id && row.source === "command-allowlist")).toBe(true);
+
+    const heldPath = alwaysAskPath + "/" + askRule.id;
+    const heldCommand = await api("PATCH", heldPath, { text: "command:" + command });
+    expect(heldCommand.rules).toEqual([{ id: askRule.id, text: "command:" + command }]);
+    const held = await ask(socket, command);
+    await expect.poll(async () => (await card(bot.threadId, held.id))?.held).toBe("An always-ask rule requires your approval.");
+    expect(held.answer()).toBeUndefined();
+    expect(await card(bot.threadId, held.id)).not.toHaveProperty("commandAllowlist");
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: held.id, behavior: "allow", rememberCommand: true }, 403);
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: held.id, behavior: "allow" });
+    expect(await held.reply).toMatchObject({ id: held.id, behavior: "allow" });
+    await api("PATCH", heldPath, { text: "Ask before sending an email" });
+    const noReviewer = await ask(socket, command);
+    await expect.poll(async () => (await card(bot.threadId, noReviewer.id))?.held).toBe("An always-ask rule requires your approval.");
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: noReviewer.id, behavior: "deny" });
+    expect(await noReviewer.reply).toMatchObject({ id: noReviewer.id, behavior: "deny" });
+
+    const reviewedStates: unknown[] = [];
+    let confidence = 1;
+    const stub = createServer(async (request, response) => {
+      if (request.method !== "POST" || request.url !== "/v1/systemone") return void response.writeHead(404).end();
+      let raw = "";
+      for await (const chunk of request) raw += chunk;
+      const body = JSON.parse(raw);
+      reviewedStates.push(body.state);
+      response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({
+        answers: { answer: { type: "noul", noul: confidence } },
+      }));
+    });
+    reviewer = stub;
+    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await api("PUT", "/api/config", { decider: { baseUrl: `http://127.0.0.1:${(stub.address() as AddressInfo).port}` } });
+    await api("PUT", "/api/config", { decider: { key: "tsk_verification_fixture_only" } });
+    expect((await api("GET", alwaysAskPath)).semanticReview).toBe(true);
+    const clear = await ask(socket, command);
+    expect(await clear.reply).toMatchObject({ id: clear.id, behavior: "allow" });
+    expect(reviewedStates.at(-1)).toEqual({ tool: "Bash", rules: ["Ask before sending an email"] });
+    expect(await card(bot.threadId, clear.id)).toBeUndefined();
+    confidence = 0.55;
+    const uncertain = await ask(socket, command);
+    await expect.poll(async () => (await card(bot.threadId, uncertain.id))?.heldCode).toBe("approval.held.alwaysAsk");
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: uncertain.id, behavior: "deny" });
+    expect(await uncertain.reply).toMatchObject({ id: uncertain.id, behavior: "deny" });
+    expect((await api("DELETE", heldPath)).rules).toEqual([]);
+    expect(await api("POST", alwaysAskPath, { text: "tool:Read" }, 409)).toMatchObject({ code: "always_ask_busy" });
 
     for (const [text, input, tool] of [
       [command + " && pwd", {}, "Bash"],
@@ -134,6 +191,8 @@ it("remembers real permission requests, scopes and revokes grants, and preserves
     expect(await card(shared.threadId, sharedRequest.id)).toBeUndefined();
     await stop(bot, shared.threadId);
 
+    await expect.poll(async () => (await api("POST", alwaysAskPath, { text: "tool:Read" })).rules.length).toBe(1);
+    const retained = (await api("GET", alwaysAskPath)).rules;
     await waitForExit(fixture.child, { signal: "SIGTERM" });
     const log = openSync(logPath, "a", 0o600);
     restarted = spawn(process.execPath, ["--experimental-strip-types", fileURLToPath(new URL("./index.ts", import.meta.url))], {
@@ -146,15 +205,82 @@ it("remembers real permission requests, scopes and revokes grants, and preserves
       try { return (await fetch(url + "/api/health", { signal: AbortSignal.timeout(1000) })).ok; } catch { return false; }
     }, { timeout: 20_000 }).toBe(true);
     expect((await api("GET", rulesPath)).rules).toHaveLength(1);
+    expect((await api("GET", alwaysAskPath)).rules).toEqual(retained);
+    await api("PATCH", `/api/bots/${bot.id}`, { approvalMode: "full", applyToAllThreads: true });
     const restartedSocket = await start(bot);
+    const { argv } = JSON.parse(readFileSync(join(dataDir, "fake-claude-dump.json"), "utf8")) as { argv: string[] };
+    expect(argv[argv.indexOf("--permission-mode") + 1]).toBe("default");
     const restored = await ask(restartedSocket, command);
     expect(await restored.reply).toMatchObject({ id: restored.id, behavior: "allow" });
     expect(await card(bot.threadId, restored.id)).toBeUndefined();
+    await api("PATCH", alwaysAskPath + "/" + retained[0].id, { text: "tool:Bash" });
+    const fullHeld = await ask(restartedSocket, command);
+    await expect.poll(async () => (await card(bot.threadId, fullHeld.id))?.heldCode).toBe("approval.held.alwaysAsk");
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: fullHeld.id, behavior: "deny" });
+    expect(await fullHeld.reply).toMatchObject({ id: fullHeld.id, behavior: "deny" });
+    await stop(bot);
+    await api("DELETE", alwaysAskPath + "/" + retained[0].id);
+    const personal = await api("POST", alwaysAskPath + "?scope=personal", { text: "command:" + command });
+    expect(personal.teamRules).toEqual([]);
+    expect(personal.personalRules).toHaveLength(1);
+    const personalSocket = await start(bot);
+    const personalHeld = await ask(personalSocket, command);
+    await expect.poll(async () => (await card(bot.threadId, personalHeld.id))?.heldCode).toBe("approval.held.alwaysAsk");
+    expect(personalHeld.answer()).toBeUndefined();
+    await api("POST", `/api/threads/${bot.threadId}/respond`, { requestId: personalHeld.id, behavior: "deny" });
+    expect(await personalHeld.reply).toMatchObject({ id: personalHeld.id, behavior: "deny" });
+    await stop(bot);
+
+    const dump = join(dataDir, "fake-claude-dump.json");
+    const nextBroker = async () => {
+      await expect.poll(() => existsSync(dump), { timeout: 15_000 }).toBe(true);
+      return JSON.parse(readFileSync(dump, "utf8")).mcpConfig.mcpServers.ogb.args.at(-1) as string;
+    };
+    const assertPersonalHold = async (threadId: string) => {
+      const request = await ask(await nextBroker(), command);
+      await expect.poll(async () => (await card(threadId, request.id))?.heldCode).toBe("approval.held.alwaysAsk");
+      expect(request.answer()).toBeUndefined();
+      await api("POST", `/api/threads/${threadId}/respond`, { requestId: request.id, behavior: "deny" });
+      expect(await request.reply).toMatchObject({ id: request.id, behavior: "deny" });
+    };
+
+    const helper = (await api("POST", "/api/bots", { name: "Room helper fixture" }, 201)).bot;
+    const { group } = await api("POST", "/api/groups", { name: "Rules room fixture", memberIds: [bot.id, helper.id],
+      setup: { bulletin: "", defaultResponder: { kind: "member", botId: bot.id } },
+    }, 201);
+    rmSync(dump, { force: true });
+    await api("POST", `/api/groups/${group.id}/messages`, { threadId: group.threadId, text: "Run the room approval fixture." }, 202);
+    await assertPersonalHold(group.threadId);
+    await api("POST", `/api/groups/${group.id}/interrupt`, { threadId: group.threadId });
+
+    const { webhook } = await api("POST", "/api/webhooks", { name: "Personal rule webhook", botId: bot.id, prompt: "Run the webhook fixture." }, 201);
+    expect(webhook).not.toHaveProperty("approvalCreator");
+    rmSync(dump, { force: true });
+    const { runId } = await api("POST", `/api/webhooks/${webhook.id}/test`, {}, 202);
+    const runFor = async () => (await api("GET", "/api/routines")).runs.find((run: { id: string }) => run.id === runId);
+    await expect.poll(async () => (await runFor())?.threadId, { timeout: 15_000 }).toBeTruthy();
+    await assertPersonalHold((await runFor()).threadId);
+    await api("POST", `/api/routine-runs/${runId}/cancel`);
+
+    const editorInvite = await api("POST", "/api/auth/pairing", { label: "Editor fixture", scopes: ["client", "admin"] });
+    const editor = await api("POST", "/api/auth/pair", { code: editorInvite.code });
+    const editorRule = await api("POST", alwaysAskPath + "?scope=personal", { text: "command:" + command }, 200, editor.token);
+    expect(editorRule.personalRules[0].id).not.toBe(personal.personalRules[0].id);
+    const source = (await messages(bot.threadId)).find((message) => message.role === "user" && message.kind === "text");
+    rmSync(dump, { force: true });
+    await api("POST", `/api/bots/${bot.id}/messages/${source.id}/edit`, { threadId: bot.threadId, text: "Exercise the editor's approval rules." }, 202, editor.token);
+    await assertPersonalHold(bot.threadId);
+    await stop(bot);
+
+    rmSync(dump, { force: true });
+    await api("POST", `/api/bots/${bot.id}/messages`, { threadId: bot.threadId, mode: "goal", text: "Exercise the goal starter's approval rules." }, 202, editor.token);
+    await assertPersonalHold(bot.threadId);
     await stop(bot);
     console.info(`Command allowlist real-server verification passed; isolated log: ${logPath}`);
   } finally {
     for (const socket of sockets) socket.destroy();
     await waitForExit(restarted, { signal: "SIGTERM" });
     await fixture.close();
+    if (reviewer) await new Promise<void>((resolve) => reviewer!.close(() => resolve()));
   }
 }, 90_000);

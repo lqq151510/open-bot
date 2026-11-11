@@ -10,6 +10,21 @@ import { promisify } from "node:util";
 import { augmentedPath, resolveCliSpawn } from "./env-path.ts";
 import { workspacePreparationDockerfile } from "./container-workspace.ts";
 import { DATA_DIR } from "./config.ts";
+import {
+  BASE_IMAGE,
+  BASE_IMAGE_DIGEST,
+  BASE_IMAGE_LABEL,
+  CUA_DRIVER_VERSION,
+  DRIVER_LABEL,
+  IMAGE,
+  IMAGE_LAYER_LABEL,
+  IMAGE_LAYER_VERSION,
+  MANAGED_LABEL,
+  imageLabelsMatch,
+  imagePinDiffers,
+  inspectedImage,
+  normalizeImageId,
+} from "./container-image-identity.ts";
 import { PIDS_LIMIT, raisePidsLimit } from "./container-limits.ts";
 import { SPAWNED_PROXIES } from "./proxy-paths.ts";
 
@@ -22,21 +37,23 @@ export type CommandRunner = (
   timeout?: number,
 ) => Promise<{ stdout: string }>;
 
-export const CUA_DRIVER_VERSION = "0.37.0";
-export const BASE_IMAGE_REPOSITORY = "docker.io/trycua/xfce-cua";
-// Official multi-architecture Cua XFCE 0.1.0 manifest (amd64 + arm64).
-export const BASE_IMAGE_DIGEST = "sha256:274eb636f5cf3fc58f705916ee72b7a701270b3877369d08533a385c5325be9b";
-export const BASE_IMAGE = `${BASE_IMAGE_REPOSITORY}@${BASE_IMAGE_DIGEST}`;
-// localhost/ is explicit: Podman prepends it to unqualified build tags and may then resolve the name on Docker Hub.
-// Image and container labels, not this mutable tag, decide compatibility.
-export const IMAGE_REPOSITORY = "localhost/openbot/cua-local-vm";
-export const IMAGE_LAYER_VERSION = "8";
-export const IMAGE_LAYER_LABEL = "com.openbot.image-layer";
-export const IMAGE = `${IMAGE_REPOSITORY}:driver-${CUA_DRIVER_VERSION}-v${IMAGE_LAYER_VERSION}`;
+export {
+  BASE_IMAGE,
+  BASE_IMAGE_DIGEST,
+  BASE_IMAGE_LABEL,
+  BASE_IMAGE_REPOSITORY,
+  CUA_DRIVER_VERSION,
+  DRIVER_LABEL,
+  IMAGE,
+  IMAGE_LAYER_LABEL,
+  IMAGE_LAYER_VERSION,
+  IMAGE_REPOSITORY,
+  MANAGED_LABEL,
+  imageLabelsMatch,
+  imagePinDiffers,
+} from "./container-image-identity.ts";
+
 export const CONTAINER = "openbot-computer";
-export const MANAGED_LABEL = "com.openbot.local-vm";
-export const DRIVER_LABEL = "com.openbot.cua-driver";
-export const BASE_IMAGE_LABEL = "com.openbot.cua-base";
 export const WORKSPACE_LABEL = "com.openbot.workspace";
 export const TARGET_LABEL = "com.openbot.local-vm-target";
 export const VM_WORKSPACE_DIR = join(DATA_DIR, "vm-home");
@@ -259,6 +276,9 @@ export interface ContainerComputerStatus {
   daemonUp: boolean;
   image: boolean;
   imageMatches: boolean;
+  image_identity_matches?: boolean;
+  image_pin_differs?: boolean;
+  container_inspection_failed?: boolean;
   managed: boolean;
   container: "running" | "stopped" | "missing";
   network: "loopback" | "unsafe" | "unknown";
@@ -371,15 +391,6 @@ function existingContainerProblem(status: ContainerComputerStatus): string | nul
   return null;
 }
 
-export function imageLabelsMatch(labels: Record<string, string> | undefined): boolean {
-  return (
-    labels?.[MANAGED_LABEL] === "1" &&
-    labels?.[DRIVER_LABEL] === CUA_DRIVER_VERSION &&
-    labels?.[BASE_IMAGE_LABEL] === BASE_IMAGE_DIGEST &&
-    labels?.[IMAGE_LAYER_LABEL] === IMAGE_LAYER_VERSION
-  );
-}
-
 /** Ownership ignores image/driver versions, so an older OMB container stays removable. */
 function containerOwnershipLabelsMatch(
   labels: Record<string, string> | undefined,
@@ -392,38 +403,6 @@ function containerOwnershipLabelsMatch(
       ? labels?.[TARGET_LABEL] === undefined || labels?.[TARGET_LABEL] === target.label
       : labels?.[TARGET_LABEL] === target.label)
   );
-}
-
-function normalizeImageId(id: string | undefined): string | null {
-  return id?.trim().replace(/^sha256:/, "") || null;
-}
-
-function inspectedImage(stdout: string, runtime: Runtime): {
-  labels: Record<string, string> | undefined;
-  id: string | null;
-} {
-  const parsed = JSON.parse(stdout) as Array<{
-    Id?: string;
-    id?: string;
-    Config?: { Labels?: Record<string, string> };
-    config?: { Labels?: Record<string, string>; labels?: Record<string, string> };
-    configuration?: { labels?: Record<string, string>; descriptor?: { digest?: string } };
-    variants?: Array<{
-      platform?: { os?: string; architecture?: string };
-      config?: { config?: { Labels?: Record<string, string> } };
-    }>;
-  }>;
-  const image = parsed[0];
-  // Apple container puts image labels inside each platform variant; never accept another platform's or guess between several.
-  const variants = runtime === "container" && Array.isArray(image?.variants)
-    ? image.variants.filter(variant => variant?.platform?.os === "linux" && variant.platform.architecture === "arm64")
-    : [];
-  return {
-    labels: runtime === "container"
-      ? (variants.length === 1 ? variants[0]?.config?.config?.Labels : undefined)
-      : image?.Config?.Labels ?? image?.config?.Labels ?? image?.config?.labels ?? image?.configuration?.labels,
-    id: normalizeImageId(image?.Id ?? image?.id ?? image?.configuration?.descriptor?.digest),
-  };
 }
 
 function viewerPassword(env: string[] | Record<string, string> | undefined): string | null {
@@ -468,10 +447,10 @@ export async function containerComputerStatus(
   runner: CommandRunner = sh,
   platform: NodeJS.Platform = process.platform,
   target: LocalVmTarget = SHARED_LOCAL_VM_TARGET,
-  options: { probeDesktop?: boolean } = {},
+  options: { probeDesktop?: boolean; inspectOnly?: boolean; runtimeStatus?: ContainerRuntimeStatus } = {},
 ): Promise<ContainerComputerStatus> {
   const status = emptyStatus(platform, target);
-  const runtimeStatus = await containerRuntimeStatus(runner, platform);
+  const runtimeStatus = options.runtimeStatus ?? await containerRuntimeStatus(runner, platform);
   status.available = runtimeStatus.available;
   status.runtime = runtimeStatus.runtime;
   status.daemonUp = runtimeStatus.daemonUp;
@@ -504,6 +483,7 @@ export async function containerComputerStatus(
         status?: { state?: string };
       }>;
       const detail = inspected[0];
+      if (options.inspectOnly && !detail?.status?.state) throw new Error("Incomplete container inspection");
       status.container = detail?.status?.state === "running" ? "running" : "stopped";
       status.network = applePortsAreLocal(detail?.configuration?.publishedPorts) ? "loopback" : "unsafe";
       status.viewer_port = appleViewerPort(detail?.configuration?.publishedPorts, target.viewerPort);
@@ -518,6 +498,10 @@ export async function containerComputerStatus(
       status.imageMatches =
         appleImage === IMAGE && status.image_id !== null && appleImageId === status.image_id;
       status.managed = containerOwnershipLabelsMatch(detail?.configuration?.labels, target);
+      if (options.inspectOnly) {
+        status.image_pin_differs = imagePinDiffers(appleImage, detail?.configuration?.labels);
+        if (status.image && status.image_id && appleImage && appleImageId) status.image_identity_matches = status.imageMatches;
+      }
       status.persistence = appleWorkspaceMountIsSafe(detail?.configuration?.mounts, platform, target.workspaceDir)
         ? "durable"
         : "unsafe";
@@ -546,17 +530,23 @@ export async function containerComputerStatus(
         Image?: string;
       }>;
       const detail = inspected[0];
+      if (options.inspectOnly && typeof detail?.State?.Running !== "boolean") throw new Error("Incomplete container inspection");
       status.container = detail?.State?.Running ? "running" : "stopped";
       status.stopped_at = status.container === "stopped" ? detail?.State?.FinishedAt ?? null : null;
       status.network = dockerPortsAreLocal(detail?.HostConfig?.PortBindings) ? "loopback" : "unsafe";
       status.viewer_port = dockerViewerPort(detail?.NetworkSettings?.Ports, target.viewerPort);
+      const dockerImageId = normalizeImageId(detail?.Image);
       status.imageMatches =
         detail?.Config?.Image === IMAGE &&
         imageLabelsMatch(detail?.Config?.Labels) &&
         status.image_id !== null &&
-        normalizeImageId(detail?.Image) === status.image_id;
+        dockerImageId === status.image_id;
       status.managed = containerOwnershipLabelsMatch(detail?.Config?.Labels, target);
-      if (status.managed) raisePidsLimit(target.containerName, detail?.HostConfig?.PidsLimit, runner.bind(null, status.runtime));
+      if (options.inspectOnly) {
+        status.image_pin_differs = imagePinDiffers(detail?.Config?.Image, detail?.Config?.Labels);
+        if (status.image && status.image_id && detail?.Config?.Image && dockerImageId) status.image_identity_matches = status.imageMatches;
+      }
+      if (status.managed && !options.inspectOnly) raisePidsLimit(target.containerName, detail?.HostConfig?.PidsLimit, runner.bind(null, status.runtime));
       status.persistence = dockerWorkspaceMountIsSafe(
         detail?.Mounts,
         platform,
@@ -570,10 +560,13 @@ export async function containerComputerStatus(
       ) ? "hardened" : "unsafe";
       status.viewer_url = viewerUrl(viewerPassword(detail?.Config?.Env), status.viewer_port);
     }
-  } catch {
+  } catch (error) {
+    if (options.inspectOnly && !/no such (?:object|container)|container .* (?:not found|does not exist)/i.test(String(error))) {
+      status.container_inspection_failed = true;
+    }
   }
 
-  const canProbe = options.probeDesktop !== false &&
+  const canProbe = !options.inspectOnly && options.probeDesktop !== false &&
     status.container === "running" &&
     status.imageMatches &&
     status.managed &&

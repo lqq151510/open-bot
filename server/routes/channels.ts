@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ResolvedSender, WireGroup } from "../../shared/wire.ts";
+import { readTurnEffort } from "../member-turn.ts";
 import { admit } from "../admission.ts";
 import {
   cancelChannelMessage,
@@ -86,7 +87,7 @@ export interface ChannelRouteDeps {
     sendId: string | undefined,
     channelMode: "chat" | "goal",
     queueId: undefined,
-    options: { via?: "api"; sender?: ResolvedSender; trigger?: UsageTrigger; threadId?: string; mentions?: string[] },
+    options: { via?: "api"; sender?: ResolvedSender; trigger?: UsageTrigger; threadId?: string; mentions?: string[]; effort?: import("../../shared/wire.ts").EffortLevel },
   ): Message;
   applyRoomHoldsFromMessage(groupId: string, text: string, mentions?: readonly string[]): void;
   cancelGroupTurnOperations(groupId: string, threadId: string): void;
@@ -403,6 +404,7 @@ export function createChannelRoutes(deps: ChannelRouteDeps): RouteHandler {
           const threadWorking = groupThreadIsWorking(current.id, threadId);
           const decision = admit("room", {}, { roomWorking: threadWorking, threadWorking });
           if (decision.action === "queue") {
+            const effort = readTurnEffort(body.effort);
             const queued = queueChannelMessage(current.id, threadId, text, {
               replyToId: replyTo?.id,
               sendId,
@@ -411,10 +413,12 @@ export function createChannelRoutes(deps: ChannelRouteDeps): RouteHandler {
               sender: messageSender(auth),
               trigger,
               mentions,
+              ...(effort ? { effort } : {}),
             });
             return { ok: true as const, queued: true as const, queueId: queued.id, threadId };
           }
-          const message = startGroupTurn(current.id, text, replyTo, sendId, channelMode, undefined, { via, sender: messageSender(auth), trigger, threadId, mentions });
+          const effort = readTurnEffort(body.effort);
+          const message = startGroupTurn(current.id, text, replyTo, sendId, channelMode, undefined, { via, sender: messageSender(auth), trigger, threadId, mentions, ...(effort ? { effort } : {}) });
           return { ok: true as const, threadId, message };
         },
       );

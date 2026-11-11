@@ -13,6 +13,7 @@ export interface DesktopComputer {
   /** Only ever called with a message from the parent port; true when it was this grant. */
   receive(message: unknown): boolean;
   connection(): LocalComputerConnection | null;
+  execution(): import("../shared/device-access.ts").DeviceExecution;
   /** Whether the desktop app has spoken: false on any server it did not launch. */
   granted(): boolean;
   unavailableReason(): string | null;
@@ -26,6 +27,7 @@ export function createDesktopComputer({
   decode?: typeof decodeCuaConnection;
 } = {}): DesktopComputer {
   let record: unknown = null;
+  let execution: import("../shared/device-access.ts").DeviceExecution = "always";
   let heard = false;
   return {
     receive(message) {
@@ -36,12 +38,18 @@ export function createDesktopComputer({
       if (connection !== null && (typeof connection !== "object" || Array.isArray(connection))) {
         throw new Error("invalid local computer grant");
       }
+      const mode = grant.execution;
+      if (mode !== undefined && mode !== "always" && mode !== "ask" && mode !== "never") {
+        throw new Error("invalid local computer execution policy");
+      }
+      execution = mode ?? "always";
       record = connection;
       heard = true;
       return true;
     },
     // Decoded on every use: a Linux driver is checked again (same binary, live processes) each time, as the file was.
-    connection: () => (record ? decode(record, { platform }) : null),
+    connection: () => (record && execution !== "never" ? decode(record, { platform }) : null),
+    execution: () => execution,
     granted: () => heard,
     unavailableReason: () => (record ? cuaUnavailableReason(record, platform) : null),
   };
@@ -55,6 +63,7 @@ export function thisComputerNotReady(desktop: DesktopComputer = desktopComputer,
   if (!desktop.granted()) {
     return "Only the OpenBot app on this computer can let a bot use it. Open the app here, or let the bot work in its own browser or on a cloud desktop instead.";
   }
+  if (desktop.execution() === "never") return "This computer's execution setting blocks bots from using it.";
   const reason = desktop.unavailableReason();
   if (!reason) return `${THIS_COMPUTER_NOT_READY}make sure OpenBot has the permissions it asks for, then restart it`;
   const permission = platform === "darwin" && /(?:Screen Recording|Accessibility).*required/i.test(reason);
@@ -63,6 +72,7 @@ export function thisComputerNotReady(desktop: DesktopComputer = desktopComputer,
 
 export function thisComputerNotReadyError(desktop: DesktopComputer = desktopComputer, platform: NodeJS.Platform = process.platform): Error {
   if (!desktop.granted()) return userErrorThrown("serverError.computer.desktopOnly");
+  if (desktop.execution() === "never") return userErrorThrown("serverError.computer.executionDisabled");
   const reason = desktop.unavailableReason();
   if (!reason) return userErrorThrown("serverError.computer.permissionsThenRestart");
   const permission = platform === "darwin" && /(?:Screen Recording|Accessibility).*required/i.test(reason);

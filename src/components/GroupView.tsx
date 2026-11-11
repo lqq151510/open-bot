@@ -30,7 +30,9 @@ import { StatusActivityRow } from "@/components/StatusActivityRow"; import { Bug
 import { normalizeState } from "@/lib/mascot";
 import { botTextShowsSpeaker, laterTextOwns, runShowsSpeaker } from "@/lib/room-speaker";
 import { defaultResponderName, groupResponseHint, jevRoomRoutingOn } from "@/lib/group-routing";
+import { stripGrokModeDirectives } from "@/lib/grok-mode";
 import { ChatMarkdown } from "./ChatMarkdown";
+import { GrokThinkingBubble } from "./GrokThinkingBubble";
 import { FailedTurnRow, MessageBoundary } from "./ChatView";
 import { SIMPLE_BOT_BUBBLE, SIMPLE_BUBBLE_MAX, SIMPLE_BUBBLE_TEXT, SIMPLE_USER_BUBBLE } from "./chat-bubble";
 import { ReplyBlocks } from "./ReplyBlocks";
@@ -158,7 +160,8 @@ function RoomTextMessage({
   const rawText = user ? (m.text ?? "") : stripLeakedSystemHarnessMessages(m.text ?? "");
   const cited = user && m.text ? splitTranscriptCitations(m.text) : null;
   const attachments = user && m.text ? splitTranscriptAttachments(cited?.display ?? m.text) : null;
-  const display = attachments?.display ?? rawText;
+  const shown = attachments?.display ?? rawText;
+  const display = user ? stripGrokModeDirectives(shown) : shown;
   const [expanded, setExpanded] = useState(false);
   const [viewRaw, setViewRaw] = useState(false);
   const speech = useSpeech();
@@ -272,6 +275,7 @@ function RoomTextMessage({
             </>
           ) : (
             <MessageBoundary key={viewRaw ? "raw" : "rendered"} fallbackText={botText || t("chat.generatedImage")}>
+              {m.reasoning ? <GrokThinkingBubble thought={m.reasoning} /> : null}
               {(m.attachments ?? []).some((attachment) => attachment.kind === "audio") && (
                 <div className={cn("flex flex-col", (m.text || (m.attachments ?? []).some((attachment) => attachment.kind === "image")) && "mb-2")}>
                   {m.attachments!.filter((attachment): attachment is VoiceNoteAttachment => attachment.kind === "audio").map((note) => (

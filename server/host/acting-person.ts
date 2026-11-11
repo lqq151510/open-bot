@@ -34,7 +34,7 @@ export type DirectRequest = {
 export type HandedRun = { person: string; since: number };
 /** A room run (index.ts GroupTurnOperation, server/host/cloud-lending-turns.ts): the person's line it answers, the queued
  * lines it joined, or the handed-on work it does. */
-export type RoomRun = { requestMessageId?: string; cancelled: boolean; queuedQueueIds?: readonly string[]; handedFor?: HandedRun };
+export type RoomRun = { requestMessageId?: string; cancelled: boolean; queuedQueueIds?: readonly string[]; handedFor?: HandedRun; approvalPerson?: string };
 
 const fileSchema = z.object({
   v: z.literal(1),

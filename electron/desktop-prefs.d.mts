@@ -43,6 +43,11 @@ export interface DesktopPrefs {
   updatesConsent(): import("./updates-consent.mjs").UpdatesConsentRecord | null;
   /** False, and nothing saved, for a record updates-consent.mjs would not read back. */
   setUpdatesConsent(value: unknown): boolean;
+  /** False until the person chooses automatic installation while away. */
+  autoUpdateWhenIdle(): boolean;
+  setAutoUpdateWhenIdle(on: boolean): void;
+  deviceAccess(): import("../shared/device-access.ts").DeviceAccessState;
+  setDeviceAccess(patch: import("../shared/device-access.ts").DeviceAccessPatch): import("../shared/device-access.ts").DeviceAccessState;
   /** True until switched off. */
   talkShortcut(): boolean;
   setTalkShortcut(enabled: boolean): void;

@@ -290,6 +290,41 @@ function readyInspect(overrides: Record<string, unknown> = {}) {
   ]);
 }
 
+it("checks the installed image without executing in the VM or changing its limits", async () => {
+  const fake = runner({
+    [`docker image inspect ${IMAGE}`]: preparedImageInspect(),
+    [`docker inspect ${CONTAINER}`]: readyInspect(),
+  });
+  const runtimeStatus = { runtime: "docker" as const, available: ["docker" as const], daemonUp: true };
+  const status = await containerComputerStatus(fake.run, "linux", SHARED_LOCAL_VM_TARGET, { inspectOnly: true, runtimeStatus });
+  expect(status).toMatchObject({ managed: true, image: true, imageMatches: true, image_identity_matches: true, container: "running" });
+  expect(fake.calls).toEqual([`docker image inspect ${IMAGE}`, `docker inspect ${CONTAINER}`]);
+
+  const incomplete = runner({
+    [`docker image inspect ${IMAGE}`]: preparedImageInspect(),
+    [`docker inspect ${CONTAINER}`]: readyInspect({ Image: undefined }),
+  });
+  const unknown = await containerComputerStatus(incomplete.run, "linux", SHARED_LOCAL_VM_TARGET, { inspectOnly: true, runtimeStatus });
+  expect(unknown).toMatchObject({ managed: true, image: true, image_pin_differs: false });
+  expect(unknown.image_identity_matches).toBeUndefined();
+
+  const unavailable = runner({
+    [`docker image inspect ${IMAGE}`]: preparedImageInspect(),
+    [`docker inspect ${CONTAINER}`]: new Error("permission denied"),
+  });
+  expect(await containerComputerStatus(unavailable.run, "linux", SHARED_LOCAL_VM_TARGET, { inspectOnly: true, runtimeStatus }))
+    .toMatchObject({ container_inspection_failed: true });
+
+  const older = JSON.parse(readyInspect())[0];
+  older.Config.Labels[DRIVER_LABEL] = "0.1.0";
+  const missingBaseline = runner({
+    [`docker image inspect ${IMAGE}`]: new Error("no such image"),
+    [`docker inspect ${CONTAINER}`]: JSON.stringify([older]),
+  });
+  expect(await containerComputerStatus(missingBaseline.run, "linux", SHARED_LOCAL_VM_TARGET, { inspectOnly: true, runtimeStatus }))
+    .toMatchObject({ image: false, managed: true, image_pin_differs: true });
+});
+
 function perBotReadyInspect(botId: string, viewerPort: number, targetLabel?: string) {
   const target = perBotLocalVmTarget(botId);
   const detail = JSON.parse(readyInspect())[0];

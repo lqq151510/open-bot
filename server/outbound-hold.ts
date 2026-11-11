@@ -6,6 +6,7 @@ import { appendDecision } from "./decision-log.ts";
 import { buildNotification } from "./notify.ts";
 import type { OutboundRequestService } from "./outbound-requests.ts";
 import { outboundCard } from "./outbound-requests.ts";
+import { conversationLanguage, serverLine } from "./server-lines.ts";
 import type { BotRecord, GroupRecord, Store } from "./store.ts";
 import { turnWaitedOnPerson } from "./waiting-on-person.ts";
 
@@ -37,9 +38,9 @@ function sendsWithoutAsking(rule: OutboundPolicy | undefined, fullAccess: boolea
 
 export interface OutboundHold {
   /** A send goes out without asking (Full access with no rule of its own, or "allow") or waits on the "Send on your behalf?" card. `fullAccess`: the turn runs at Full access. */
-  hold(input: { bot: OutboundHoldBot; threadId: string; tool: string; calls: ConnectorCall[]; opaque: boolean; fullAccess: boolean; active: () => boolean }): Promise<OutboundHoldAnswer>;
+  hold(input: { bot: OutboundHoldBot; threadId: string; tool: string; calls: ConnectorCall[]; opaque: boolean; fullAccess: boolean; mustAsk?: boolean; reviewOnly?: boolean; active: () => boolean }): Promise<OutboundHoldAnswer>;
   /** At dispatch time, against the bot as it is now: a send that needs no card is recorded; otherwise the hold must have been approved. Throws the refusal text. */
-  beforeDispatch(input: { bot: OutboundHoldBot; threadId: string; tool: string; opaque: boolean; fullAccess: boolean; approved: boolean }): void;
+  beforeDispatch(input: { bot: OutboundHoldBot; threadId: string; tool: string; opaque: boolean; fullAccess: boolean; mustAsk?: boolean; approved: boolean }): void;
 }
 
 export function createOutboundHold(deps: OutboundHoldDeps): OutboundHold {
@@ -48,9 +49,10 @@ export function createOutboundHold(deps: OutboundHoldDeps): OutboundHold {
   const { holdMs } = deps;
 
   return {
-    async hold({ bot: currentSender, threadId, tool: outboundTool, calls: outboundCalls, opaque, fullAccess, active }) {
+    async hold({ bot: currentSender, threadId, tool: outboundTool, calls: outboundCalls, opaque, fullAccess, mustAsk, reviewOnly, active }) {
       const refuseOutbound = (text: string): OutboundHoldAnswer => ({ ok: false, text });
-      if (!sendsWithoutAsking(currentSender.outbound, fullAccess, opaque)) {
+      if (mustAsk || !sendsWithoutAsking(currentSender.outbound, fullAccess, opaque)) {
+        const heldCode = mustAsk ? "approval.held.alwaysAsk" : "approval.held.outbound";
         const { app, calls, summary } = outboundCard(outboundCalls);
         const owner = connectorThread(currentSender.id, threadId);
         const held = outboundRequests.open({ botId: currentSender.id, threadId, tool: outboundTool, timeoutMs: holdMs });
@@ -59,19 +61,19 @@ export function createOutboundHold(deps: OutboundHoldDeps): OutboundHold {
           kind: "options",
           ...(owner?.group ? { from: { botId: currentSender.id, name: currentSender.name, color: currentSender.color } } : {}),
           card: {
-            title: "Send on your behalf?",
+            title: reviewOnly ? serverLine(conversationLanguage(threadId), "server.approval.appOperation") : "Send on your behalf?",
             subtitle: summary,
             options: ["Allow", "Deny"],
             requestId: held.requestId,
             tool: outboundTool,
-            held: HELD_NOTE["approval.held.outbound"],
-            heldCode: "approval.held.outbound",
-            outboundRequest: { tool: outboundTool, app, calls },
+            held: HELD_NOTE[heldCode],
+            heldCode,
+            outboundRequest: { tool: outboundTool, app, calls, ...(reviewOnly ? { reviewOnly: true } : {}) },
           },
         });
         appendDecision(DATA_DIR, {
           threadId, requestId: held.requestId, botId: currentSender.id, botName: currentSender.name,
-          tool: outboundTool, summary, decision: "card-shown", source: "outbound",
+          tool: outboundTool, summary, decision: "card-shown", source: mustAsk ? "always-ask-rule" : "outbound",
         });
         if (owner?.group) {
           if (activeGroupTurnForBot(currentSender.id)?.threadId === threadId) store.setActivity(currentSender.id, "waiting-on-you");
@@ -96,6 +98,9 @@ export function createOutboundHold(deps: OutboundHoldDeps): OutboundHold {
               store.patchMessage(threadId, stale.id, { card: { ...stale.card, answered: "unavailable", dismissed: true } });
             }
           }
+          if (reviewOnly) return refuseOutbound(answer === "timeout"
+            ? "OpenBot did not run this app operation: nobody answered the approval in time."
+            : "OpenBot did not run this app operation: the user declined. Do not retry it.");
           return refuseOutbound(
             answer === "timeout"
               ? "OpenBot did not send this: nobody answered the approval in time. Ask the user before trying again."
@@ -106,12 +111,12 @@ export function createOutboundHold(deps: OutboundHoldDeps): OutboundHold {
       }
       return { ok: true, approved: false };
     },
-    beforeDispatch({ bot: fresh, threadId, tool: outboundTool, opaque, fullAccess, approved }) {
-      const rule = sendsWithoutAsking(fresh.outbound, fullAccess, opaque);
+    beforeDispatch({ bot: fresh, threadId, tool: outboundTool, opaque, fullAccess, mustAsk, approved }) {
+      const rule = mustAsk ? null : sendsWithoutAsking(fresh.outbound, fullAccess, opaque);
       if (rule) {
         appendDecision(DATA_DIR, { threadId, botId: fresh.id, botName: fresh.name, tool: outboundTool, decision: "auto-approved", source: "outbound", rule });
       } else if (!approved) {
-        throw new Error("The outbound policy changed. Ask for approval again before sending.");
+        throw new Error(mustAsk ? "An always-ask rule requires approval before sending." : "The outbound policy changed. Ask for approval again before sending.");
       }
     },
   };

@@ -123,8 +123,12 @@ async function loadLinuxRuntime() {
 }
 
 /** The app's own server child gets the driver connection, and every change to it, over its private port. */
-export function grantLocalComputer(proc, isCurrent) {
-  localComputerGrant.attach(proc, isCurrent);
+export function grantLocalComputer(proc, isCurrent, deviceExecution) {
+  localComputerGrant.attach(proc, isCurrent, deviceExecution);
+}
+
+export function refreshLocalComputerGrant() {
+  localComputerGrant.changed();
 }
 
 function notifyState(connection) {

@@ -145,9 +145,13 @@ export function createComputerSharing(options: {
   startScreen?: () => Promise<ScreenStatus | null>;
   /** Turns on running commands once the person confirms it on this computer; true when they did. */
   confirmTerminal?: () => Promise<boolean>;
+  deviceExecution?: () => import("../shared/device-access.ts").DeviceExecution;
+  forwardTraffic?: () => boolean;
+  confirmDeviceOperation?: (env: Workspace, action: string, signal: AbortSignal) => Promise<boolean>;
   log?: (line: string) => void;
 }): {
   state(id: string): SharingState;
+  refreshTraffic(): void;
   activity(id?: string, limit?: number): LendingActivityEntry[];
   identity(env: Workspace): Promise<Identity>;
   observe(env: Workspace): Promise<Identity | null>;

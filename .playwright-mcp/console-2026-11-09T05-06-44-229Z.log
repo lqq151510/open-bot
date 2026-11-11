@@ -1,0 +1,13 @@
+[     429ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[     555ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/favicon.ico:0
+[    3962ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[  352401ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[  456265ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:5173/api/instances:0
+[  456266ms] [WARNING] snapshot: instances refresh failed; retrying ApiError: 500 Internal Server Error
+    at api (http://127.0.0.1:5173/src/state/api.ts:36:21)
+    at async http://127.0.0.1:5173/src/state/store.tsx:2083:91
+    at async unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:12)
+    at async Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:26)
+    at async loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:23) @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  456714ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[  456716ms] [ERROR] Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING @ http://127.0.0.1:5173/api/events?screens=off:0

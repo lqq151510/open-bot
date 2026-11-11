@@ -1,0 +1,97 @@
+- generic [ref=f4e6]:
+  - complementary "机器人与导航" [ref=f4e7]:
+    - generic [ref=f4e8]:
+      - generic [ref=f4e9]:
+        - generic [ref=f4e11]:
+          - button "搜索机器人和消息" [ref=f4e12] [cursor=pointer]
+          - button "新建或分享" [ref=f4e17] [cursor=pointer]
+        - button "收件箱" [ref=f4e20] [cursor=pointer]
+        - generic [ref=f4e26]:
+          - button "Fixture Starter · 总协调机器人" [ref=f4e27] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f4e30]
+            - button "重命名 Fixture Starter" [ref=f4e39]: Fixture Starter
+          - status [ref=f4e40]
+      - separator "调整侧栏大小" [ref=f4e41]
+      - generic [ref=f4e46]:
+        - generic [ref=f4e206]:
+          - button "Grok Bot copy 重命名 Grok Bot copy Hi, I'm Pebble. What would you like me to do? 模型：Claude Sonnet 5（Verification fixture）" [ref=f4e207] [cursor=pointer]:
+            - img "Grok Bot copy" [ref=f4e210]
+            - generic [ref=f4e221]:
+              - button "重命名 Grok Bot copy" [ref=f4e224]: Grok Bot copy
+              - generic [ref=f4e225]:
+                - generic [ref=f4e226]: Hi, I'm Pebble. What would you like me to do?
+                - img "模型：Claude Sonnet 5（Verification fixture）" [ref=f4e228]
+          - button "Grok Bot copy 的操作"
+        - generic [ref=f4e47]:
+          - button "Grok Bot 重命名 Grok Bot hello from fake claude 模型：Claude Sonnet 5（Verification fixture）" [ref=f4e48] [cursor=pointer]:
+            - img "Grok Bot" [ref=f4e51]
+            - generic [ref=f4e62]:
+              - button "重命名 Grok Bot" [ref=f4e65]: Grok Bot
+              - generic [ref=f4e66]:
+                - generic [ref=f4e67]: hello from fake claude
+                - img "模型：Claude Sonnet 5（Verification fixture）" [ref=f4e69]
+          - button "Grok Bot 的操作"
+        - generic [ref=f4e73]:
+          - button "Pepper 重命名 Pepper Hi, I'm Pepper. What would you like me to do? 模型：Claude Sonnet 5（Verification fixture）" [ref=f4e74] [cursor=pointer]:
+            - img "Pepper" [ref=f4e77]
+            - generic [ref=f4e88]:
+              - button "重命名 Pepper" [ref=f4e91]: Pepper
+              - generic [ref=f4e92]:
+                - generic [ref=f4e93]: Hi, I'm Pepper. What would you like me to do?
+                - img "模型：Claude Sonnet 5（Verification fixture）" [ref=f4e95]
+          - button "Pepper 的操作"
+      - paragraph [ref=f4e99]
+      - generic [ref=f4e102]:
+        - button "你" [ref=f4e104] [cursor=pointer]
+        - button "连接应用" [ref=f4e110] [cursor=pointer]
+  - main [ref=f4e116]:
+    - generic [ref=f4e117]:
+      - generic [ref=f4e120]:
+        - generic [ref=f4e121]:
+          - button "打开 Grok Bot copy 的资料" [ref=f4e232] [cursor=pointer]:
+            - img "Grok Bot copy" [ref=f4e233]
+            - generic [ref=f4e135]: Grok Bot copy
+          - status [ref=f4e138]
+        - button "共享" [ref=f4e236] [cursor=pointer]
+      - log "与 Grok Bot copy 的对话" [ref=f4e241]:
+        - generic [ref=f4e242]:
+          - generic [ref=f4e243]: 今天 17:48
+          - generic [ref=f4e245]:
+            - generic "2026/11/9 17:48:25" [ref=f4e246]:
+              - paragraph [ref=f4e249]: Hi, I'm Pebble. What would you like me to do?
+            - generic:
+              - generic:
+                - button "添加表情回应"
+              - button "回复消息"
+              - button "消息操作"
+            - generic [ref=f4e250]: 17:48
+          - region "你先想让我帮你做什么？" [ref=f4e251]:
+            - generic [ref=f4e252]:
+              - heading "你先想让我帮你做什么？" [level=3] [ref=f4e253]
+              - button "关闭" [ref=f4e254] [cursor=pointer]
+            - generic [ref=f4e258]:
+              - button "A Research and digging into topics" [ref=f4e259] [cursor=pointer]:
+                - generic [ref=f4e260]: A
+                - generic [ref=f4e261]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [ref=f4e262] [cursor=pointer]:
+                - generic [ref=f4e263]: B
+                - generic [ref=f4e264]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [ref=f4e265] [cursor=pointer]:
+                - generic [ref=f4e266]: C
+                - generic [ref=f4e267]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [ref=f4e268] [cursor=pointer]:
+                - generic [ref=f4e269]: D
+                - generic [ref=f4e270]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [ref=f4e271] [cursor=pointer]:
+                - generic [ref=f4e272]: E
+                - generic [ref=f4e273]: Data, spreadsheets and reports
+              - button "F 其他事情" [ref=f4e274] [cursor=pointer]:
+                - generic [ref=f4e275]: F
+                - generic [ref=f4e276]: 其他事情
+      - status [ref=f4e163]
+      - generic [ref=f4e281]:
+        - button "添加" [ref=f4e284] [cursor=pointer]
+        - textbox "给 Grok Bot copy 发消息" [active] [ref=f4e288]
+        - generic [ref=f4e289]:
+          - button "开始听写" [disabled] [ref=f4e290]
+          - button "与 Grok Bot copy 的实时通话" [ref=f4e295] [cursor=pointer]

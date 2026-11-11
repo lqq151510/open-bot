@@ -31,7 +31,6 @@ export const ENGINE_VERSIONS: Readonly<Record<string, EngineVersionPin>> = {
   copilotAgent: { target: "1.0.106", minimum: "1.0.103", acp: ["--acp", "--stdio"] },
   commandCodeAgent: { target: "1.88.4", minimum: "1.88.4", acp: ["acp"] },
   piAgent: { target: "1.5.0", minimum: "1.5.0" },
-  minimax: { target: "1.0.28", minimum: "1.0.28" },
   deepseekAgent: { target: "0.2.2-rc.1", minimum: "0.2.1-rc.2", acp: ["--profile", "acp"] },
   opencodeGo: { target: OPENCODE_STANDALONE.version, minimum: "1.19.4", acp: ["acp"], formerNpm: ["opencode-ai"] },
   cursorAgent: { target: CURSOR_STANDALONE.version, minimum: CURSOR_STANDALONE.version },

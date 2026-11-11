@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { GroupGoalRunStatus } from "../shared/group-goal-run.ts";
 import { isRoutineProblemRun } from "../shared/routines.ts";
+import { personKey } from "./person-key.ts";
 import { ROUTINE_SKIPPED_WHILE_WAITING, ROUTINE_SUPERSEDED } from "./routine-execution.ts";
 import {
   nextOccurrence,
@@ -113,6 +114,29 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+it("keeps the routine's verified approval creator after edits and restart without exposing it as a routine field", () => {
+  const { manager, options } = harness();
+  const creator = personKey({ id: "routine-owner" });
+  const input = {
+    name: "Approval subject fixture", botId: "maus-1", prompt: "Do the fixture task",
+    schedule: { type: "interval" as const, everyMinutes: 5, anchorAt: Date.parse("2026-09-13T08:00:00Z") },
+    approvalCreator: personKey({ id: "untrusted-request-body" }),
+  };
+  const routine = manager.create(input, undefined, creator);
+  expect(routine).not.toHaveProperty("approvalCreator");
+  const changes = { name: "Renamed fixture", approvalCreator: input.approvalCreator };
+  expect(manager.update(routine.id, changes)).not.toHaveProperty("approvalCreator");
+  const event = manager.enqueueWebhook({ webhookId: "wait:fixture", webhookName: "Fixture wait", prompt: "Check the fixture",
+    botId: "maus-1", runOn: "maus", deliveryId: "fixture", receivedAt: Date.now(), eventSource: "wait", approvalCreator: creator });
+  const restored = new RoutineManager(options);
+  expect(restored.eventApprovalCreator(event.id)).toBe(creator);
+  expect(restored.listRuns().find((run) => run.id === event.id)).not.toHaveProperty("approvalCreator");
+  expect(restored.approvalCreator(routine.id)).toBe(creator);
+  expect(restored.listRoutines()[0]).not.toHaveProperty("approvalCreator");
+  const unattributed = restored.create(input);
+  expect(restored.approvalCreator(unattributed.id)).toBeUndefined();
 });
 
 describe("bounded scheduled overlap and run health", () => {

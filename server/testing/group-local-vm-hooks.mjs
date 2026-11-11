@@ -67,7 +67,8 @@ registerHooks({
         const ready = !missing && !stopped && !outdated && image && !read().failed;
         return { runtime: 'podman', daemonUp: true, image, create_supported: true, managed: !missing,
           container: missing ? 'missing' : stopped ? 'stopped' : 'running', ready,
-          imageMatches: !outdated && image, network: 'loopback', security: 'hardened', persistence: 'durable', resumable: Boolean(stopped) && !outdated && image,
+          imageMatches: !outdated && image, image_identity_matches: !missing && image ? !outdated : undefined,
+          network: 'loopback', security: 'hardened', persistence: 'durable', resumable: Boolean(stopped) && !outdated && image,
           stopped_at: stopped ? read().stoppedAt : null,
           problem: ready ? null : outdated ? 'The existing Local VM uses an older desktop or Cua Driver; recreate it' : 'fixture desktop unavailable',
           container_name: target.containerName, target_key: target.key, workspace_path: target.workspaceDir };

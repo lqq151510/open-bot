@@ -724,6 +724,18 @@ const mcpToolCall = (serverName: string, name: string, input: Record<string, unk
   return { ok: !reply.error && !reply.result?.isError, content: reply.result?.content ?? reply.error?.message ?? "" };
 };
 
+function scriptedPermissionGranted(id: string, call: { name: string; server?: string; input: Record<string, unknown> }): boolean {
+  if (mode !== "permission-rules") return true;
+  launchFiles ??= readLaunchFiles();
+  const rules = (launchFiles.settings as { permissions?: { ask?: string[] } } | null)?.permissions?.ask ?? [];
+  const tool = call.server ? `mcp__${call.server}__${call.name}` : call.name;
+  if (!rules.includes(tool) && !(call.server && rules.includes(`mcp__${call.server}__*`))) return true;
+  const result = mcpToolCall("ogb", "approve", { tool_name: tool, tool_use_id: id, input: call.input });
+  if (!result.ok || !Array.isArray(result.content)) return false;
+  try { return JSON.parse(String(result.content[0]?.text ?? "")).behavior === "allow"; }
+  catch { return false; }
+}
+
 /** COMPOSIO_MANAGE_CONNECTIONS through the launched connected-apps server, if
  * this turn has one: the bridge turns it into a Connect card in the chat. */
 const connectApps = (toolkits: string[]) => {
@@ -1171,7 +1183,8 @@ const playTurn = (prompt: JsonValue, late = false) => {
     for (const call of scriptedToolCalls) {
       const id = call.id ?? `tu-${process.pid}-${++toolUseCount}`;
       out({ type: "assistant", message: { content: [{ type: "tool_use", id, name: call.name, input: call.input }], usage } });
-      const reply = call.server ? mcpToolCall(call.server, call.name, call.input)
+      const reply = !scriptedPermissionGranted(id, call) ? { ok: false, content: "Denied from OpenBot" }
+        : call.server ? mcpToolCall(call.server, call.name, call.input)
         : call.name === "Bash" && call.output === undefined && process.env.FAKE_CLAUDE_RUN_BASH === "1" ? runBash(String((call.input as { command?: unknown } | undefined)?.command ?? ""))
         : { ok: call.ok, content: call.output };
       out({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, is_error: !reply.ok, content: reply.content }] } });

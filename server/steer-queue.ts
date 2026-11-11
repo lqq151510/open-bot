@@ -5,7 +5,7 @@ import { chatFollowups, saveChatFollowup, settleChatFollowups } from "./message-
 import { drainCoalesceHead } from "./admission.ts";
 import { spokenLineFields } from "./live-call-record.ts";
 import { workOriginSchema, type WorkOrigin } from "./peer-provenance.ts";
-import type { BotQueuedMessages, ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
+import type { BotQueuedMessages, EffortLevel, ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
 import type { BotRecord, Message } from "./store.ts";
 import type { UsageTrigger } from "./usage-ledger.ts";
 
@@ -44,10 +44,11 @@ interface QueueEntry {
     rowId?: string;
     /** Bot ids picked from the @ list. */
     mentions?: string[];
+    effort?: EffortLevel;
   }>;
 }
 
-export type SteerQueueHead = Pick<QueueEntry["items"][number], "trigger" | "sender" | "peerAsk" | "origin" | "mentions">;
+export type SteerQueueHead = Pick<QueueEntry["items"][number], "trigger" | "sender" | "peerAsk" | "origin" | "mentions" | "effort">;
 
 const queues = new Map<string, QueueEntry>();
 
@@ -107,7 +108,7 @@ export function queueSteeredMessage(
   botId: string,
   threadId: string,
   text: string,
-  options: { prompt?: string; replyToId?: string; sendId?: string; dataContext?: Message["dataContext"]; reason?: SteerQueueReason; unattended?: boolean; peerAsk?: Message["peerAsk"]; origin?: WorkOrigin; sender?: ResolvedSender; trigger?: UsageTrigger; callId?: string; via?: "call"; reaction?: string; fromApp?: Message["fromApp"]; relay?: Message["relay"]; rowId?: string; first?: boolean; queuedAt?: number; mentions?: string[] } = {},
+  options: { prompt?: string; replyToId?: string; sendId?: string; dataContext?: Message["dataContext"]; reason?: SteerQueueReason; unattended?: boolean; peerAsk?: Message["peerAsk"]; origin?: WorkOrigin; sender?: ResolvedSender; trigger?: UsageTrigger; callId?: string; via?: "call"; reaction?: string; fromApp?: Message["fromApp"]; relay?: Message["relay"]; rowId?: string; first?: boolean; queuedAt?: number; mentions?: string[]; effort?: EffortLevel } = {},
 ): QueuedSteer {
   const id = newId();
   const entry = queues.get(threadId) ?? { botId, items: [] };
@@ -132,6 +133,7 @@ export function queueSteeredMessage(
     ...(options.relay ? { relay: options.relay } : {}),
     ...(options.rowId ? { rowId: options.rowId } : {}),
     ...(options.mentions?.length ? { mentions: options.mentions } : {}),
+    ...(options.effort ? { effort: options.effort } : {}),
   };
   saveChatFollowup({ id, kind: "bot", ownerId: botId, threadId, payload: item });
   // `first`: ahead of everything queued but the person's own messages sent before it.

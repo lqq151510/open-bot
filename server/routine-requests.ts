@@ -126,7 +126,7 @@ export interface ProposeRoutineRequestArgs {
   proposal: unknown;
   from?: { botId: string; name: string; color: string };
   /** Caller/turn lease, checked synchronously right before the durable card append. */
-  canCommit?: () => boolean;
+  canCommit?: () => boolean; approvalCreator?: string;
 }
 
 export interface RoutineProposalResult {
@@ -1042,7 +1042,7 @@ export class RoutineRequestService {
     if (!automatic) return proposal;
     let result: ResolveRoutineRequestResult;
     try {
-      result = this.resolve({ botId, threadId, requestId, behavior: "allow" });
+      result = this.resolve({ botId, threadId, requestId, behavior: "allow", approvalCreator: args.approvalCreator });
     } catch (error) {
       result = { claimed: true, state: "invalid", error: error instanceof Error ? error.message : String(error), status: error instanceof RoutineRequestError ? error.status : 400 };
     }
@@ -1207,7 +1207,7 @@ export class RoutineRequestService {
     botId: string;
     threadId: string;
     requestId: string;
-    behavior: string | undefined;
+    behavior: string | undefined; approvalCreator?: string;
   }): ResolveRoutineRequestResult {
     const message = this.store
       .messagesFor(args.threadId)
@@ -1303,7 +1303,7 @@ export class RoutineRequestService {
         const refusal = this.validateTarget(payload.botId, payload.operation.forBot);
         if (refusal) throw new RoutineRequestError(refusal, 404, { terminal: true });
       }
-      const resultId = this.apply(payload, message.id, fingerprint);
+      const resultId = this.apply(payload, message.id, fingerprint, args.approvalCreator);
       return this.settleApplied(args.threadId, message.id, card, payload, resultId);
     } catch (error) {
       const status = error instanceof RoutineRequestError ? error.status : 400;
@@ -1388,7 +1388,7 @@ export class RoutineRequestService {
     }
   }
 
-  private apply(payload: RoutineRequestCardData, messageId: string, fingerprint: string): string {
+  private apply(payload: RoutineRequestCardData, messageId: string, fingerprint: string, approvalCreator?: string): string {
     const operation = payload.operation;
     const confirmationAt = this.now();
     switch (operation.action) {
@@ -1405,7 +1405,7 @@ export class RoutineRequestService {
           action: "create",
           fingerprintVersion: ROUTINE_REQUEST_FINGERPRINT_VERSION,
           fingerprint,
-        }).id;
+        }, approvalCreator).id;
       case "update": {
         const current = verifyManageSnapshot(operation, this.routines, operation.forBot?.botId ?? payload.botId);
         const updated = this.routines.update(

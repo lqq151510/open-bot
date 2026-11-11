@@ -15,6 +15,7 @@ export interface LinkMux {
   receive(data: string | Buffer | ArrayBuffer | Uint8Array): void;
   open(target: { host: string; port: number } | { chrome: true }): Promise<LinkOpened>;
   readonly size: number;
+  closeInternet(): void;
   close(): void;
 }
 export declare function createLinkMux(options: {

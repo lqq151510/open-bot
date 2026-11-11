@@ -139,6 +139,7 @@ export class WebhookRequestService {
     operation: unknown;
     from?: { botId: string; name: string; color: string };
     canCommit?: () => boolean;
+    approvalCreator?: string;
   }): WebhookRequestResult {
     const parsed = operationSchema.safeParse(args.operation);
     if (!parsed.success) throw new WebhookRequestError(parsed.error.issues[0]?.message ?? "Invalid webhook trigger request");
@@ -158,7 +159,7 @@ export class WebhookRequestService {
     let runId: string | undefined;
     switch (operation.action) {
       case "create":
-        after = webhooks.create({ ...managerInput(operation.webhook), name: operation.webhook.name, prompt: operation.webhook.instructions, botId: owner, enabled: true }).webhook;
+        after = webhooks.create({ ...managerInput(operation.webhook), name: operation.webhook.name, prompt: operation.webhook.instructions, botId: owner, enabled: true }, args.approvalCreator).webhook;
         break;
       case "update":
         after = webhooks.update(operation.webhookId, managerInput(operation.changes));

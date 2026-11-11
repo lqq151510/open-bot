@@ -9,16 +9,18 @@ import { readFileSync, unwatchFile, watchFile } from "node:fs";
 const token = process.env.OMB_TEST_DESKTOP_OWNER_TOKEN;
 const pages = process.env.OMB_TEST_DESKTOP_PAGES_ACCESS;
 const cuaFile = process.env.OMB_TEST_DESKTOP_CUA_CONNECTION;
+const execution = process.env.OMB_TEST_DEVICE_EXECUTION;
 delete process.env.OMB_TEST_DESKTOP_OWNER_TOKEN;
 delete process.env.OMB_TEST_DESKTOP_PAGES_ACCESS;
 delete process.env.OMB_TEST_DESKTOP_CUA_CONNECTION;
+delete process.env.OMB_TEST_DEVICE_EXECUTION;
 
 const cuaGrant = () => {
   let connection = null;
   try {
     connection = JSON.parse(readFileSync(cuaFile, "utf8"));
   } catch {}
-  return { type: "openbot:local-computer", connection };
+  return { type: "openbot:local-computer", connection, ...(execution ? { execution } : {}) };
 };
 
 if (token || cuaFile) {

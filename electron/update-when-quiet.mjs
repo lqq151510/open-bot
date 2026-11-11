@@ -68,7 +68,7 @@ export function launchAfter(record, { version, now = Date.now }) {
  * backup), and work under way on the servers this app talks to (a bot's turn, a routine run, a sign-in, a Live call),
  * each a name or null.
  */
-export function createQuietInstall({ updater, signals, record, version, now = Date.now, log = () => {} }) {
+export function createQuietInstall({ updater, signals, record, version, enabled = () => true, now = Date.now, log = () => {} }) {
   let outOfSightSince = null, looking = null;
   const tries = (target) => {
     const was = parseRecord(record.read());
@@ -77,6 +77,7 @@ export function createQuietInstall({ updater, signals, record, version, now = Da
 
   /** What holds the install back now, or null once it may go. */
   function holds(target) {
+    if (!enabled()) return "disabled";
     if (!target) return "nothing to install";
     if (tries(target.version) >= QUIET_TRIES) return "tried enough";
     try {
@@ -116,7 +117,7 @@ export function createQuietInstall({ updater, signals, record, version, now = Da
   return {
     look,
     /** This version still installs by itself at a quiet moment. */
-    promises: (target) => typeof target === "string" && tries(target) < QUIET_TRIES,
+    promises: (target) => enabled() && typeof target === "string" && tries(target) < QUIET_TRIES,
   };
 }
 

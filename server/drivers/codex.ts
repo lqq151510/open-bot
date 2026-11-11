@@ -61,7 +61,7 @@ import { parseProtocolAskQuestions, questionChoices } from "../../shared/ask-que
 import { codexQuestionReply, openAsyncQuestion, type CodexAsk } from "./codex-questions.ts";
 import { codexReleaseUpdate, codexUpdateCommand } from "./codex-update.ts";
 export { codexUpdateCommand };
-import { effectiveApprovalPolicy, effectiveApprovalsReviewer } from "./codex-approval-config.ts"; import { AGENTS_TOOL_TIMEOUT_SECONDS } from "./agents-tool-limit.ts"; import { COMPUTER_PROXY_TIMEOUT_MS } from "../harness-budget.ts";
+import { assertCodexApprovalMounts, effectiveApprovalPolicy, effectiveApprovalsReviewer, namedApprovalParams, type CodexApprovalParams } from "./codex-approval-config.ts"; import { AGENTS_TOOL_TIMEOUT_SECONDS } from "./agents-tool-limit.ts"; import { COMPUTER_PROXY_TIMEOUT_MS } from "../harness-budget.ts";
 import { canUseMcpServer } from "../../shared/tool-scope.ts";
 import { assertToolScopeSupported } from "../../shared/tool-scope-support.ts";
 import { appMountFor, gateServer, mcpStdioServer } from "../mcp-gate-config.ts"; import { OWN_APPS_SERVER } from "../../shared/own-apps.ts";
@@ -149,13 +149,6 @@ function noteRenamedMcpServer(name: string, mountName: string): void {
   console.error(`codex: MCP server ${JSON.stringify(name)} is also declared in Codex's own config.toml — mounted as ${JSON.stringify(mountName)} for this bot so the two do not merge`);
 }
 
-interface CodexApprovalParams {
-  thread: Record<string, unknown>;
-  turn: Record<string, unknown>;
-  /** Legacy settings for an older app-server that rejects the named-profile field. */
-  fallback?: Omit<CodexApprovalParams, "fallback">;
-}
-
 /** RequestPermissionProfile uses null for permission families that were not
  * requested; GrantedPermissionProfile requires those keys to be absent. */
 function grantedPermissions(raw: unknown): Record<string, unknown> {
@@ -195,41 +188,14 @@ function extendShellExclusions(policy: Record<string, unknown>, patterns: readon
   ]) };
 }
 
-/** Codex persists these on its native thread, so they are explicit on start, resume and every turn.
- * Codex has no narrower "edits only" sandbox, so a stray Edits value asks. */
-function namedApprovalParams(mode: Exclude<ApprovalMode, "custom">): CodexApprovalParams {
-  if (mode === "full") {
-    return {
-      thread: {
-        approvalPolicy: "never",
-        approvalsReviewer: "user",
-        sandbox: "danger-full-access",
-      },
-      turn: {
-        approvalPolicy: "never",
-        approvalsReviewer: "user",
-        sandboxPolicy: { type: "dangerFullAccess" },
-      },
-    };
+function withResolvedSandbox(params: CodexApprovalParams, session: unknown, approvalRules: boolean): CodexApprovalParams {
+  const resolved = plainRecord(session);
+  if (approvalRules && (resolved?.approvalPolicy !== "untrusted" || resolved.approvalsReviewer !== "user")) {
+    throw new Error("Codex could not confirm the native approval policy. No prompt was sent.");
   }
-  return {
-    thread: {
-      approvalPolicy: "on-request",
-      approvalsReviewer: mode === "auto" ? "auto_review" : "user",
-      sandbox: "workspace-write",
-    },
-    turn: {
-      approvalPolicy: "on-request",
-      approvalsReviewer: mode === "auto" ? "auto_review" : "user",
-      sandboxPolicy: { type: "workspaceWrite" },
-    },
-  };
-}
-
-function withResolvedSandbox(params: CodexApprovalParams, session: unknown): CodexApprovalParams {
   const requested = plainRecord(params.turn.sandboxPolicy);
   if (!requested) return params;
-  const sandbox = plainRecord(plainRecord(session)?.sandbox);
+  const sandbox = plainRecord(resolved?.sandbox);
   if (!sandbox || typeof sandbox.type !== "string") {
     throw new Error("Codex did not return its resolved sandbox policy. Update Codex, then retry; the turn was not started because its permissions could not be verified.");
   }
@@ -532,7 +498,8 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       let loginRaceRetried = false;
       const stopSignal = new AbortController();
       const { threadId } = turn;
-      const approvalMode: ApprovalMode = turn.approvalMode ?? (config.fullAuto ? "full" : "ask");
+      const approvalRules = turn.approvalRulesActive?.() === true;
+      const approvalMode: ApprovalMode = approvalRules ? "ask" : turn.approvalMode ?? (config.fullAuto ? "full" : "ask");
       for (const [name, server] of Object.entries(turn.integrations?.custom ?? {})) {
         if ("url" in server) continue;
         const reserved = Object.entries(server.env).find(([key, value]) => isReservedMcpEnvEntry(key, value));
@@ -615,10 +582,11 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         const mountSelected = (name: string, mountName: string, server: McpServerSpec, approval: McpApprovalMode = "auto", forward: readonly string[] = []) => {
           const selected = scopedServer(name, mountName, server);
           if (selected) {
+            if (approvalRules) approval = "prompt";
             selectedMcp.set(mountName, selected);
             selectedApprovals.set(mountName, approval);
             mountMcpServer(appServerArgs, env, mountName, selected, approval, literalEnvs.get(mountName), mountedNames, forward);
-            if (turn.toolScope !== undefined && approval === "prompt") appServerArgs.push("-c", `mcp_servers.${mountName}.default_tools_approval_mode="prompt"`);
+            if ((approvalRules || turn.toolScope !== undefined) && approval === "prompt") appServerArgs.push("-c", `mcp_servers.${mountName}.default_tools_approval_mode="prompt"`);
           }
         };
         if (turn.integrations?.composio) mountSelected("composio", "openbot_connectors", turn.integrations.composio);
@@ -658,7 +626,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
             "-c", `${prefix}.command=${JSON.stringify(bridge.command)}`,
             "-c", `${prefix}.args=${JSON.stringify(bridge.args)}`,
             "-c", `${prefix}.env_vars=${JSON.stringify(Object.keys(bridge.env))}`,
-            "-c", `${prefix}.default_tools_approval_mode="auto"`,
+            "-c", `${prefix}.default_tools_approval_mode="${approvalRules ? "prompt" : "auto"}"`,
           );
           }
         }
@@ -907,7 +875,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         const mcpTool = isLegacyMcpPermission ? / to run tool "(.*)"\?$/.exec(mcpMessage)?.[1] : undefined;
         const searchedServer = isLegacyMcpPermission && typeof params.serverName === "string" && directoryMounts.has(params.serverName);
         const asksAbout = (tool: string) => mcpMessage === `Allow the ${params.serverName} MCP server to run tool "${tool}"?`;
-        if (searchedServer && (asksAbout(SEARCH_TOOL) || asksAbout(DESCRIBE_TOOL))) {
+        if (!turn.approvalRulesActive?.() && searchedServer && (asksAbout(SEARCH_TOOL) || asksAbout(DESCRIBE_TOOL))) {
           send({ jsonrpc: "2.0", id: msg.id, result: { action: "accept", content: {} } });
           return;
         }
@@ -933,7 +901,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
               ? { permissions: allow ? grantedPermissions(params.permissions) : {}, scope: "turn" }
               : { decision: allow ? (legacy ? "approved" : "accept") : legacy ? "denied" : "decline" };
         const shell = method === "execCommandApproval" || method === "item/commandExecution/requestApproval" ? params.command : undefined;
-        if (autoAcceptPermissions && isPermission && answersAlone(shell)) {
+        if (autoAcceptPermissions && !turn.approvalRulesActive?.() && isPermission && answersAlone(shell)) {
           return send({
             jsonrpc: "2.0",
             id: msg.id,
@@ -1354,6 +1322,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
               : "Could not read Codex configuration; cannot safely update bot instructions. Retry after checking Codex.",
           );
         }
+        if (approvalRules) assertCodexApprovalMounts(effectiveConfig, [...selectedMcp.keys(), ...directMounts]);
         if (privateEnv.length) {
           const snapshot = (effectiveConfig as { features?: { shell_snapshot?: unknown } } | null)?.features?.shell_snapshot;
           if (provenPrivateEnv ? snapshot !== false : snapshot === true) {
@@ -1402,7 +1371,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
           // Omitting these on a resumed thread would keep the previous named mode.
           approvalParams = customApprovalParams(effectiveConfig);
         } else {
-          approvalParams = namedApprovalParams(approvalMode);
+          approvalParams = namedApprovalParams(approvalMode, approvalRules);
         }
         // Codex's `never` means "do not ask to escalate", not "grant every requested permission":
         // only Full may synthesize approvals.
@@ -1438,7 +1407,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
               approvalParams = approvalParams.fallback;
               resumed = await resumeUnarchived();
             }
-            approvalParams = withResolvedSandbox(approvalParams, resumed);
+            approvalParams = withResolvedSandbox(approvalParams, resumed, approvalRules);
             codexThreadId = resumed?.thread?.id ?? cursor;
             rolloutAt = rolloutMark(resumed?.thread?.path);
             resumedNativeThread = true;
@@ -1477,7 +1446,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
             approvalParams = approvalParams.fallback;
             started = await startThread();
           }
-          approvalParams = withResolvedSandbox(approvalParams, started);
+          approvalParams = withResolvedSandbox(approvalParams, started, approvalRules);
           codexThreadId = started?.thread?.id ?? null;
           rolloutAt = rolloutMark(started?.thread?.path);
           startedModel = started?.model ?? null;

@@ -28,6 +28,7 @@ const assignmentSchema = z.object({
     ref: z.string().optional(),
     quote: z.string().optional(),
     onBehalfOf: z.string().optional(),
+    approvalPerson: z.string().regex(/^p_[\w-]{22}$/).optional().catch(undefined),
   }),
   requester: z.object({
     kind: z.enum(["person", "bot_turn", "routine_run", "external_runtime"]),

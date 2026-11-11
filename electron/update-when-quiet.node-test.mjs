@@ -33,7 +33,7 @@ function world({ version = "0.1.121", target = "0.1.130", record = file(), ...si
   w.quiet = createQuietInstall({
     updater: { installable: () => (w.target ? { version: w.target } : null), install: () => { w.installs.push(w.target); w.target = null; } },
     signals: { locked: () => w.locked, idleMs: () => w.idleMs, typedAt: () => w.typedAt, shown: () => w.shown, busy: () => w.busy, work: () => w.work() },
-    record, version, now: () => clock,
+    record, version, enabled: () => w.enabled !== false, now: () => clock,
   });
   return w;
 }
@@ -52,6 +52,27 @@ test("a downloaded update installs by itself at a quiet moment, and the record s
   assert.equal(await w.quiet.look(), true);
   assert.deepEqual(w.installs, ["0.1.130"]);
   assert.deepEqual(w.record.value, { v: 1, from: "0.1.121", to: "0.1.130", tries: 1, at: w.clock(), window: true });
+});
+
+test("turning automatic installation off during a work check stops the install", async () => {
+  const { promise, resolve } = Promise.withResolvers();
+  const w = world({ work: () => promise });
+  assert.equal(w.quiet.promises(w.target), true);
+  const looking = w.quiet.look();
+  w.enabled = false;
+  assert.equal(w.quiet.promises(w.target), false);
+  resolve(null);
+  assert.equal(await looking, false);
+  assert.deepEqual(w.installs, []);
+  assert.equal(w.record.value, null);
+
+  let checked = false;
+  w.work = async () => { checked = true; };
+  assert.equal(await w.quiet.look(), false);
+  assert.equal(checked, false);
+  w.enabled = true;
+  w.work = async () => null;
+  assert.equal(await w.quiet.look(), true);
 });
 
 test("with the window closed it waits until the window has been out of sight 2 minutes, and records it closed", async () => {
@@ -143,9 +164,38 @@ test("never while a Live call runs here or on the Cloud the window shows, and My
   assert.deepEqual(asked, ["/api/move/freeze", "/api/live/call"], "a sleeping Cloud is never woken to ask");
 });
 
+test("cannot install without confirmed Live call status on the local and awake Cloud servers", async () => {
+  const status = () => Promise.resolve(Response.json({ call: null }));
+  const responses = [
+    ["401", () => new Response(null, { status: 401 })],
+    ["404", () => new Response(null, { status: 404 })],
+    ["malformed JSON", () => new Response("bad JSON")],
+    ["missing call", () => Response.json({})],
+    ["invalid call", () => Response.json({ call: false })],
+    ["array call", () => Response.json({ call: [] })],
+  ];
+  for (const [label, response] of responses) {
+    for (const side of ["local", "cloud"]) {
+      const fetchStatus = () => Promise.resolve(response());
+      const signals = quietSignals({
+        powerMonitor: { getSystemIdleTime: () => 700, getSystemIdleState: () => "idle", on: () => {} },
+        window: () => null, lastInput: () => 0, busy: () => null,
+        local: route => route === "/api/move/freeze" ? Promise.resolve(Response.json({ frozen: false }))
+          : side === "local" ? fetchStatus() : status(),
+        place: () => CLOUD, asleep: () => false,
+        cloudFetch: side === "cloud" ? fetchStatus : status,
+      });
+      const w = world({ work: () => signals.work() });
+      assert.equal(await w.quiet.look(), false, `${side}: ${label}`);
+      assert.deepEqual(w.installs, []);
+      assert.equal(w.record.value, null);
+    }
+  }
+});
+
 test("the server's own answer to the move (a turn, a routine run, a sign-in) holds it by what it is", async () => {
   const reply = (body) => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
-  for (const [answer, held] of [[{ frozen: false, busy: "Ember", what: "bot" }, "bot"], [{ frozen: false, busy: "Launch room", what: "room" }, "room"], [{ frozen: false, busy: "", what: "sign-in" }, "sign-in"]]) {
+  for (const [answer, held] of [[{ frozen: false, busy: "Ember", what: "bot" }, "bot"], [{ frozen: false, busy: "Launch room", what: "room" }, "room"], [{ frozen: false, busy: "", what: "sign-in" }, "sign-in"], [{ frozen: false, busy: "", what: "" }, "bot"]]) {
     const signals = quietSignals({ powerMonitor: { getSystemIdleTime: () => 0, getSystemIdleState: () => "active", on: () => {} }, window: () => null, lastInput: () => 0, busy: () => null,
       local: () => reply(answer), place: () => null, asleep: () => false, cloudFetch: () => { throw new Error("not asked"); } });
     assert.equal(await signals.work(), held);
@@ -153,6 +203,9 @@ test("the server's own answer to the move (a turn, a routine run, a sign-in) hol
   const failing = quietSignals({ powerMonitor: { getSystemIdleTime: () => 0, getSystemIdleState: () => "active", on: () => {} }, window: () => null, lastInput: () => 0, busy: () => null,
     local: () => Promise.resolve(new Response("", { status: 503 })), place: () => null, asleep: () => false, cloudFetch: () => { throw new Error("not asked"); } });
   await assert.rejects(failing.work());
+  const malformed = quietSignals({ powerMonitor: { getSystemIdleTime: () => 0, getSystemIdleState: () => "active", on: () => {} }, window: () => null, lastInput: () => 0, busy: () => null,
+    local: () => reply({ frozen: false, busy: false }), place: () => null, asleep: () => false, cloudFetch: () => { throw new Error("not asked"); } });
+  await assert.rejects(malformed.work(), /did not say what it is doing/);
 });
 
 test("a failed install is tried again at the next quiet moment, at most three times, and then only Restart or quit installs it", async () => {

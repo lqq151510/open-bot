@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { connect } from "node:net";
+import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -131,6 +134,41 @@ describe("routine delegation through the isolated harness", () => {
     expect(peerWork(run.threadId)).toMatchObject({ status: "completed" });
     expect(rows().find((node) => node.id === work.parentId)?.status).toBe("completed");
     evidence.push({ waitedForBusyPeer: true, resumedRoutine: run.id, threadId: run.threadId, transcript });
+  }, 60_000);
+
+  it("carries its creator's personal approval rule to a Full-access teammate", async () => {
+    const rules = "/api/permission-rules/always-ask";
+    await api("POST", `${rules}?scope=personal`, { text: "tool:Bash" });
+    await api("POST", rules, { text: "tool:Write" });
+    for (const bot of [source, peer]) await api("PATCH", `/api/bots/${bot.id}`, { approvalMode: "full", applyToAllThreads: true });
+    const checkApproval = async (threadId: string) => {
+      const launch = await dump(threadId);
+      expect(launch.argv).toContain("--permission-prompt-tool");
+      const socket = connect(launch.mcpConfig.mcpServers.ogb.args.at(-1));
+      const lines = createInterface({ input: socket });
+      try {
+        await new Promise<void>((resolve, reject) => { socket.once("connect", resolve); socket.once("error", reject); });
+        const requestId = randomUUID();
+        let answer: unknown;
+        lines.once("line", (line) => { answer = JSON.parse(line); });
+        socket.write(JSON.stringify({ t: "ask", id: requestId, tool: "Bash", input: { command: "printf 'routine fixture'" } }) + "\n");
+        await expect.poll(async () => (await messages(threadId)).find((message) => message.card?.requestId === requestId)?.card?.heldCode).toBe("approval.held.alwaysAsk");
+        expect(answer).toBeUndefined();
+        await api("POST", `/api/threads/${threadId}/respond`, { requestId, behavior: "deny" });
+        await expect.poll(() => answer).toMatchObject({ id: requestId, behavior: "deny" });
+      } finally {
+        lines.close();
+        socket.destroy();
+      }
+    };
+    const run = await start();
+    await checkApproval(run.threadId);
+    await delegate(run.threadId);
+    finish(run.threadId);
+    const work = await awaitPeerWork(run.threadId);
+    await checkApproval(work.threadId);
+    finish(work.threadId);
+    await expect.poll(async () => (await runState(run.id))?.status, { timeout: 20_000 }).toBe("completed");
   }, 60_000);
 
   it("completes the routine when the person denies its hand-off, instead of leaving it waiting", async () => {

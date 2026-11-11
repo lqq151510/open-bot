@@ -150,14 +150,14 @@ export class SharedComputers {
   private closed = false;
   private sessionLive: (id: string) => boolean;
   private lent: LentComputers | undefined;
-  private links: Pick<DeviceLinks, "drop"> | undefined;
+  private links: Pick<DeviceLinks, "drop" | "setInternet"> | undefined;
   /** A Cloud home's copies of lent folders: what a computer that is away still lends (server/lent-copies.ts). */
   private copies: Pick<LentCopies, "away" | "answer"> | undefined;
   /** A computer connected, changed what it lends, or stopped. */
   changed: () => void = () => {};
   /** On the person's own Cloud, the bots' tool that asks them to turn on what their computer doesn't give now. */
   askTool: string | null = null;
-  constructor(sessionLive: (id: string) => boolean, lent?: LentComputers, links?: Pick<DeviceLinks, "drop">, copies?: Pick<LentCopies, "away" | "answer">) {
+  constructor(sessionLive: (id: string) => boolean, lent?: LentComputers, links?: Pick<DeviceLinks, "drop" | "setInternet">, copies?: Pick<LentCopies, "away" | "answer">) {
     this.sessionLive = sessionLive; this.lent = lent; this.links = links; this.copies = copies;
   }
   private static key(session: string, id: string) { return `${session}\n${id}`; }
@@ -168,8 +168,8 @@ export class SharedComputers {
     const old = this.computers.get(key);
     if (old) {
       this.authorize(registration.id, owner.session, secret);
-      // Its link was let in for the internet connection and Chrome as lent then: lent or taken back since, the link starts over.
-      if ((old.registration.internet === true) !== (registration.internet === true) || (old.registration.chrome === true) !== (registration.chrome === true)) this.links?.drop(key);
+      if ((old.registration.chrome === true) !== (registration.chrome === true)) this.links?.drop(key);
+      else if ((old.registration.internet === true) !== (registration.internet === true)) this.links?.setInternet(key, registration.internet === true);
       old.registration = registration; old.seen = Date.now();
       this.remember(registration, old.owner.person);
       this.changed();

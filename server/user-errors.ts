@@ -109,6 +109,7 @@ export const USER_ERROR = {
   "serverError.request.bodyTimeout": "The request took too long. Check the connection and try again.",
   "serverError.browser.restartingUnresponsive": "The browser stopped responding, so it is being restarted. The live view reconnects by itself.",
   "serverError.computer.desktopOnly": "Only the OpenBot app on this computer can let a bot use it. Open the app here, or let the bot work in its own browser or on a cloud desktop instead.",
+  "serverError.computer.executionDisabled": "This computer’s execution setting blocks bots from using it.",
   "serverError.computer.permissionsThenRestart": "OpenBot can't use this computer yet — make sure OpenBot has the permissions it asks for, then restart it",
   "serverError.computer.notReadyDetail": "OpenBot can't use this computer yet — {reason}",
   "serverError.computer.notReadyMacPermission": "OpenBot can't use this computer yet — {reason}. Relaunch OpenBot after granting the missing macOS permission.",

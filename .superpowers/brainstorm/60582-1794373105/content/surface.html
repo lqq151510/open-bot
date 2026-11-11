@@ -1,0 +1,63 @@
+<h2>这一轮先仿哪一块？</h2>
+<p class="subtitle">13 张参考图是同一个窗口上的四块产品面。整份「完美复刻」一次做不完，先选一块做设计。推荐从每天都看得到的主界面开始。</p>
+
+<div class="cards">
+  <div class="card" data-choice="shell" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="display:flex;width:92%;height:78%;gap:4px;font-size:11px;color:#666">
+        <div class="mock-sidebar" style="width:26%;margin:0">会话</div>
+        <div class="mock-content" style="flex:1;margin:0">聊天</div>
+        <div class="mock-sidebar" style="width:28%;margin:0">资料 / 动态</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 主界面三栏（推荐）</h3>
+      <p>左侧 Bot 列表，中间对话，右侧资料库、定时任务和语音。对应参考图 1、9–12。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="create" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="width:70%;height:78%;background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:11px;color:#666">
+        <div class="mock-input" style="margin-bottom:8px">给 Bot 起名 / 搜索</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <span class="mock-button">形状</span>
+          <span class="mock-button">颜色</span>
+          <span class="mock-button">⌘K</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 新建 Bot 与搜索</h3>
+      <p>创建弹窗（名字、形状、颜色）和「搜索 Bot、聊天、设置」面板。对应参考图 2、3。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="settings" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="display:flex;width:92%;height:78%;gap:6px;font-size:11px;background:#fff;border-radius:8px;padding:6px">
+        <div class="mock-sidebar" style="width:34%;margin:0">通用<br>电脑<br>权限<br>用量<br>更新</div>
+        <div class="mock-content" style="flex:1;margin:0">开关与账户</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 设置其余页</h3>
+      <p>通用、电脑与设备、权限规则、用量与账单、更新。对应参考图 4–6、8、13。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="vault" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="width:92%;height:78%;background:#fff;border-radius:8px;padding:8px;font-size:11px;color:#444">
+        <div style="margin-bottom:6px">全部 · 登录 · 支付 · 联系信息</div>
+        <div class="mock-input">Grok Bot 邮箱</div>
+        <div class="mock-input">longyu（小红书监控）</div>
+        <div class="mock-input">Me · 勇泽</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D · 保险库的支付与联系信息</h3>
+      <p>登录信息已经是真的。支付和联系信息仍是空壳，而且卡号不能让 Bot 看见。对应参考图 7。</p>
+    </div>
+  </div>
+</div>

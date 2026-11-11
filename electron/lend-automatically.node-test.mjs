@@ -44,7 +44,7 @@ function cloudHome({ link = true, chrome = true } = {}) {
     if (route === "/api/auth/session") return json({ kind: "session", id: state.sessionId, scopes: ["admin", "client"], cloudHome: true });
     if (route === "/.well-known/openbot/environment") return json({ environmentId: state.environmentId, capabilities: { sharedComputers: true, lendingDetails: true, ...(link ? { deviceLink: true } : {}), ...(chrome ? { myChromeLink: true } : {}) } });
     const body = init?.body ? JSON.parse(init.body) : {};
-    if (route === "/api/shared-computers/connect") { state.connects.push(body); return json({ ok: true }); }
+    if (route === "/api/shared-computers/connect") { state.connects.push(body); await state.connectHeld; return json({ ok: true }); }
     if (route.endsWith("/poll")) {
       const job = state.queue.shift() ?? null;
       if (!job) await delay(50, undefined, { signal: init?.signal }).catch(() => {});
@@ -76,13 +76,13 @@ function session() {
 
 /** This computer lending to every saved place the way main wires it: the session's own Clouds, its home folder, and
  * apps and screen while `screen` says so. */
-async function computer(t, { places = [myCloud, clientA, acme], screen = () => false, home, homes = {}, cuaConnection = async () => null, askForScreen, ownHome } = {}) {
+async function computer(t, { places = [myCloud, clientA, acme], screen = () => false, home, homes = {}, cuaConnection = async () => null, askForScreen, ownHome, forwardTraffic } = {}) {
   const dir = await scratch(t);
   const file = path.join(dir, "profile", "computer-sharing.json");
   const signedIn = session();
   const target = createLendingTarget({ account: () => signedIn.account, environments: () => places, ...(ownHome ? { ownHome } : {}) });
   const summaries = [];
-  const dials = [];
+  const dials = [], closedLinks = [], sockets = [];
   const make = () => createComputerSharing({
     file, environments: () => places, enabled: async () => false, home: home ?? path.join(dir, "home"),
     fetch: (url, init) => {
@@ -92,11 +92,17 @@ async function computer(t, { places = [myCloud, clientA, acme], screen = () => f
     },
     cloud: target.cloud, myCloud: target.environment, ownClouds: target.places, screen, cuaConnection, ...(askForScreen ? { askForScreen } : {}),
     hostControl: async () => ({ renew: async () => {}, release: async () => {} }), onChange: summary => summaries.push(summary),
-    WebSocket: class { constructor(url) { dials.push(url); } close() {} send() {} },
+    forwardTraffic,
+    WebSocket: class {
+      sent = [];
+      constructor(url) { this.url = url; dials.push(url); sockets.push(this); }
+      close() { closedLinks.push(this.url); }
+      send(frame) { this.sent.push(frame); }
+    },
   });
   let sharing = make();
   t.after(() => sharing.close());
-  return { dir, file, target, summaries, dials, signedIn, get sharing() { return sharing; }, restart: () => { sharing.close(); sharing = make(); return sharing; } };
+  return { dir, file, target, summaries, dials, closedLinks, sockets, signedIn, get sharing() { return sharing; }, restart: () => { sharing.close(); sharing = make(); return sharing; } };
 }
 
 test("each Cloud of the person's own is lent this computer by itself: the internet connection, their Chrome and the home folder with editing; not the terminal unless turned on", async t => {
@@ -114,6 +120,58 @@ test("each Cloud of the person's own is lent this computer by itself: the intern
   const kept = JSON.parse(await readFile(mac.file, "utf8")).records[myCloud.id];
   assert.deepEqual({ home: kept.folders[0].home, path: kept.folders[0].path, write: kept.folders[0].write }, { home: true, path: home, write: true });
   assert.deepEqual(mac.summaries.at(-1).clouds, ["My Cloud"]);
+});
+
+test("turning traffic off closes the active tunnel and updates the same Cloud grant", async t => {
+  const cloud = cloudHome({ chrome: false });
+  let forward = true;
+  const mac = await computer(t, { places: [myCloud], homes: { [HOME]: cloud }, forwardTraffic: () => forward });
+  mac.sharing.start();
+  await until(() => mac.dials.length === 1, "first tunnel");
+  const original = cloud.connects[0];
+  assert.equal(original.internet, true);
+
+  forward = false;
+  mac.sharing.refreshTraffic();
+  assert.deepEqual(mac.closedLinks, [mac.dials[0]]);
+  await until(() => cloud.connects.length === 2, "traffic revocation");
+  assert.equal(cloud.connects[1].id, original.id);
+  assert.equal(cloud.connects[1].internet, false);
+  assert.equal(mac.dials.length, 1);
+  assert.equal(mac.sharing.cloudState(myCloud).internet, false);
+
+  forward = true;
+  mac.sharing.refreshTraffic();
+  await until(() => mac.dials.length === 2, "restored tunnel");
+  assert.equal(cloud.connects[2].id, original.id);
+  assert.equal(cloud.connects[2].internet, true);
+  assert.deepEqual(cloud.disconnects, []);
+});
+
+test("turning traffic off keeps the shared connection when Chrome is also lent", async t => {
+  const cloud = cloudHome();
+  let forward = true;
+  const mac = await computer(t, { places: [myCloud], homes: { [HOME]: cloud }, forwardTraffic: () => forward });
+  mac.sharing.start();
+  await until(() => mac.dials.length === 1, "the internet and Chrome link");
+  forward = false;
+  mac.sharing.refreshTraffic();
+  await until(() => cloud.connects.length === 2, "the Chrome-only registration");
+  assert.deepEqual(mac.closedLinks, []);
+  assert.equal(mac.dials.length, 1);
+  assert.equal(cloud.connects[1].internet, false);
+  assert.equal(cloud.connects[1].chrome, true);
+
+  let finishConnect;
+  cloud.connectHeld = new Promise(resolve => { finishConnect = resolve; });
+  forward = true;
+  mac.sharing.refreshTraffic();
+  try {
+    await until(() => cloud.connects.length === 3, "unconfirmed internet registration");
+    const socket = mac.sockets[0];
+    socket.onmessage({ data: JSON.stringify({ t: "open", id: 1, host: "site.example", port: 443 }) });
+    await until(() => socket.sent.includes(JSON.stringify({ t: "refused", id: 1, reason: "not-lent" })), "unadvertised stream refusal");
+  } finally { finishConnect(); }
 });
 
 test("a server of the person's own their bots moved to is lent as their Clouds are, only while it is home, says it is theirs alone and is the server the move chose", async t => {

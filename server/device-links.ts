@@ -91,6 +91,7 @@ export class DeviceLinks {
     }
     const chosen = newest;
     return chosen ? { open: async (target) => {
+      if (!chosen.computer.internet) return { gone: true };
       const opened = await chosen.mux.open(target);
       if ("join" in opened && Date.now() - chosen.usedAt >= USED_EVERY_MS) { chosen.usedAt = Date.now(); chosen.computer.used?.(); }
       return opened;
@@ -110,6 +111,16 @@ export class DeviceLinks {
       if ("join" in opened && Date.now() - chosen.usedAt >= USED_EVERY_MS) { chosen.usedAt = Date.now(); chosen.computer.used?.(); }
       return opened;
     } } : null;
+  }
+
+  setInternet(key: string, internet: boolean): void {
+    const link = this.#links.get(key);
+    if (!link) return;
+    link.computer.internet = internet;
+    if (!internet) {
+      if (link.computer.chrome) link.mux.closeInternet();
+      else this.drop(key);
+    }
   }
 
   /** Lending from that computer ended or changed: its link ends with it. */

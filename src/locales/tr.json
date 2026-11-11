@@ -3707,6 +3707,7 @@
   "computer.twoDesktops": "İki masaüstü aç",
   "computer.takeControl": "Kontrolü devral",
   "computer.youHaveWheel": "Kontrol sizde — siz geri verene kadar botun tıklamaları ve tuş vuruşları reddedilir.",
+  "computer.heldByOther": "Başka biri bu paylaşılan bilgisayarı kullanıyor.",
   "computer.inControl": "Kontrol sizde",
   "computer.useOpenDesktop": "Yönetmek için “Canlı masaüstünü aç” seçeneğini kullanın.",
   "computer.simple.useFullScreen": "Yönetmek için “Tam ekran” seçeneğini kullanın.",

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { callTool, type ToolCallContext } from "./drivers/agents-call.ts";
 import { LimitResetClock } from "./limit-resets.ts";
+import { personKey } from "./person-key.ts";
 import { RoutineRequestService, type RoutineRequestMessage, type RoutineRequestOptionCard, type RoutineRequestStore } from "./routine-requests.ts";
 import { RoutineManager } from "./routines.ts";
 import { continueInstructions, createLimitResetRoutes } from "./routes/limit-resets.ts";
@@ -135,10 +136,11 @@ describe("the limit-reset routes", () => {
   function routes(reset: number | null = NOW + 2 * HOUR) {
     const h = harness(reset);
     const created = vi.fn();
+    const creator = personKey({ id: "limit-reset-owner" });
     const handler = createLimitResetRoutes({
       clock: h.clock, now: () => NOW, routines: h.routines, requests: h.service, engineName: (engine) => engine === "claude" ? "Claude" : engine,
       threadTitle: (botId, threadId) => botId === "scout" && threadId === "thread-1" ? "Quarterly report" : null,
-      threadEngine: () => "claude", created,
+      threadEngine: () => "claude", created, approvalCreator: (auth) => auth.kind === "loopback" ? creator : undefined,
     });
     const call = async (method: string, path: string, body?: unknown) => {
       let status = 0, payload: any;
@@ -150,15 +152,17 @@ describe("the limit-reset routes", () => {
       const out = await handler(ctx);
       return out === PASS ? null : { status, body: payload };
     };
-    return { ...h, call, created };
+    return { ...h, call, created, creator };
   }
 
   it("Continue creates a one-time limit-reset automation in that same conversation, told the turn hit the limit", async () => {
-    const { call, routines, store, created } = routes();
+    const { call, routines, store, created, creator } = routes();
     const response = await call("POST", "/api/limit-resets/continue", { botId: "scout", threadId: "thread-1" });
     expect(response!.status).toBe(201);
     const routine = routines.listRoutines()[0]!;
     expect(response!.body.routine.id).toBe(routine.id);
+    expect(response!.body.routine).not.toHaveProperty("approvalCreator");
+    expect(routines.approvalCreator(routine.id)).toBe(creator);
     expect(routine).toMatchObject({
       name: "Continue “Quarterly report”", sourceThreadId: "thread-1", nextRunAt: NOW + 2 * HOUR + 60_000,
       schedule: { type: "limit_reset", engine: "claude", repeat: "once" },

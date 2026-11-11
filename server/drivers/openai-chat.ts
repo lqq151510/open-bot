@@ -19,7 +19,8 @@ import { noteToolBudget } from "../tool-budgets.ts";
 import { chatToolLimitFor, chatToolLimitKey } from "../tool-count-limit.ts";
 import { assertImageTransport, chatImageBudget, chatToolImages, chatUserContent, type ChatContentPart } from "./chat-images.ts";
 import { promptHalves, volatileContextNote, withContextNote } from "./prompt-split.ts";
-import { createChatToolApproval, refusal } from "./chat-tool-approval.ts";
+import { chatSessionGrants, createChatToolApproval, refusal } from "./chat-tool-approval.ts";
+import { firstToolRequiringApproval } from "./tool-rule-approval.ts";
 import { ChatProtocolError, ChatReasoningDetails, ChatToolCalls, object, type ChatToolCall } from "./openai-chat-protocol.ts";
 import { completionError, httpErrorDetail, refusedToolCall, refusedToolCallFailure, rejectsReasoningReplay, rejectsToolsParameter, RejectedToolCallError, UnsupportedChatToolsError, UnsupportedReasoningReplayError, type ProviderBody } from "./openai-chat-refusals.ts";
 import { ChatRepeatGuard } from "./chat-repeat-guard.ts";
@@ -553,17 +554,14 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
       dir, source: options.nativeLog.source,
       msg: JSON.parse(JSON.stringify(msg, (_key, part) => typeof part === "string" ? safeText(part) : part)),
     });
-    const grantsKey = JSON.stringify([turn.threadId, turn.botId ?? null]);
-    const granted = sessionGrants.get(grantsKey) ?? new Set<string>();
-    sessionGrants.delete(grantsKey);
-    sessionGrants.set(grantsKey, granted);
-    if (sessionGrants.size > MAX_DELIVERED_THREADS) sessionGrants.delete(sessionGrants.keys().next().value!);
+    const granted = chatSessionGrants(sessionGrants, turn, MAX_DELIVERED_THREADS);
     const approval = createChatToolApproval({
       signal: abort.signal,
       granted: turn.guestConfined ? undefined : granted,
+      sessionGrantsAllowed: () => !turn.approvalRulesActive?.(),
       open: (ask) => emit({
         ...base(turn.threadId, turnId), type: "request.opened", requestType: "permission",
-        requestId: ask.id, tool: ask.tool, summary: ask.summary, allowSession: ask.grant !== undefined,
+        requestId: ask.id, tool: ask.tool, summary: ask.summary, allowSession: ask.grant !== undefined, alwaysAskRequired: ask.alwaysAskRequired,
       }),
       resolved: (ask, allowed, source) => emit({
         ...base(turn.threadId, turnId), type: "request.resolved", requestId: ask.id,
@@ -836,8 +834,10 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
                 // This runtime has no provider reviewer, so Full access is honoured here.
                 const full = (turn.approvalModeNow?.() ?? turn.approvalMode) === "full";
                 const floored = approval.floored({ full, threadId: turn.threadId, botId: turn.botId, shown, summary: shownPreview });
-                const allowed = !floored && (full || !shown.ask
-                  || await approval.ask(shown.title, shownPreview ?? "This tool has no arguments.", shown.grant));
+                const held = floored ? undefined : await firstToolRequiringApproval(turn, { tool: shown.title }, shown.approvalAlias);
+                abort.signal.throwIfAborted();
+                const allowed = !floored && ((!held && (full || !shown.ask))
+                  || await approval.ask(held ?? shown.title, shownPreview ?? "This tool has no arguments.", shown.grant, Boolean(held)));
                 abort.signal.throwIfAborted();
                 emit({ ...base(turn.threadId, turnId), type: "item.started", itemType: "tool", itemId: call.id,
                   title: shown.title, ...(shownPreview ? { input: shownPreview } : {}),

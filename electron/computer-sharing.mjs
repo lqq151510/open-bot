@@ -224,7 +224,9 @@ const BROWSE_NOTE_MS = 10 * 60_000;
  * running commands once the person confirms it here. */
 export function createComputerSharing({ file, fetch: fetchImpl, environments, localEnvironments = () => [], cuaConnection, hostControl, screenLocked = () => false, idleSeconds = () => null, protectedPaths = [], enabled = async () => false, home = os.homedir(), activityFile, cloud = () => null, onChange = () => {}, reconnect = null, now = Date.now, power = createCloudPowerGate(),
   linkHeaders = () => ({}), WebSocket: linkSocket = globalThis.WebSocket, egress = {}, chrome = {}, myCloud = () => null, ownClouds = () => [], screen = () => false, askForScreen = () => {}, cloudPower = () => null,
-  prompt = async () => null, startScreen = async () => null, confirmTerminal = async () => false, log = () => {}, t = nativeText.englishText.t }) {
+  prompt = async () => null, startScreen = async () => null, confirmTerminal = async () => false, log = () => {}, t = nativeText.englishText.t,
+  deviceExecution = () => "always", forwardTraffic = () => true, confirmDeviceOperation = async () => false }) {
+  const canRelay = grant => forwardTraffic() && lendsInternet(grant);
   const protectedRoots = [path.dirname(file), ...protectedPaths.filter(entry => typeof entry === "string" && entry), ...personalSecretPaths(home)];
   const activity = createLendingActivity(activityFile ?? path.join(path.dirname(file), "lending-activity.jsonl"));
   const presence = createLentScreenPresence({ idleSeconds, now });
@@ -419,7 +421,7 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
   const supportsEdits = new Set();
   /** My Cloud's browsers reach the web through this computer while lending runs; never while My Cloud sleeps, so a
    * sleeping Cloud is never dialled. */
-  const keepLink = async (env, grant, signal) => {
+  const keepLink = async (env, grant, signal, canOpenInternet, onInternetGate) => {
     for (let failures = 0; !signal.aborted;) {
       if (sleepsHere(env) && sleepGate(env).asleep()) {
         await sleepGate(env).wait(signal);
@@ -427,9 +429,10 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
       }
       let opened = false;
       const signIn = await Promise.resolve().then(() => linkHeaders(env)).catch(() => ({}));
+      if (signal.aborted) return;
       const ended = await runDeviceLink({
-        url: linkUrl(env.origin, linkPath(grant.id)), signal, WebSocket: linkSocket, egress, traffic: traffic(env.id), onStream: browsed(env), chrome,
-        lends: () => ({ internet: lendsInternet(grant), chrome: grant.chrome === true && supportsChrome.has(env.id) }),
+        url: linkUrl(env.origin, linkPath(grant.id)), signal, WebSocket: linkSocket, egress, traffic: traffic(env.id), onStream: browsed(env), chrome, onInternetGate,
+        lends: () => ({ internet: canOpenInternet(), chrome: grant.chrome === true && supportsChrome.has(env.id) }),
         headers: { ...signIn, origin: env.origin, ...BACKGROUND_HEADERS, "x-omb-computer-secret": grant.secret },
         onOpen: () => { opened = true; failures = 0; linked.add(env.id); changed(); },
       });
@@ -449,7 +452,8 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
   const run = (env, grant) => {
     stop(env.id);
     if (closed || !grant.enabled || (grant.cloud || grant.own ? paused : maintainerOff)) return;
-    const live = { abort: new AbortController(), cua: null, mcp: null };
+    const live = { abort: new AbortController(), cua: null, mcp: null, linkAbort: null, closeInternet: null, internet: false, refreshTraffic: null };
+    let registering = Promise.resolve(), linkGeneration = 0;
     running.set(env.id, live);
     const signal = live.abort.signal;
     const call = (action, body = {}, held = signal) => request(env, `/api/shared-computers/${grant.id}/${action}`, body, held, grant.secret);
@@ -484,24 +488,53 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
           const present = new Set((await existingFolders(grant.folders, validateSharedFolders)).map(folder => folder.id));
           const folders = grant.folders.filter(folder => present.has(folder.id));
           const effectiveGrant = { ...grant, folders, protectedPaths: protectedRoots };
-          await gate();
-          awake();
-          await request(env, "/api/shared-computers/connect", {
+          const registration = {
             id: grant.id, name: os.hostname().slice(0, 120), environmentId: grant.environmentId,
             folders: folders.map(({ id, name, write }) => ({ id, name, write })), terminal: grant.terminal, computer: grant.computer,
             // So My Cloud's bots say "your PC" on Windows and "your Mac" only on a Mac; only a server that takes it gets it.
             ...(supportsDetails.has(env.id) && LENT_PLATFORMS.has(process.platform) ? { platform: process.platform } : {}),
-            ...(grant.cloud && supportsLink.has(env.id) ? { internet: lendsInternet(grant) } : {}),
             ...(grant.cloud && supportsChrome.has(env.id) ? { chrome: grant.chrome === true } : {}),
             ...(supportsTimeouts.has(env.id) ? { commandTimeouts: true } : {}),
             ...(supportsLong.has(env.id) ? { longCommands: true } : {}),
             ...(supportsEdits.has(env.id) ? { fileEdits: true } : {}),
             ...((grant.cloud || grant.own) && supportsMcp.has(env.id) ? lendsMcp(localEnvironments()) : {}),
-          }, signal, grant.secret);
+          };
+          const refreshLink = () => {
+            const generation = ++linkGeneration;
+            const supportsDeviceLink = supportsLink.has(env.id);
+            if (!supportsDeviceLink || !canRelay(grant)) {
+              live.internet = false;
+              if (supportsDeviceLink && registration.chrome) live.closeInternet?.();
+              else {
+                live.linkAbort?.abort();
+                live.linkAbort = null;
+              }
+            }
+            registering = registering.catch(() => {}).then(async () => {
+              signal.throwIfAborted();
+              await gate();
+              awake();
+              const internet = canRelay(grant);
+              await request(env, "/api/shared-computers/connect", {
+                ...registration,
+                ...(grant.cloud && supportsLink.has(env.id) ? { internet } : {}),
+              }, signal, grant.secret);
+              if (signal.aborted || generation !== linkGeneration) return;
+              live.internet = internet;
+              if (live.linkAbort || !supportsLink.has(env.id) || !(internet || registration.chrome)) return;
+              live.linkAbort = new AbortController();
+              const link = live.linkAbort;
+              void keepLink(env, grant, AbortSignal.any([signal, link.signal]), () => live.internet && canRelay(grant), close => {
+                if (live.linkAbort === link) live.closeInternet = close;
+              }).catch(() => {});
+            });
+            return registering;
+          };
+          live.refreshTraffic = grant.cloud && supportsLink.has(env.id) ? refreshLink : null;
+          await refreshLink();
           if (signal.aborted) break;
           status.set(env.id, { connected: true });
           changed();
-          if (supportsLink.has(env.id) && (lendsInternet(grant) || (grant.cloud && grant.chrome === true && supportsChrome.has(env.id)))) live.link ??= keepLink(env, grant, signal).catch(() => {});
           while (!signal.aborted) {
             await gate();
             awake();
@@ -532,9 +565,19 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
               finally { leasing = false; renewal = null; }
             };
             const heartbeat = setInterval(() => void lease(), 1000);
-            let result;
+            let result, approved = false;
+            const needsApproval = () => !approved && deviceExecution() === "ask" && job.operation.action !== "computer_tools";
+            const approve = async () => {
+              const detail = describeSharedOperation(grant, job.operation);
+              const action = detail ? `${job.operation.action} · ${detail}` : job.operation.action;
+              approved = await confirmDeviceOperation(env, action, jobSignal);
+              jobSignal.throwIfAborted();
+              if (!approved) throw new Error("This computer request was not approved.");
+            };
             try {
               await lease(); jobSignal.throwIfAborted();
+              if (deviceExecution() === "never") throw new Error("This computer's execution setting blocks this request.");
+              if (needsApproval()) await approve();
               // Listing the tools never touches the screen, so only a call takes this computer's screen lock.
               if (grant.computer && job.operation.action === "computer_call") {
                 if (screenLocked()) throw new Error(SCREEN_LOCKED);
@@ -544,6 +587,8 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
                 control = await hostControl(job.id, jobSignal);
                 jobSignal.throwIfAborted();
               }
+              if (needsApproval()) await approve();
+              if (deviceExecution() === "never") throw new Error("This computer's execution setting blocks this request.");
               result = await executeSharedOperation(effectiveGrant, job.operation, jobSignal, async () => {
                 if (!live.cua) {
                   const connection = await cuaConnection();
@@ -598,9 +643,9 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
   };
   /** Lent and connected, it says whether its internet connection is in use yet: "on", "connecting", or "unsupported" by
    * a Cloud too old for the device link. */
-  const internetState = (env, lent) => lendsInternet(lent) && lent.enabled === true && status.get(env.id)?.connected
+  const internetState = (env, lent) => canRelay(lent) && lent.enabled === true && status.get(env.id)?.connected
     ? { internet: true, link: !supportsLink.has(env.id) ? "unsupported" : linked.has(env.id) ? "on" : "connecting" }
-    : { internet: lendsInternet(lent) };
+    : { internet: canRelay(lent) };
   /** The same for the person's Chrome: "on", "connecting", or "unsupported" by a Cloud that does not take it. */
   const chromeState = (env, lent) => lent?.cloud && lent.chrome === true && lent.enabled === true && status.get(env.id)?.connected
     ? { chrome: true, chromeLink: !supportsChrome.has(env.id) ? "unsupported" : linked.has(env.id) ? "on" : "connecting" }
@@ -890,6 +935,10 @@ export function createComputerSharing({ file, fetch: fetchImpl, environments, lo
       return lendAutomatically();
     },
     /** Computer control started or stopped: apps and screen follow. */
+    refreshTraffic() {
+      for (const live of running.values()) void live.refreshTraffic?.().catch(() => {});
+      changed();
+    },
     screenChanged: () => readScreen().then(() => { wakeAsking(); return lendAutomatically(); }),
     revoke(env) {
       changeGrant(env.id);

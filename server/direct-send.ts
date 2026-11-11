@@ -1,6 +1,6 @@
 // What a one-to-one send carries into acceptDirectSend (server/index.ts), and the receipt it answers with.
 import type { FollowUp } from "../shared/follow-up.ts";
-import type { ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
+import type { EffortLevel, ResolvedSender, SteerQueueReason } from "../shared/wire.ts";
 import type { DataContext } from "./data-context.ts";
 import type { Message } from "./store.ts";
 import type { UsageTrigger } from "./usage-ledger.ts";
@@ -22,6 +22,7 @@ export interface DirectSendInput {
   followUp?: FollowUp;
   /** Bot ids the person picked from the @ list. */
   mentions?: string[];
+  effort?: EffortLevel;
 }
 
 export type DirectSendReceipt =

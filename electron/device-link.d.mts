@@ -14,6 +14,7 @@ export declare function runDeviceLink(options: {
   lends?: () => { internet: boolean; chrome: boolean };
   chrome?: NonNullable<Parameters<typeof createChromeDoor>[0]> | ChromeDoor;
   onOpen?: () => void;
+  onInternetGate?: (close: (() => void) | null) => void;
   onStream?: (target: { host: string; port: number } | { chrome: true }, result: { socket?: import("node:stream").Duplex; refused?: string; failed?: string }) => void;
   traffic?: () => void;
   now?: () => number;

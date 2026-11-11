@@ -4,8 +4,8 @@
 > 过程中，参考图与原版产品面一致、但当前工程尚未具备的能力。只记差异，不改实现。
 >
 > 记录日期：2026-11-10 · 分支 cursor/vault-logins · HEAD `01f4c19` · craft.json status=building / builder=Antigravity
-> 证据基准：`reference/picture-7.png`（原版「保险库」页，2304x1744）；`capture/README.md` 说明
-> `/Applications/Grok Bot.app` 只是文件夹、无可执行体可反编译，故 13 张参考图是产品面的唯一证据。
+> 保险库视觉证据来自 `reference/picture-7.png`（2304x1744）。`capture/README.md` 记录的是当时的目标状态。
+> 2026-11-11 复核，本机 `/Applications/Grok Bot.app` 为 0.79.4，包含 Electron 应用归档 `Contents/Resources/app.asar`。以下更新行为另有归档中的静态证据。
 
 ---
 
@@ -44,17 +44,17 @@
 
 ### 代码证据（路径:行号均可直接 grep）
 
-**UI 壳 — `src/components/SettingsSimplePages.tsx`**
-- `:489` `export function SimpleVaultPage({ onReady }: { onReady?: (open: () => void) => void } = {})`
-- `:490` `const [tab, setTab] = useState<"all" | "logins" | "payments" | "contacts">("all");`
-- `:494-497` `openLoginForm` 只把 tab 收敛到 `"logins"` 并 `setOpenAdd`（递增打开表单）。
-- `:503` `const showLogins = tab === "all" || tab === "logins";`
-- `:504` `const contactBox = tab === "payments" || tab === "contacts";`
-- `:513` `{t("settings.vault.tabAll")} {loginCount}`；`:516` `{t("settings.vault.tabLogins")} {loginCount}`（真实计数）。
-- `:519` `{t("settings.vault.tabPayments")} 0`；`:522` `{t("settings.vault.tabContacts")} 0`（**硬编码 0**）。
-- `:537-543` `contactBox && (... 没有匹配的项目 ...)` —— 支付/联系信息两栏共用的写死空态；文案未走 i18n。
-- `:545` `{showLogins && <LoginsSettings query={search} onListed={setLoginCount} openAdd={openAdd} />}` —— 唯一真实数据组件。
-- `:547-549` `{t("settings.vault.privacyNote")}`。
+**UI 壳 — `src/components/SettingsSimplePages.tsx`**（2026-11-11 按当前文件重对行号；支付/联系信息行为没变）
+- `:466` `export function SimpleVaultPage({ onReady }: { onReady?: (open: () => void) => void } = {})`
+- `:467` `const [tab, setTab] = useState<"all" | "logins" | "payments" | "contacts">("all");`
+- `:471` `openLoginForm` 只把 tab 收敛到 `"logins"` 并 `setOpenAdd`（递增打开表单）。
+- `:480` `const showLogins = tab === "all" || tab === "logins";`
+- `:481` `const contactBox = tab === "payments" || tab === "contacts";`
+- `:490` `{t("settings.vault.tabAll")} {loginCount}`；`:493` `{t("settings.vault.tabLogins")} {loginCount}`（真实计数）。
+- `:496` `{t("settings.vault.tabPayments")} 0`；`:499` `{t("settings.vault.tabContacts")} 0`（**硬编码 0**）。
+- `:514-519` `contactBox && (... 没有匹配的项目 ...)` —— 支付/联系信息两栏共用的写死空态；文案未走 i18n。
+- `:522` `{showLogins && <LoginsSettings query={search} onListed={setLoginCount} openAdd={openAdd} />}` —— 唯一真实数据组件。
+- `:524-526` `{t("settings.vault.privacyNote")}`。
 
 **入口与按钮 — `src/components/SettingsModal.tsx`**
 - `:128` `{ id: "vault", labelKey: "settings.simple.page.vault", icon: Archive, sections: ["logins"], keywords: ["logins", "passwords", "vault", "sign in"] }` —— 保险库页的 section 只有 `logins`。
@@ -102,7 +102,7 @@
 
 ### 状态与复验
 
-- 状态：**已记录，未改任何实现代码**（A 方案，用户在上一轮回复「A」确认）。`git diff --stat` 为空（tracked files 全部干净），本次仅新增本文件。
+- 状态：**仍不做**（A 方案）。2026-11-11 只重对了上面的行号；支付/联系信息的数据和按钮都没接。
 - 复验命令：
   `grep -n "tabPayments\|tabContacts\|contactBox\|没有匹配的项目" src/components/SettingsSimplePages.tsx`
   `grep -rn "LoginSource" shared/logins.ts`
@@ -110,3 +110,63 @@
   `git log -3 --oneline`
 - 视觉复核：`reference/picture-7.png`（同源副本 `attachments/picture-7.png`）。
 - craft.json 仍为 `status: "building"`、`note: "The builder checked its work: 1 of 2 checks pass."`；feed.json 32 项，末两条仍为同一句检查结论。
+
+---
+
+## 2026-11-11 · picture-1 到 picture-13
+
+只记还能对上的产品行为。外形、间距、参考图里的示例文案不单列。创建 Bot、⌘K 搜索、通用页的账户/主题/语言、资料侧栏的头像生成与上传、资料库，当前都已有对应实现（`CommandPalette.tsx`、`ProfileSettings.tsx`、`src/components/bot-panel/AvatarEditorCard.tsx`、`LibraryTab.tsx`），这里不展开。
+
+### picture-1 · 「你会什么」
+
+参考图：简单模式聊天顶栏右侧深色胶囊，点开后是一段能力说明。
+
+这次已接上。`src/components/ChatView.tsx:1099` 在简单模式顶栏渲染 `WhatICanDo`。面板用这个 bot 自己的 `description`、默认助手已有的 `helperIntro.lead.*` / `HELPER_ASK_KEYS`，以及当前引擎的 `displayName`（`src/components/WhatICanDo.tsx:38-71`）。没有 description、也不是默认助手、也没有引擎名时，显示 `chat.canDo.empty`。参考图里那组固定条目（查资料、写文案、写代码）没有数据源，没有写进面板。
+
+### picture-5 · 电脑页
+
+参考图：「在这台电脑上执行」「经此电脑转发流量」，以及「管理设备」里的本机和两台 Android；下面还有一条「你的电脑已是最新版本」。
+
+管理设备这次已改。`ManagedDevicesList`（`src/components/SettingsSimplePages.tsx:189-228`）读 `/.well-known/openbot/environment` 的 `label`。这个 label 在 `server/environment.ts:167` 默认是 `hostname()`。读到名称就标在线；读不到就空态。`MacBook-Pro-3728.local`、`V2606A`、`V2606A (2)` 已从渲染里去掉。已配对的手机仍在 `PhoneDevicesSection`（`:294`）和 `/api/phones`（`src/lib/phones.ts:82`），没有再复制进这一列。
+
+Grok Bot 0.79.4 的 `dist/renderer/assets/chunk-view-w0HcLB2t.js` 根据 `boxUpdateVerdict`、是否具备更新条件和工作中的 Bot 数量显示镜像状态。OpenBot 的 `GET /api/computers/image-updates` 根据已管理的本地 VM 和 VPS 的镜像身份及占用情况返回结果。Boat 实例通过 `noEnv` 创建，缺少可比较的环境版本，显示待确认。现有本地 VM 更新入口由 `LocalComputerSection` 提供。
+
+原版在桌面端分别保存本机执行权限和网络转发偏好，默认询问且转发关闭。OpenBot 的执行设置在本机屏幕操作和已授权的共享设备请求上生效。默认沿用现有授权，也可选择逐次询问或禁止执行。转发开关只控制已获授权的个人云工作区经本机转发浏览器流量，默认沿用已有网络授权。关闭时切断转发。支持按流关闭的 Cloud 连接保留同时打开的 Chrome 会话，较旧版本可能短暂重连。
+
+### picture-6 · 权限
+
+参考图：自动审核开关；「始终询问」和「无需询问直接允许」各有「添加规则」。
+
+自动审核开关和每个 Bot 的下拉写入其 `approvalMode`。
+
+「无需询问直接允许」这次接到已有的命令允许名单。管理员且至少有一个 bot 时，按钮打开 `CommandAllowlistDialog`（`:406-409`、`:460`）；多个 bot 时先选 bot。名单的增删仍走 `/api/bots/:id/command-allowlist`。空名单用对话框里已有的 `commandAllowlist.empty`。
+
+原版 `dist/renderer/assets/chunk-view-B5xsgGUn.js` 分别读取个人文本和团队规则。团队管理员管理团队规则，个人规则叠加在团队规则上。「始终询问」优先于直接允许。
+
+OpenBot 在权限页展示「我的规则」和「团队规则」。成员只可读写自己的个人规则，管理员可修改团队规则。旧版工作区规则继续作为团队规则。定时任务、日历任务、应用事件、Webhook、等待任务和 Bot 转交使用可确认的原始发起人或任务创建者。历史任务或其他没有可验证来源的任务只使用团队规则。精确匹配使用 `tool:` 或 `command:`。文本规则让已配置的决策模型仅凭工具名判断能否排除匹配，无法确定时交给人审核。
+
+| 执行入口 | 审批覆盖 |
+| --- | --- |
+| Claude Code | 受规则约束的会话显式要求原生内置工具和已挂载的 MCP 工具先询问，再由 OpenBot 判断是否命中。 |
+| Codex | 受规则约束的线程和回合使用 `untrusted` 原生用户审批策略，已知 MCP 挂载配置为询问。Codex CLI 0.167.0 的隔离实测表明，原生 `apply_patch` 会先请求审批，拒绝后文件不变；其显式命令允许规则可以使命令无审批执行。没有经过原生补丁工具或审批回调的文件修改仍取决于引擎执行方式。 |
+| OpenAI Chat 兼容引擎、Pi | OpenBot 执行的工具在调用前检查规则，包括之前可以直接使用的内置工具。Pi 通过原生工具钩子检查本地工具。 |
+| ACP（包括 Grok CLI） | 受规则约束时以询问模式运行，处理引擎发来的权限请求。Antigravity 通过 ACP 委托给 OpenBot 的文件读写也在执行前检查规则。 |
+| 连接应用和会议 | 连接应用工具（含批量请求中的子工具）和会议聊天在实际执行前检查规则。已有发送许可仍不能跳过命中的规则。连接应用的不透明执行在有适用规则时也先确认，因为无法核对其中的工具。 |
+
+各引擎私下执行且未通过上述原生钩子或 OpenBot 代理的操作，仍取决于供应商的权限机制。Muse Code 等引擎按其公开的权限事件进入现有审批链路。
+
+### picture-8 · 更新
+
+参考图：自动更新开关，以及当前版本和「检查更新」。
+
+Grok Bot 0.79.4 的 `dist/electron-main/main-core.cjs` 保存 `autoUpdateWhenIdle`，默认开启。`dist/electron-main/main-app.cjs` 的 `applyWhenIdle` 读这个偏好，在空闲时安装已准备好的版本。定期检查走独立流程。
+
+OpenBot 的简洁和高级设置共用 `UpdatesRow`，读取并保存同一个桌面偏好。开启后，已准备好的更新可以通过现有空闲判断自动安装。通话或移机状态无法确认时，自动安装会延后。关闭时仍定期检查和下载，用户可以手动安装。OpenBot 延续 `1807289` 的安装确认行为，默认关闭空闲自动安装。支持此功能的桌面构建才显示开关，网页端仍通过 `ServerUpdatesRow` 检查服务端版本。
+
+### picture-13 · 用量与账单
+
+参考图：91% 已用、剩余 $3.75、购买额度、自动充值、当前计划 Premium。
+
+假数字这次已从页面拿掉。有 Cloud 用量时用 `CloudUsageSummaryView`（`src/components/SettingsSimplePages.tsx:289`）；未登录或没有用量时是 `data-billing-empty`（`:291-293`），文案是已有的 `settings.simple.billing.ownAi` 和 `usageMeter.empty`。没有新的购买、充值或收款。账号未退出时，原来的 Cloud 账户区块还在（`:303-307`），里面的「管理」仍是已有的 `bridge.manage()`。`settings.billing.usedPercent` 等带 91%、$3.75、Premium 的词条已从 `en.json` / `zh.json` 删除。
+
+各引擎自己的用量表仍是 `PlanUsageSummary`，只在没有 Cloud 用量、且当前是管理员时出现（`:296`）。没有把额度收成一份 Grok 账单。

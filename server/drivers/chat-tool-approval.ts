@@ -1,12 +1,12 @@
 // Per-turn ask gate. Register before publishing: a harness listener may answer synchronously.
-import { newId, type RequestOutcome } from "../contracts.ts";
+import { newId, type RequestOutcome, type SendTurnInput } from "../contracts.ts";
 import { floorBlockForToolCall, type FloorBlock } from "../safety-floor-gate.ts";
 import type { AskQuestion } from "../../shared/ask-question.ts";
 import type { ChatToolCallView } from "./chat-mcp-tools.ts";
 import { REFUSED_NEXT_STEP } from "../reply-habits.ts";
 
 /** `grant`: what "Always allow this session" would keep allowed; absent when the card can only allow once. */
-interface Ask { id: string; tool: string; summary: string; grant?: string }
+interface Ask { id: string; tool: string; summary: string; grant?: string; alwaysAskRequired?: true }
 type Source = "user" | "timeout" | "system";
 
 interface Card {
@@ -23,6 +23,19 @@ export function refusal(block: FloorBlock | null, notice: (line: string) => void
   return block.reason;
 }
 
+export function chatSessionGrants(
+  cache: Map<string, Set<string>>,
+  turn: Pick<SendTurnInput, "threadId" | "botId">,
+  capacity: number,
+): Set<string> {
+  const key = JSON.stringify([turn.threadId, turn.botId ?? null]);
+  const granted = cache.get(key) ?? new Set<string>();
+  cache.delete(key);
+  cache.set(key, granted);
+  if (cache.size > capacity) cache.delete(cache.keys().next().value!);
+  return granted;
+}
+
 export function createChatToolApproval(options: {
   signal: AbortSignal;
   open(ask: Ask): void;
@@ -31,12 +44,14 @@ export function createChatToolApproval(options: {
   resolvedQuestion(ask: Ask, answered: boolean, source: Source): void;
   /** The conversation's session grants: an ask they cover is allowed without a card. */
   granted?: Set<string>;
+  sessionGrantsAllowed?: () => boolean;
   timeoutMs?: number;
 }) {
   const pending = new Map<string, Card>();
   let closed = false;
   /** Whether a kept "Always allow this session" answers this ask with no card. */
-  const covered = (grant?: string): boolean => grant !== undefined && options.granted?.has(grant) === true;
+  const sessionGrantsAllowed = () => options.sessionGrantsAllowed?.() !== false;
+  const covered = (grant?: string): boolean => sessionGrantsAllowed() && grant !== undefined && options.granted?.has(grant) === true;
   return {
     covered,
     /** The floor's block, already logged, for a call this gate would answer itself (Full access or a kept session
@@ -45,10 +60,12 @@ export function createChatToolApproval(options: {
       if (!call.shown.ask || !(call.full || covered(call.shown.grant))) return null;
       return floorBlockForToolCall({ threadId: call.threadId, botId: call.botId, tool: call.shown.title, summary: call.summary, input: call.shown.input });
     },
-    ask(tool: string, summary: string, grant?: string): Promise<boolean> {
+    ask(tool: string, summary: string, grant?: string, alwaysAskRequired = false): Promise<boolean> {
       if (closed || options.signal.aborted) return Promise.resolve(false);
-      if (covered(grant)) return Promise.resolve(true);
-      const ask: Ask = { id: newId(), tool, summary, ...(grant !== undefined && options.granted ? { grant } : {}) };
+      if (!alwaysAskRequired && covered(grant)) return Promise.resolve(true);
+      const ask: Ask = { id: newId(), tool, summary,
+        ...(alwaysAskRequired ? { alwaysAskRequired: true } : grant !== undefined && options.granted && sessionGrantsAllowed() ? { grant } : {}),
+      };
       return new Promise((resolve) => {
         let timer: ReturnType<typeof setTimeout>;
         const card: Card = {
@@ -59,7 +76,7 @@ export function createChatToolApproval(options: {
             clearTimeout(timer);
             options.signal.removeEventListener("abort", abort);
             const allowed = decision?.allowed === true;
-            if (allowed && decision?.always && ask.grant !== undefined) options.granted?.add(ask.grant);
+            if (allowed && decision?.always && ask.grant !== undefined && sessionGrantsAllowed()) options.granted?.add(ask.grant);
             options.resolved(ask, allowed, source);
             resolve(allowed);
           },

@@ -78,6 +78,44 @@ test("a write that fails leaves the last whole record on disk, analytics opt-out
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("device access keeps its defaults and only applies valid saved choices", () => {
+  let saved = null, refuseWrite = false;
+  const storage = { read: () => saved, write: value => {
+    if (refuseWrite) throw new Error("read-only disk");
+    saved = structuredClone(value);
+  } };
+  const prefs = createDesktopPrefs(storage);
+  assert.deepEqual(prefs.deviceAccess(), { execution: "always", forwardTraffic: true });
+  assert.deepEqual(prefs.setDeviceAccess({ execution: "ask" }), { execution: "ask", forwardTraffic: true });
+  assert.deepEqual(prefs.setDeviceAccess({ forwardTraffic: false }), { execution: "ask", forwardTraffic: false });
+  assert.deepEqual(createDesktopPrefs(storage).deviceAccess(), { execution: "ask", forwardTraffic: false });
+  for (const patch of [{ execution: "unknown" }, { forwardTraffic: 0 }, { other: true }, null]) {
+    assert.throws(() => prefs.setDeviceAccess(patch), /Invalid device access/);
+  }
+  refuseWrite = true;
+  assert.throws(() => prefs.setDeviceAccess({ execution: "never" }), /read-only disk/);
+  assert.deepEqual(prefs.deviceAccess(), { execution: "ask", forwardTraffic: false });
+});
+
+test("automatic installation is opt-in and changes only when it can be saved", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "desktop-auto-update-"));
+  try {
+    const file = path.join(dir, "desktop-prefs.json");
+    const storage = jsonFile(file);
+    const prefs = createDesktopPrefs(storage);
+    assert.equal(prefs.autoUpdateWhenIdle(), false);
+    prefs.setAutoUpdateWhenIdle(true);
+    assert.equal(createDesktopPrefs(storage).autoUpdateWhenIdle(), true);
+    const readOnly = createDesktopPrefs({ ...storage, write: () => { throw new Error("read-only"); } });
+    assert.throws(() => readOnly.setAutoUpdateWhenIdle(false), /read-only/);
+    assert.equal(readOnly.autoUpdateWhenIdle(), true);
+    prefs.setAutoUpdateWhenIdle(false);
+    assert.equal(createDesktopPrefs(storage).autoUpdateWhenIdle(), false);
+    storage.write({ autoUpdateWhenIdle: "true" });
+    assert.equal(createDesktopPrefs(storage).autoUpdateWhenIdle(), false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 const WELCOMED = { onboarding: { completedAt: "2026-10-01T09:00:00.000Z", version: WELCOME_VERSION, hintsSeen: [] } };
 function desktopMain({ offered = true, page = event => event.page, config = () => WELCOMED, record = null } = {}) {
   const handlers = new Map(), listeners = new Map(), calls = [], told = [], languages = [];
@@ -270,6 +308,18 @@ test("the preload gives every page of the window the notices and the switch's st
   assert.equal(preload(LOCAL, { saved: "off" }).bridge.desktopAnalytics.enabled(), null);
   const safe = PRELOAD.match(/const REMOTE_SAFE = new Set\(\[([^\]]*)\]\)/)[1];
   assert.ok(safe.includes('"desktopNotices"')); assert.ok(safe.includes('"desktopAnalytics"'));
+});
+
+test("device controls are exposed to this computer's renderer and hidden from remote pages", async () => {
+  for (const origin of [CLOUD, VPS]) assert.equal(preload(origin, { activation: true }).bridge.deviceAccess, undefined);
+  const local = preload(LOCAL);
+  await local.bridge.deviceAccess.state();
+  await local.bridge.deviceAccess.set({ execution: "ask" });
+  assert.deepEqual(local.invoked, [["device-access:state"], ["device-access:set", { execution: "ask" }]]);
+  const main = readFileSync(new URL("./main.mjs", import.meta.url), "utf8");
+  for (const channel of ["state", "set"]) {
+    assert.ok(main.includes(`ipcMain.handle("device-access:${channel}", localWorkspaceOnly("device-access:${channel}"`));
+  }
 });
 
 test("the preload gives every page of the window the app language this computer keeps", async () => {

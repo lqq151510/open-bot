@@ -101,6 +101,7 @@ async function lendingFixture(t, options = {}) {
     file: path.join(dir, "profile", "computer-sharing.json"), fetch: home.fetch, environments: () => [options.env ?? env],
     ...(options.reconnect ? { reconnect: options.reconnect } : {}), ...(options.now ? { now: options.now } : {}), ...(options.ownClouds ? { ownClouds: options.ownClouds } : {}),
     ...(options.t ? { t: options.t } : {}),
+    deviceExecution: options.deviceExecution, confirmDeviceOperation: options.confirmDeviceOperation,
     // The maintainer flag is off, as for every Cloud Pro user.
     enabled: async () => { maintainerChecks++; return false; },
     cloud: asked => (typeof cloud === "function" ? cloud(asked) : cloud), home: path.join(dir, "home"),
@@ -142,10 +143,60 @@ test("lends to the person's own Cloud with the maintainer flag off; no terminal 
   assert.deepEqual(sharing.activity(env.id).map(entry => [entry.action, entry.ok]), [["run_command", false], ["read_file", true]]);
 });
 
+test("the device execution policy asks for each lent request, blocks when set to never, and preserves the grant", async t => {
+  let execution = "ask";
+  const choices = [false, true], approvals = [];
+  const { folderPath, home, sharing } = await lendingFixture(t, {
+    deviceExecution: () => execution,
+    confirmDeviceOperation: async (target, detail) => { approvals.push({ target, detail }); return choices.shift(); },
+  });
+  await sharing.saveCloud(env, { folders: [{ id: randomUUID(), path: folderPath, write: false }] });
+  await connected(sharing, 1, home);
+  const operation = { action: "read_file", folder_id: home.connects[0].folders[0].id, path: "plan.md" };
+
+  home.push(operation);
+  await until(() => home.results.length === 1, "a denied approval");
+  assert.equal(home.results[0].isError, true);
+  assert.match(home.results[0].content[0].text, /not approved/);
+  home.push(operation);
+  await until(() => home.results.length === 2, "an approved read");
+  assert.match(home.results[1].content[0].text, /from the Mac/);
+  assert.equal(approvals.length, 2);
+
+  execution = "never";
+  home.push(operation);
+  await until(() => home.results.length === 3, "device execution disabled");
+  assert.match(home.results[2].content[0].text, /execution setting blocks/);
+  assert.equal(approvals.length, 2);
+  assert.equal(home.connects.length, 1);
+});
+
+test("a stricter device choice made during screen acquisition applies before the operation", async t => {
+  let execution = "always", waiting = false, proceed, approvals = 0;
+  const seat = new Promise(resolve => { proceed = resolve; });
+  t.after(() => proceed());
+  const { home, sharing, driver } = await lendingFixture(t, {
+    deviceExecution: () => execution,
+    confirmDeviceOperation: async () => { approvals++; return false; },
+    hostControl: async () => { waiting = true; await seat; return { renew: async () => {}, release: async () => {} }; },
+  });
+  await sharing.saveCloud(env, { folders: [], screen: true });
+  await connected(sharing, 1, home);
+  home.push({ action: "computer_call", tool_name: "list_windows", arguments: {} });
+  await until(() => waiting, "the pending host lock");
+  execution = "ask";
+  proceed();
+  await until(() => home.results.length === 1, "device approval result");
+  assert.equal(approvals, 1);
+  assert.match(home.results[0].content[0].text, /not approved/);
+  assert.equal(await readFile(driver.calls, "utf8").catch(() => ""), "");
+});
+
 test("the terminal is lent only when asked for with exactly true: the bots can then run commands here, it is listed in Activity, and it does not outlive the switch", async t => {
   const { folderPath, home, sharing } = await lendingFixture(t);
   const folders = [{ id: randomUUID(), path: folderPath, write: false }];
   assert.equal((await sharing.saveCloud(env, { folders, screen: false, terminal: "true" })).terminal, false, "only a real true counts");
+  await connected(sharing, 1, home);
   const lent = await sharing.saveCloud(env, { folders, screen: false, terminal: true });
   assert.equal(lent.terminal, true);
   await connected(sharing, 2, home);

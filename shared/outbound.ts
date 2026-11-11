@@ -141,6 +141,9 @@ export function connectorCallsIn(name: string, args: unknown): ConnectorCall[] {
       if (!isRecord(item)) return [{ slug: "COMPOSIO_PROXY_EXECUTE", arguments: args }];
       const slug = [item.tool_slug, item.slug, item.name, item.tool].find((value) => typeof value === "string" && value);
       if (typeof slug !== "string") return [{ slug: "COMPOSIO_PROXY_EXECUTE", arguments: args }];
+      if (["COMPOSIO_REMOTE_WORKBENCH", "COMPOSIO_REMOTE_BASH_TOOL", "COMPOSIO_MULTI_EXECUTE_TOOL"].includes(slug.toUpperCase())) {
+        return [{ slug: "COMPOSIO_PROXY_EXECUTE", arguments: args }];
+      }
       calls.push({ slug, ...(item.arguments !== undefined ? { arguments: item.arguments } : {}) });
     }
     return calls;

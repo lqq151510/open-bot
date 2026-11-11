@@ -43,6 +43,9 @@ export type { LiveCallRecord, LiveCallState, LiveCallStatus, LiveClient, LiveEnd
 export const EFFORT_LEVELS = ["none", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 
+/** Think mode asks for this level. Grok CLI 1.0.6 takes it as `--reasoning-effort`; it is the strongest level that CLI advertises. */
+export const THINK_EFFORT = "high" as const satisfies EffortLevel;
+
 export function isEffortLevel(value: unknown): value is EffortLevel {
   return typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value);
 }
@@ -457,6 +460,8 @@ export interface WireMessage extends ServerTextLine, HelperIntroField, SetupCard
   role: "bot" | "user";
   kind: "text" | "options" | "activity" | "screen" | "connector" | "secret" | "signin" | "routine.run" | "goal.run" | "digest" | "compaction" | "call" | "widget" | "app";
   text?: string;
+  /** Reasoning the engine sent for this reply, separate from `text`. Absent when the engine sent none. */
+  reasoning?: string;
   digest?: TurnDigest;
   compaction?: {
     summary: string;
@@ -646,7 +651,7 @@ export function nextOpenThread<T extends OpenThreadCandidate>(tasks: readonly T[
 export interface OptionCardData extends WaitCardField, ComputerAskField, AccessRequestCardField, OutsideWriteCardField {
   /** The harness asks the owner to let this line of theirs use the lent computer (server/host/lending-lifts.ts). */ lendingLift?: { requestMessageId: string; memoryToken?: string; outside?: true; botOpened?: true; allowedAt?: number };
   /** calls: one per outbound call the card covers, in subtitle order. */
-  outboundRequest?: { tool: string; app: string | null; calls?: Array<{ app: string | null; label: string }> };
+  outboundRequest?: { tool: string; app: string | null; calls?: Array<{ app: string | null; label: string }>; reviewOnly?: true };
   /** `revision`: the entry as it applied without a person, so Undo can tell it changed since. */
   teamMemoryRequest?: { section: string; entryId: string; kind: string; revision?: string };
   title: string;
@@ -985,7 +990,7 @@ export type ServerFrame =
    * one progress line until its first screen frame. `place` names a cloud
    * computer (absent: a Local VM). */
   | { kind: "computer"; botId: string; state: "provisioning" | "waking"; place?: "cloud" }
-  | { kind: "computer-control"; botId: string; held: boolean; helpReason: string | null; help?: ComputerHelpRef | null }
+  | { kind: "computer-control"; botId: string; held: boolean; heldByOther?: boolean; helpReason: string | null; help?: ComputerHelpRef | null }
   /** A bot's data sheet changed. Whole sheet each time. */
   | DataBroadcast
   | { kind: "bot.deleted"; botId: string }

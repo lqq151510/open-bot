@@ -27,6 +27,7 @@ let state = { status: "idle" };
 let updaterCoordinator = null;
 let pageAllowed = () => false;
 let quiet = null;
+let quietPrefs = null;
 let launch = null;
 /** Where these updaters install without asking anything: Squirrel.Mac, and the per-user NSIS installer run silently. */
 const QUIET_PLATFORMS = new Set(["darwin", "win32"]);
@@ -63,6 +64,7 @@ export function reopenedOutOfSight() {
 function view() {
   return {
     ...state,
+    ...(quiet && quietPrefs ? { autoUpdateWhenIdle: quietPrefs.autoUpdateWhenIdle() } : {}),
     ...(quiet && state.status === "downloaded" ? { installsByItself: quiet.promises(state.version) } : {}),
     ...(launch?.updated ? { updated: launch.updated } : {}),
   };
@@ -126,13 +128,19 @@ export function sendUpdaterState() {
 
 export function registerUpdaterIpc({ pageAllowed: allowed }) {
   pageAllowed = allowed;
-  const guarded = (channel, handler) => (event) => {
+  const guarded = (channel, handler) => (event, ...args) => {
     if (!pageAllowed(event)) throw new Error(`${channel} is only available in this app's window`);
-    return handler();
+    return handler(...args);
   };
   ipcMain.handle("update:get-state", guarded("update:get-state", view));
   ipcMain.handle("update:check", guarded("update:check", () => updaterCoordinator?.check(true)));
   ipcMain.handle("update:install", guarded("update:install", () => updaterCoordinator?.install()));
+  ipcMain.handle("update:set-auto-update-when-idle", guarded("update:set-auto-update-when-idle", (on) => {
+    if (typeof on !== "boolean") throw new TypeError("Expected an automatic update choice.");
+    if (!quiet || !quietPrefs) throw new Error("Automatic installation is unavailable.");
+    quietPrefs.setAutoUpdateWhenIdle(on);
+    setState({});
+  }));
   ipcMain.handle("update:seen", guarded("update:seen", () => {
     if (!launch?.updated) return;
     updateSeen(quietRecord());
@@ -146,8 +154,7 @@ export function attachUpdaterWindow(mainWindow) {
   win = mainWindow;
 }
 
-/** `signals` (quietSignals): what tells a quiet moment; without them a downloaded update installs only on Restart or quit. */
-export function startUpdater(signals = null) {
+export function startUpdater(signals = null, prefs = null) {
   if (!app.isPackaged) {
     updaterCoordinator = null;
     setState({ status: "idle" });
@@ -176,10 +183,11 @@ export function startUpdater(signals = null) {
     relaunch: elevated ? relaunchAfterInstall : null,
     nativeStaging: process.platform === "darwin",
   });
-  if (signals && QUIET_PLATFORMS.has(process.platform)) {
+  if (signals && prefs && QUIET_PLATFORMS.has(process.platform)) {
+    quietPrefs = prefs;
     launched();
     quiet = createQuietInstall({ updater: updaterCoordinator, signals, record: quietRecord(), version: app.getVersion(),
-      log: (line) => autoUpdater.logger?.info?.(line) });
+      enabled: () => quietPrefs.autoUpdateWhenIdle(), log: (line) => autoUpdater.logger?.info?.(line) });
     setInterval(() => void quiet?.look(), LOOK_EVERY_MS).unref?.();
     signals.watch(() => quiet?.look());
     setState({});

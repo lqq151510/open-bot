@@ -156,6 +156,8 @@ export type RuntimeEvent = RuntimeEventBase &
         /** Provider asks to widen its configured sandbox. Only explicit Full
          * access may answer this automatically; Auto/remembered grants may not. */
         requiresExplicitApproval?: boolean;
+        /** The driver evaluated the active rules before execution. This request can only be approved by a person. */
+        alwaysAskRequired?: boolean;
         /** Whether the provider's own automatic reviewer was running when it
          * raised this request. Claude reports its effective permission mode in
          * its init frame and silently starts in Manual when Auto is unavailable

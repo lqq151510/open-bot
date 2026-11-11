@@ -9,10 +9,11 @@ import { PASS, type RouteContext, type RouteHandler } from "./table.ts";
 export interface WebhookRouteDeps {
   webhooks: WebhookManager;
   ingress: () => { available: boolean; baseUrl: string; error?: string };
+  approvalCreator?: (auth: RequestAuth) => string | undefined;
   visible: (auth: RequestAuth) => { everything: boolean; bot(id: string): boolean; group(id: string): boolean };
 }
 
-export function createWebhookRoutes({ webhooks, ingress, visible }: WebhookRouteDeps): RouteHandler {
+export function createWebhookRoutes({ webhooks, ingress, visible, approvalCreator }: WebhookRouteDeps): RouteHandler {
   const withCredential = (webhook: { endpointId: string }, secret: string) => {
     const status = ingress();
     return { ingress: status, credential: webhookCredential(status.baseUrl, webhook.endpointId, secret) };
@@ -25,7 +26,7 @@ export function createWebhookRoutes({ webhooks, ingress, visible }: WebhookRoute
       return json(res, 200, { webhooks: shownHooks, attempts: webhooks.listAttempts().filter((attempt) => seen.everything || shownIds.has(attempt.webhookId)), ingress: ingress() });
     }
     if (path === "/api/webhooks" && method === "POST") {
-      const created = webhooks.create(await readBody(req));
+      const created = webhooks.create(await readBody(req), approvalCreator?.(auth));
       return json(res, 201, { webhook: created.webhook, ...withCredential(created.webhook, created.secret) });
     }
     const match = path.match(/^\/api\/webhooks\/([\w-]+)(?:\/(rotate|test|address))?$/);

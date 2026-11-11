@@ -1,0 +1,140 @@
+- generic [ref=e6]:
+  - complementary "Bots and navigation" [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - button "Search bots and messages" [ref=e12] [cursor=pointer]
+          - button "New or share" [ref=e17] [cursor=pointer]
+        - button "Inbox" [ref=e20] [cursor=pointer]
+        - generic [ref=e54]:
+          - button "Fixture Starter · Chief of Staff" [ref=e55] [cursor=pointer]:
+            - img "Fixture Starter" [ref=e58]
+            - button "Rename Fixture Starter" [ref=e67]: Fixture Starter
+          - status [ref=e68]
+      - separator "Resize sidebar" [ref=e26]
+      - generic [ref=e70]:
+        - 'button "Pepper Rename Pepper Hi, I''m Pepper. What would you like me to do? Model: Claude Sonnet 5 (Verification fixture)" [ref=e71] [cursor=pointer]':
+          - img "Pepper" [ref=e74]
+          - generic [ref=e85]:
+            - button "Rename Pepper" [ref=e88]: Pepper
+            - generic [ref=e89]:
+              - generic [ref=e90]: Hi, I'm Pepper. What would you like me to do?
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=e92]'
+        - button "Actions for Pepper"
+      - paragraph [ref=e31]
+      - generic [ref=e34]:
+        - button "You" [ref=e36] [cursor=pointer]
+        - button "Connect apps" [ref=e42] [cursor=pointer]
+  - main [ref=e96]:
+    - generic [ref=e97]:
+      - generic [ref=e100]:
+        - generic [ref=e101]:
+          - button "Open Pepper's profile" [expanded] [ref=e102] [cursor=pointer]:
+            - img "Pepper" [ref=e104]
+            - generic [ref=e115]: Pepper
+          - status [ref=e118]
+        - button "Share" [ref=e121] [cursor=pointer]
+      - log "Conversation with Pepper" [ref=e127]:
+        - generic [ref=e330]:
+          - generic [ref=e331]: Today 1:28 PM
+          - generic [ref=e333]:
+            - generic "11/9/2026, 1:28:40 PM" [ref=e334]:
+              - paragraph [ref=e337]: Hi, I'm Pepper. What would you like me to do?
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=e338]: 1:28 PM
+          - region "What should I help you with first?" [ref=e339]:
+            - generic [ref=e340]:
+              - heading "What should I help you with first?" [level=3] [ref=e341]
+              - button "Close" [ref=e342] [cursor=pointer]
+            - generic [ref=e346]:
+              - button "A Research and digging into topics" [ref=e347] [cursor=pointer]:
+                - generic [ref=e348]: A
+                - generic [ref=e349]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [ref=e350] [cursor=pointer]:
+                - generic [ref=e351]: B
+                - generic [ref=e352]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [ref=e353] [cursor=pointer]:
+                - generic [ref=e354]: C
+                - generic [ref=e355]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [ref=e356] [cursor=pointer]:
+                - generic [ref=e357]: D
+                - generic [ref=e358]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [ref=e359] [cursor=pointer]:
+                - generic [ref=e360]: E
+                - generic [ref=e361]: Data, spreadsheets and reports
+              - button "F Something else" [ref=e362] [cursor=pointer]:
+                - generic [ref=e363]: F
+                - generic [ref=e364]: Something else
+      - status [ref=e163]
+      - generic [ref=e168]:
+        - generic [ref=e169]:
+          - button "Add" [ref=e171] [cursor=pointer]
+          - generic [ref=e174]:
+            - button "Switch to Fun mode" [ref=e175] [cursor=pointer]:
+              - generic [ref=e179]: Normal
+            - button "Turn on Think mode" [ref=e180] [cursor=pointer]:
+              - generic [ref=e189]: Think
+        - textbox "Message Pepper" [ref=e191]
+        - button "Live call with Pepper" [ref=e194] [cursor=pointer]
+  - dialog "Pepper" [ref=e205]:
+    - generic [ref=e206]:
+      - generic [ref=e207]:
+        - button "Share" [ref=e209] [cursor=pointer]
+        - button "Bot settings" [active] [ref=e214] [cursor=pointer]
+        - button "Close settings" [ref=e215] [cursor=pointer]
+      - generic [ref=e217]:
+        - generic [ref=e430]: Pepper
+        - generic [ref=e431]:
+          - button "Activity" [ref=e432] [cursor=pointer]
+          - heading "Bot settings" [level=3] [ref=e436]
+        - generic [ref=e438]:
+          - 'button "Edit: Instructions" [ref=e442] [cursor=pointer]':
+            - generic [ref=e447]:
+              - generic [ref=e448]: Instructions
+              - generic [ref=e449]: Tell Pepper how to work for you
+          - generic [ref=e458]:
+            - generic [ref=e459]: Model
+            - button "Claude Sonnet 5" [ref=e466] [cursor=pointer]
+          - generic [ref=e477]:
+            - generic [ref=e478]: Before Pepper acts
+            - group "Before Pepper acts" [ref=e486]:
+              - button "Ask me first" [ref=e487] [cursor=pointer]
+              - button "Just do it" [pressed] [ref=e488] [cursor=pointer]
+            - generic [ref=e489]:
+              - generic [ref=e490]: In this conversation
+              - button "Just do it for Verification fixture" [ref=e493] [cursor=pointer]:
+                - generic [ref=e494]: Just do it
+          - generic [ref=e500]:
+            - generic [ref=e501]: Backup AIs
+            - paragraph [ref=e512]: Used only when Pepper's AI is at its usage limit or can't start on a message. The first one here that can take over does, in that conversation only. After a usage limit resets, the conversation goes back.
+            - button "Add a backup AI" [ref=e514] [cursor=pointer]
+          - generic [ref=e519]:
+            - generic [ref=e520]: Call mode
+            - group "Call mode" [ref=e526]:
+              - button "Take turns" [disabled] [ref=e527]
+              - button "Live" [pressed] [ref=e528] [cursor=pointer]
+          - generic [ref=e529]:
+            - generic [ref=e530]: Computer
+            - generic [ref=e532]:
+              - button "Where Pepper works" [ref=e533] [cursor=pointer]
+              - button "Signed-in sites" [ref=e541] [cursor=pointer]
+          - generic [ref=e552]:
+            - button "Apps it can use None yet" [ref=e553] [cursor=pointer]:
+              - generic [ref=e557]: Apps it can use
+              - generic [ref=e559]: None yet
+            - generic [ref=e562]:
+              - generic [ref=e567]: Job
+              - textbox "Job" [ref=e568]:
+                - /placeholder: What it does
+          - generic [ref=e569]:
+            - generic [ref=e570]:
+              - generic [ref=e571]:
+                - generic [ref=e572]: Bot API
+                - generic [ref=e573]: Let apps talk to this bot
+                - generic [ref=e574]: Apps and scripts send Pepper a message with a key and get a reply. Pepper answers from its instructions and memory, and uses no tools for them.
+              - switch "Let apps talk to this bot" [ref=e575] [cursor=pointer]
+            - 'button "Webhooks: none" [ref=e577] [cursor=pointer]'

@@ -288,6 +288,23 @@ describe("Pi MCP extension registration", () => {
     return dir;
   };
 
+  it("blocks a native tool when the host declines rule approval", async () => {
+    const dir = scopeConfig(undefined);
+    const ready = join(dir, "approval-ready");
+    scopeConfig(undefined, { approvalReviewReadyPath: ready });
+    let gate: ShutdownHandler | undefined;
+    await extension({
+      registerTool() {},
+      on(event, handler) { if (event === "tool_call") gate = handler; },
+    });
+    const confirm = vi.fn().mockResolvedValue(false);
+    expect(existsSync(ready)).toBe(true);
+    expect(await gate?.({ toolName: "bash", input: { command: "echo exact fixture" } }, { ui: { confirm } })).toMatchObject({ block: true });
+    expect(confirm).toHaveBeenCalledWith("OpenBot tool review", expect.stringContaining('"command":"echo exact fixture"'));
+    confirm.mockRejectedValueOnce(new Error("RPC unavailable"));
+    expect(await gate?.({ toolName: "read" }, { ui: { confirm } })).toMatchObject({ block: true });
+  });
+
   it("intersects native and package tools before the first turn and after restoration", async () => {
     scopeConfig({ allow: ["native:read", "native:edit", "native:write"] });
     const f = scopedApi(["read", "write", "bash", "package_tool"]);

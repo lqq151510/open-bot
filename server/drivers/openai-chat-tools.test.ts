@@ -72,7 +72,8 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
   if (request.method === "initialize") {
     reply(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "fixture", version: "1" } });
   } else if (request.method === "tools/list") {
-    reply(request.id, { tools: ["write", "wait", "fail"].map((name) => ({ name, description: "Synthetic fixture operation", inputSchema: schema })) });
+    const names = process.env.FIXTURE_BRIDGE_TOOL ? ["write", "wait", "fail", "use_tool"] : ["write", "wait", "fail"];
+    reply(request.id, { tools: names.map((name) => ({ name, description: "Synthetic fixture operation", inputSchema: schema })) });
   } else if (request.method === "tools/call") {
     const { name, arguments: args } = request.params;
     await fetch(callback + "/mcp-start", { method: "POST", body: JSON.stringify({ name, args }) });
@@ -279,6 +280,27 @@ describe("a searched MCP catalog", () => {
 });
 
 describe("approvals that follow the other engines", () => {
+  it.each([
+    ["direct", toolCall("agents_write")],
+    ["bridged", toolCall("agents_use_tool", '{"name":"write","value":"sent"}')],
+  ])("holds a %s built-in agents call before MCP dispatch when an always-ask rule matches", async (_kind, call) => {
+    const f = await fixture((_body, response, round) => {
+      if (round === 1) sse(response, [chunk({ tool_calls: [call] }, "tool_calls")]);
+      else answer(response);
+    });
+    const agents = f.integrations!.custom!.audit as { command: string; args: string[]; env: Record<string, string> };
+    await f.start({
+      integrations: { ...f.integrations, agents: { ...agents, env: { ...agents.env, FIXTURE_BRIDGE_TOOL: "1" } } }, approvalMode: "full", approvalRulesActive: () => true,
+      approvalRuleForTool: ({ tool }) => tool === "agents_write",
+    });
+    const opened = await f.recorder.until((event) => event.type === "request.opened");
+    expect(opened).toMatchObject({ tool: "agents_write", alwaysAskRequired: true, allowSession: false });
+    expect(f.effects()).toEqual([]);
+    await f.instance.adapter.respondToRequest(f.threadId, opened.requestId!, { behavior: "deny" });
+    await f.completed();
+    expect(f.effects()).toEqual([]);
+  });
+
   it("runs OpenBot's own agents tools without a card, while a configured server's tool still asks", async () => {
     const f = await fixture((_body, response, round) => {
       if (round === 1) sse(response, [chunk({ tool_calls: [toolCall("agents_write", '{"name":"peer","value":"sent"}', "call_agents")] }, "tool_calls")]);

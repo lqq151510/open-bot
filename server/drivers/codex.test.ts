@@ -820,6 +820,60 @@ process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');});`)
     },
   );
 
+  it.each([false, true])("asks before an ordinary native command with approval rules (resumed=%s)", async (resumed) => {
+    await create({ mode: "rule-approval", fullAuto: true, environment: { FAKE_CODEX_MCP_OVERRIDES: "1" } });
+    const dump = join(scratch, "native-rules.json");
+    process.env.FAKE_CODEX_DUMP = dump;
+    const threadId = "t-native-rules";
+    const { turnId } = await instance.adapter.sendTurn({
+      threadId, text: "Run one tool", approvalMode: "full", approvalRulesActive: () => true,
+      ...(resumed ? { resumeCursor: "codex-thread-1" } : {}),
+      integrations: { browser: { command: "node", args: [], env: {} } },
+    });
+    const opened = await recorder.until((event) => event.type === "request.opened" && event.turnId === turnId);
+    expect(opened).toMatchObject({ requestType: "permission", tool: "shell", summary: "pwd" });
+    if (opened.type !== "request.opened" || !opened.requestId) throw new Error("expected permission");
+    expect(await instance.adapter.respondToRequest(threadId, opened.requestId, { behavior: "deny" })).toBe("rejected");
+    await recorder.until((event) => event.type === "turn.completed" && event.turnId === turnId);
+    const seen = JSON.parse(readFileSync(dump, "utf8"));
+    expect(seen.calls.find((call: { method: string }) => call.method === (resumed ? "thread/resume" : "thread/start")).params).toMatchObject({
+      approvalPolicy: "untrusted", approvalsReviewer: "user", sandbox: "workspace-write",
+    });
+    expect(seen.calls.find((call: { method: string }) => call.method === "turn/start").params).toMatchObject({
+      approvalPolicy: "untrusted", approvalsReviewer: "user", sandboxPolicy: { type: "workspaceWrite" },
+    });
+    expect(seen.argv).toContain('mcp_servers.browser.default_tools_approval_mode="prompt"');
+  });
+
+  it("stops before dispatch if Codex resolves a weaker native approval policy", async () => {
+    await create({ mode: "rule-approval" });
+    vi.stubEnv("FAKE_CODEX_RESOLVED_APPROVAL_POLICY", "on-request");
+    const dump = join(scratch, "invalid-shell-rules.json");
+    process.env.FAKE_CODEX_DUMP = dump;
+    await instance.adapter.sendTurn({ threadId: "t-native-rules-weaker", text: "Must not run", approvalRulesActive: () => true });
+    await recorder.until((event) => event.type === "turn.completed");
+    expect(recorder.events.at(-1)).toMatchObject({ ok: false });
+    expect(recorder.events.some(event => event.type === "runtime.error" && event.message.includes("could not confirm the native approval policy"))).toBe(true);
+    const { calls } = JSON.parse(readFileSync(dump, "utf8"));
+    expect(calls.some((call: { method: string }) => call.method === "turn/start")).toBe(false);
+  });
+
+  it("stops before dispatch if an OpenBot mount keeps a native approval override", async () => {
+    await create({ mode: "rule-approval", environment: { FAKE_CODEX_MCP_CONFIG: JSON.stringify({
+      browser: { default_tools_approval_mode: "prompt", tools: { browser_click: { approval_mode: "approve" } } },
+    }) } });
+    const dump = join(scratch, "invalid-native-rules.json");
+    process.env.FAKE_CODEX_DUMP = dump;
+    await instance.adapter.sendTurn({
+      threadId: "t-native-rules-mount", text: "Must not run", approvalRulesActive: () => true,
+      integrations: { browser: { command: "node", args: [], env: {} } },
+    });
+    await recorder.until((event) => event.type === "turn.completed");
+    expect(recorder.events.at(-1)).toMatchObject({ ok: false });
+    expect(recorder.events.some(event => event.type === "runtime.error" && event.message.includes("could not confirm approval"))).toBe(true);
+    expect(existsSync(dump)).toBe(false);
+  });
+
   it.each([false, true])("preserves the complete resolved sandbox (resumed=%s)", async (resumed) => {
     await create({ mode: "resume" });
     const dump = join(scratch, "resolved-sandbox.json");

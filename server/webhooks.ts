@@ -16,7 +16,7 @@ export type WebhookVerificationSample = z.output<typeof verificationSampleSchema
 export type WebhookAttempt = z.output<typeof webhookAttemptSchema>;
 export type WebhookAttemptOutcome = WebhookAttempt["outcome"];
 type StoredWebhookTrigger = z.output<typeof storedWebhookSchema>;
-export type WebhookTrigger = Omit<StoredWebhookTrigger, "secretHash" | "sealedSecret">;
+export type WebhookTrigger = Omit<StoredWebhookTrigger, "secretHash" | "sealedSecret" | "approvalCreator">;
 type DeliveryReceipt = z.output<typeof deliveryReceiptSchema>;
 type WebhookFile = z.output<typeof webhookFileSchema>;
 
@@ -151,6 +151,7 @@ const storedWebhookSchema = z.object({
   /** The current secret, sealed under WEBHOOK_KEY_FILE beside this file, so the person and the owning bot get the same
    * address back. Never in a public trigger or a workspace backup; absent for a webhook made before it was kept. */
   sealedSecret: z.string().min(1).optional(),
+  approvalCreator: z.string().regex(/^p_[\w-]{22}$/).optional().catch(undefined),
 });
 const deliveryReceiptSchema = z.object({
   key: z.string().min(1),
@@ -257,7 +258,7 @@ function parseTriggerPatch(value: JsonValue): Partial<WebhookTriggerInput> {
 }
 
 function publicTrigger(trigger: StoredWebhookTrigger): WebhookTrigger {
-  const { secretHash: _secretHash, sealedSecret: _sealedSecret, ...safe } = trigger;
+  const { secretHash: _secretHash, sealedSecret: _sealedSecret, approvalCreator: _approvalCreator, ...safe } = trigger;
   return { ...safe };
 }
 
@@ -410,7 +411,11 @@ export class WebhookManager {
     return this.attempts.map((attempt) => ({ ...attempt }));
   }
 
-  create(input: JsonValue): CreatedWebhook {
+  approvalCreator(id: string): string | undefined {
+    return this.webhooks.find((trigger) => trigger.id === id)?.approvalCreator;
+  }
+
+  create(input: JsonValue, approvalCreator?: string): CreatedWebhook {
     this.assertWritable();
     const clean = cleanInput(parseTriggerInput(input));
     if (this.options.botState(clean.botId) === "missing") fail(400, "That MAUS no longer exists");
@@ -421,6 +426,7 @@ export class WebhookManager {
       id: randomUUID(),
       endpointId: newEndpointId(),
       ...clean,
+      approvalCreator,
       secretHash: hashSecret(secret),
       ...this.seal(secret),
       createdAt: now,

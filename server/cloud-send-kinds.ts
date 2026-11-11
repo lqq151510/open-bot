@@ -316,7 +316,7 @@ function adoptRoutine(deps: MoveKindsDeps, raw: unknown, runs: unknown, from: st
   routines.adopt((held) => {
     const at = held.routines.findIndex((candidate) => candidate.id === routine.id);
     const kept = at < 0 ? null : held.routines[at]!;
-    adopted = { ...routine, enabled: kept?.enabled ?? false, nextRunAt: kept?.nextRunAt ?? null, updatedAt: Date.now() } as Routine;
+    adopted = { ...routine, enabled: kept?.enabled ?? false, nextRunAt: kept?.nextRunAt ?? null, updatedAt: Date.now(), approvalCreator: kept?.approvalCreator } as Routine;
     if (kept) held.routines[at] = adopted; else held.routines.unshift(adopted);
     const have = new Set(held.runs.map((run) => run.id));
     held.runs.push(...arriving.filter((run) => !have.has(run.id)));

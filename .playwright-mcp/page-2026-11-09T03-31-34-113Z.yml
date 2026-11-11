@@ -1,0 +1,26 @@
+- main [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - group "资料库" [ref=f1e5]:
+      - button "全部" [pressed] [ref=f1e6] [cursor=pointer]
+      - button "页面" [ref=f1e7] [cursor=pointer]
+      - button "媒体" [ref=f1e8] [cursor=pointer]
+      - button "文件" [ref=f1e9] [cursor=pointer]
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]: 本周
+      - generic [ref=f1e13]:
+        - generic "report.pdf" [ref=f1e16]:
+          - button "保存 report.pdf 的副本" [ref=f1e18] [cursor=pointer]:
+            - generic [ref=f1e22]: report.pdf
+        - button "example.png" [ref=f1e27] [cursor=pointer]
+    - generic [ref=f1e34]:
+      - generic [ref=f1e35]: 更早
+      - button "示例页面" [ref=f1e39] [cursor=pointer]
+    - paragraph [ref=f1e47]: 来自这个对话
+    - generic [ref=f1e50]:
+      - button "它记住了什么 关闭" [ref=f1e51] [cursor=pointer]:
+        - generic [ref=f1e61]: 它记住了什么
+        - generic [ref=f1e63]: 关闭
+      - button "技能" [ref=f1e66] [cursor=pointer]
+      - button "工作文件夹 私有" [ref=f1e74] [cursor=pointer]:
+        - generic [ref=f1e78]: 工作文件夹
+        - generic [ref=f1e80]: 私有

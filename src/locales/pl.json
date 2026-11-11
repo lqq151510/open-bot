@@ -4623,6 +4623,7 @@
   "computer.twoDesktops": "Otwórz dwa pulpity",
   "computer.takeControl": "Przejmij kontrolę",
   "computer.youHaveWheel": "Masz ster — kliknięcia i naciśnięcia klawiszy bota są odrzucane, dopóki nie oddasz mu kontroli.",
+  "computer.heldByOther": "Ktoś inny używa tego wspólnego komputera.",
   "computer.inControl": "Masz kontrolę",
   "computer.useOpenDesktop": "Użyj „Otwórz pulpit na żywo”, aby sterować.",
   "computer.simple.useFullScreen": "Użyj „Pełny ekran”, aby sterować.",

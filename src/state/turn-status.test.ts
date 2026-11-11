@@ -35,7 +35,11 @@ describe("a thread's live turn", () => {
     note({ type: "item.completed", itemType: "assistant_text", text: "Done" } as Partial<RuntimeEvent>);
     expect(turnLive("t").status).toBeNull();
     note({ type: "content.delta", streamKind: "reasoning_text", delta: "hmm" } as Partial<RuntimeEvent>);
+    expect(turnLive("t").thought).toBe("hmm");
+    note({ type: "content.delta", streamKind: "reasoning_text", delta: " more" } as Partial<RuntimeEvent>);
+    expect(turnLive("t")).toMatchObject({ status: { activity: "thinking" }, thought: "hmm more" });
     note({ type: "request.opened", requestType: "permission", tool: "Bash", summary: "rm" } as Partial<RuntimeEvent>);
+    expect(turnLive("t").thought).toBeUndefined();
     expect(turnLive("t").status).toBeNull();
   });
 

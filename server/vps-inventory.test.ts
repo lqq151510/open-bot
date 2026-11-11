@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { DATA_DIR, type AppConfig } from "./config.ts";
+import { BASE_IMAGE_DIGEST, BASE_IMAGE_LABEL, CUA_DRIVER_VERSION, DRIVER_LABEL, IMAGE_LAYER_LABEL, IMAGE_LAYER_VERSION, MANAGED_LABEL } from "./container-computer.ts";
 import { loadEnvironmentId } from "./environment.ts";
 import {
   VPS_CONTAINER_LABEL,
   VPS_ENVIRONMENT_LABEL,
   VPS_MANAGED_LABEL,
+  VPS_IMAGE,
+  VPS_VIEWER_LABEL,
   listManagedVpsComputers,
   removeManagedVpsComputer,
   vpsContainerName,
@@ -31,9 +34,10 @@ interface ContainerFixture {
   state?: string;
   running?: boolean;
   labels?: Record<string, string>;
+  imageId?: string;
 }
 
-function inventoryRunner(initial: ContainerFixture[]) {
+function inventoryRunner(initial: ContainerFixture[], image?: { id: string; labels: Record<string, string> }) {
   let containers = [...initial];
   let removeFailure: Error | null = null;
   const calls: string[][] = [];
@@ -51,7 +55,9 @@ function inventoryRunner(initial: ContainerFixture[]) {
           .map((container) => ({
             Id: container.id,
             Name: `/${container.name}`,
+            Image: container.imageId,
             Config: {
+              Image: container.imageId && VPS_IMAGE,
               Env: ["VNC_PW=must-not-leak"],
               Labels: container.labels ?? labels(container.name),
             },
@@ -60,6 +66,9 @@ function inventoryRunner(initial: ContainerFixture[]) {
           }))),
         stderr: "",
       };
+    }
+    if (command[0] === "image" && command[1] === "inspect" && image) {
+      return { stdout: JSON.stringify([{ Id: image.id, Config: { Labels: image.labels } }]), stderr: "" };
     }
     if (command[0] === "rm") {
       if (removeFailure) throw removeFailure;
@@ -90,6 +99,36 @@ describe("managed VPS inventory", () => {
       instances: [],
     });
     expect(fake.calls).toEqual([]);
+  });
+
+  it("verifies managed VPS image IDs using read-only commands", async () => {
+    const ownedName = vpsContainerName(OWNER.botId);
+    const otherName = vpsContainerName("older-bot");
+    const imageId = `sha256:${"d".repeat(64)}`;
+    const imageLabels = {
+      [MANAGED_LABEL]: "1",
+      [DRIVER_LABEL]: CUA_DRIVER_VERSION,
+      [BASE_IMAGE_LABEL]: BASE_IMAGE_DIGEST,
+      [IMAGE_LAYER_LABEL]: IMAGE_LAYER_VERSION,
+    };
+    const desktopLabels = (name: string) => ({ ...labels(name), ...imageLabels, [VPS_VIEWER_LABEL]: "1" });
+    const fake = inventoryRunner([
+      { id: "a".repeat(64), name: ownedName, labels: desktopLabels(ownedName), imageId },
+      { id: "b".repeat(64), name: otherName, labels: desktopLabels(otherName), imageId: `sha256:${"e".repeat(64)}` },
+    ], { id: imageId, labels: imageLabels });
+
+    const inventory = await listManagedVpsComputers(CONFIG, [OWNER], fake.runner, undefined, { inspectImage: true });
+    expect(inventory.instances.map(({ imageMatches }) => imageMatches)).toEqual([true, false]);
+    expect(fake.calls.map((command) => command.slice(0, 2))).toEqual([
+      ["container", "ls"], ["container", "inspect"], ["image", "inspect"],
+    ]);
+
+    const noBaseline = inventoryRunner([
+      { id: "a".repeat(64), name: ownedName, labels: desktopLabels(ownedName), imageId },
+      { id: "b".repeat(64), name: otherName, labels: { ...desktopLabels(otherName), [DRIVER_LABEL]: "0.1.0" }, imageId },
+    ]);
+    const notPrepared = await listManagedVpsComputers(CONFIG, [OWNER], noBaseline.runner, undefined, { inspectImage: true });
+    expect(notPrepared.instances.map(({ imageMatches }) => imageMatches)).toEqual([null, false]);
   });
 
   it("lists current and orphaned stopped computers without waking or leaking them", async () => {

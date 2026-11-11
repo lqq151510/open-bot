@@ -1,0 +1,162 @@
+[     358ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[    9763ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[   21218ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[  379890ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:5173/api/instances:0
+[  379890ms] [WARNING] snapshot: instances refresh failed; retrying ApiError: 500 Internal Server Error
+    at api (http://127.0.0.1:5173/src/state/api.ts:36:21)
+    at async http://127.0.0.1:5173/src/state/store.tsx:2083:91
+    at async unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:12)
+    at async Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:26)
+    at async loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:23) @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  380383ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[  380385ms] [ERROR] Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING @ http://127.0.0.1:5173/api/events?screens=off:0
+[  380890ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  380915ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  380915ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  381314ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  382919ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  382919ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  383317ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  386922ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  386922ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  387318ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  391311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  394926ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  394926ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  401308ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  410930ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  410930ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  411310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  421309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  431308ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  440933ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  440933ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  441317ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  451311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  461309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  470938ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  470938ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  471315ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  481310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  491310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  500946ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  500946ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  501313ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  511310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  521309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  530965ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  530965ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  531313ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  541309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  551313ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  560972ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  560972ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  561319ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  571310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  581311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  590976ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  590976ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  591318ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  601310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  611312ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  620980ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  620981ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  621313ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  631310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  641311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  650987ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/instances:0
+[  650988ms] [WARNING] snapshot: instances refresh failed; retrying TypeError: Failed to fetch
+    at api (http://127.0.0.1:5173/src/state/api.ts:26:21)
+    at http://127.0.0.1:5173/src/state/store.tsx:2083:97
+    at unlessRefused (http://127.0.0.1:5173/src/lib/admin-scope.ts:9:18)
+    at Object.request (http://127.0.0.1:5173/src/state/store.tsx:2083:32)
+    at loadPeripheral (http://127.0.0.1:5173/src/state/store.tsx:2150:34)
+    at retry (http://127.0.0.1:5173/src/state/store.tsx:2131:34)
+    at http://127.0.0.1:5173/src/state/store.tsx:2132:36 @ http://127.0.0.1:5173/src/state/store.tsx:2124
+[  651317ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  661310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:5173/api/events?since=397ecd1b%3A47&screens=off:0
+[  668690ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102

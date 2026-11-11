@@ -59,7 +59,10 @@ import { peerLine, peerRequest, type PeerLine } from "@/lib/peer-message";
 import { showWorkingDots } from "@/lib/turn-tail";
 import { lastNonReceipt } from "@/lib/receipts";
 import { useTurnLive } from "@/state/turn-status"; import { useTurnNow } from "./NowCard"; import { useThreadRoutineRun } from "@/state/older-routine-runs";
+import { THINK_EFFORT } from "../../shared/wire";
+import { readGrokThinkMode, stripGrokModeDirectives } from "@/lib/grok-mode";
 import { ChatMarkdown } from "./ChatMarkdown";
+import { GrokThinkingBubble } from "./GrokThinkingBubble";
 import { LiveToolsContext, useLiveToolIds } from "@/hooks/use-live-tool-ids";
 import { VoiceNoteBubble, type VoiceNoteAttachment } from "./VoiceNoteBubble";
 import { RawMarkdownView, RawToggleAction } from "./RawMarkdownToggle";
@@ -125,6 +128,7 @@ import { appendComposerDraft, appendDraftAttachments, useReplyDraft } from "@/li
 import { botLineText, localDay, transcriptLookups, type TranscriptLookups } from "@/lib/transcript-derivations"; import { DaySeparator } from "./DaySeparator";
 import { splitTranscriptCitations, type CitationAttachment } from "@/lib/citations";
 import { EmptyChat } from "./ChatEmptyState";
+import { WhatICanDo } from "./WhatICanDo";
 import { PinnedBanner } from "./ChatPinnedBanner";
 import { highlightCitationSource } from "@/lib/citations-dom";
 import { useCanWriteIn, useReactor } from "@/lib/cloud-guest";
@@ -397,7 +401,7 @@ const Bubble = memo(function Bubble({
   const webhookView = user ? webhookMessageView(text) : null;
   const cited = user && !webhookView ? splitTranscriptCitations(text) : null;
   const attachments = user && !webhookView ? splitTranscriptAttachments(cited?.display ?? text) : null;
-  const visibleText = webhookView?.task ?? attachments?.display ?? text;
+  const visibleText = stripGrokModeDirectives(webhookView?.task ?? attachments?.display ?? text);
   const hasAttachments = Boolean(cited?.citations.length || (attachments && (attachments.images.length || attachments.files.length)));
   const attachmentsOnly = !webhookView && !replyTarget && !visibleText.trim() &&
     (user ? hasAttachments : generatedPaths.length + linkedFiles.length > 0);
@@ -543,6 +547,7 @@ const Bubble = memo(function Bubble({
             </>
           ) : (
             <MessageBoundary key={viewRaw ? "raw" : "rendered"} fallbackText={text || t("chat.generatedImage")}>
+              {message.reasoning ? <GrokThinkingBubble thought={message.reasoning} /> : null}
               {voiceNotes.length > 0 && (
                 <div className={cn("flex flex-col", (text || generatedPaths.length > 0 || linkedFiles.length > 0) && "mb-2")}>
                   {voiceNotes.map((note) => (
@@ -855,9 +860,8 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
   const liveTools = useLiveToolIds(messages, bot);
   const recordedRun = useMemo(() => runSteps(messages, liveTools), [messages, liveTools]);
   const recordedRunCounts = runSummary(recordedRun);
-  const engineSupportsAgents = Boolean(
-    state.instances.find((instance) => instance.instanceId === bot.modelSelection.instanceId)?.capabilities?.agentsMcp,
-  );
+  const engine = state.instances.find((instance) => instance.instanceId === bot.modelSelection.instanceId);
+  const engineSupportsAgents = Boolean(engine?.capabilities?.agentsMcp);
   const canSaveRun =
     skillAuthoringEnabled(state.config) && engineSupportsAgents && recordedRunCounts.passed > 0 && recordedRunCounts.running === 0 && recordedRunCounts.unverified === 0 && !bot.busy;
   const [runDismissed, setRunDismissed] = useState<ReadonlyMap<string, string>>(() => new Map());
@@ -924,7 +928,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
   const submitEdit = useCallback(
     (messageId: string, text: string) => {
       setEditingId(null); // closes the editor first — a double Enter can't fork twice
-      dispatch({ type: "editMessage", botId: bot.id, threadId: bot.threadId, messageId, text });
+      dispatch({ type: "editMessage", botId: bot.id, threadId: bot.threadId, messageId, text, ...(readGrokThinkMode() ? { effort: THINK_EFFORT } : {}) });
     },
     [bot.id, bot.threadId, dispatch],
   );
@@ -1096,6 +1100,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
         </div>
         <div data-chathead-controls
           className={cn("flex shrink-0 items-center gap-2", !phone && (simpleHead ? "@max-[24rem]/chathead:ml-auto @max-[24rem]/chathead:flex-wrap @max-[24rem]/chathead:justify-end @min-[24rem]/chathead:col-start-3 @min-[24rem]/chathead:justify-self-end" : "@max-[30rem]/chathead:ml-auto @max-[30rem]/chathead:flex-wrap @max-[30rem]/chathead:justify-end @min-[30rem]/chathead:col-start-3 @min-[30rem]/chathead:justify-self-end"))}>
+          {simpleHead && <WhatICanDo bot={bot} engineName={engine?.displayName ?? null} teamName={team?.name} />}
           {!simpleHead && (bot.busy || bot.waitingForTeammates) && (
             <button
               onClick={() => dispatch({ type: "interrupt", botId: bot.id, threadId: bot.threadId })}
@@ -1226,6 +1231,11 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
               </div>
             </div>
           )}
+          {live.thought ? (
+            <div className="flex justify-start">
+              <GrokThinkingBubble thought={live.thought} inProgress />
+            </div>
+          ) : null}
           <TurnPresence
             avatar={
               <BotAvatar

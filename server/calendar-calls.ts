@@ -37,6 +37,10 @@ export interface CalendarCall {
   updatedAt: number;
 }
 
+interface StoredCalendarCall extends CalendarCall {
+  approvalCreator?: string;
+}
+
 export interface CalendarCallInput {
   name: string;
   description?: string;
@@ -52,12 +56,12 @@ export interface CalendarCallManagerOptions {
   file?: string;
   now?: () => number;
   botExists: (botId: string) => boolean;
-  onDue?: (call: CalendarCall, scheduledFor: number) => void | Promise<void>;
+  onDue?: (call: CalendarCall, scheduledFor: number, approvalCreator?: string) => void | Promise<void>;
 }
 
 interface CalendarCallFile {
   version: 1;
-  calls: CalendarCall[];
+  calls: StoredCalendarCall[];
 }
 
 const MAX_BOTS = 100;
@@ -87,6 +91,7 @@ const callSchema = z.object({
   durationMinutes: z.number().int().min(5).max(240),
   attachments: z.array(attachmentSchema).max(MAX_ATTACHMENTS),
   roomId: z.string().min(1).optional(),
+  approvalCreator: z.string().regex(/^p_[A-Za-z0-9_-]{22}$/).optional().catch(undefined),
   nextRunAt: z.number().finite().nonnegative().nullable().optional(),
   createdAt: z.number().finite().nonnegative(),
   updatedAt: z.number().finite().nonnegative(),
@@ -108,13 +113,18 @@ function sameRoster(left: readonly string[], right: readonly string[]): boolean 
   return right.every((id) => wanted.has(id));
 }
 
-function cloneCall(call: CalendarCall): CalendarCall {
+function cloneStoredCall(call: StoredCalendarCall): StoredCalendarCall {
   return {
     ...call,
     botIds: [...call.botIds],
     schedule: cloneSchedule(call.schedule),
     attachments: call.attachments.map((attachment) => ({ ...attachment })),
   };
+}
+
+function cloneCall(call: StoredCalendarCall): CalendarCall {
+  const { approvalCreator: _approvalCreator, ...visible } = cloneStoredCall(call);
+  return visible;
 }
 
 function cleanSchedule(value: CalendarCallSchedule): CalendarCallSchedule {
@@ -177,7 +187,7 @@ export class CalendarCallManager {
   private readonly now: () => number;
   private readonly botExists: CalendarCallManagerOptions["botExists"];
   private readonly onDue: CalendarCallManagerOptions["onDue"];
-  private calls: CalendarCall[] = [];
+  private calls: StoredCalendarCall[] = [];
   private timer: DueTimer | null = null;
   private ticking = false;
 
@@ -197,7 +207,7 @@ export class CalendarCallManager {
             const nextRunAt = call.data.nextRunAt === undefined
               ? this.loadedOccurrence(call.data.schedule)
               : call.data.nextRunAt;
-            return [cloneCall({ ...call.data, nextRunAt })];
+            return [cloneStoredCall({ ...call.data, nextRunAt })];
           })
         : [];
     } catch {
@@ -221,12 +231,13 @@ export class CalendarCallManager {
     return call ? cloneCall(call) : null;
   }
 
-  create(input: CalendarCallInput): CalendarCall {
+  create(input: CalendarCallInput, approvalCreator?: string): CalendarCall {
     const clean = cleanInput(input, this.botExists);
     const timestamp = this.now();
-    const call: CalendarCall = {
+    const call: StoredCalendarCall = {
       id: randomUUID(),
       ...clean,
+      approvalCreator,
       nextRunAt: this.initialOccurrence(clean.schedule, timestamp),
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -242,8 +253,8 @@ export class CalendarCallManager {
     const clean = cleanInput(record, this.botExists);
     const index = this.calls.findIndex((call) => call.id === record.id);
     const held = index < 0 ? null : this.calls[index]!;
-    const call: CalendarCall = { id: record.id, ...clean, ...(record.roomId ? { roomId: record.roomId } : {}), nextRunAt: held?.nextRunAt ?? null,
-      createdAt: record.createdAt, updatedAt: this.now() };
+    const call: StoredCalendarCall = { id: record.id, ...clean, ...(record.roomId ? { roomId: record.roomId } : {}), nextRunAt: held?.nextRunAt ?? null,
+      createdAt: record.createdAt, updatedAt: this.now(), approvalCreator: held?.approvalCreator };
     this.commit(() => { if (held) this.calls[index] = call; else this.calls.push(call); });
     return cloneCall(call);
   }
@@ -260,9 +271,10 @@ export class CalendarCallManager {
       durationMinutes: patch.durationMinutes ?? previous.durationMinutes,
       attachments: patch.attachments ?? previous.attachments,
     }, this.botExists);
-    const updated: CalendarCall = {
+    const updated: StoredCalendarCall = {
       id: previous.id,
       ...clean,
+      approvalCreator: previous.approvalCreator,
       roomId: patch.botIds && !sameRoster(clean.botIds, previous.botIds) ? undefined : previous.roomId,
       nextRunAt: this.initialOccurrence(clean.schedule, this.now()),
       createdAt: previous.createdAt,
@@ -345,7 +357,7 @@ export class CalendarCallManager {
         const scheduledFor = call.nextRunAt;
         if (now - scheduledFor < call.durationMinutes * 60_000) {
           try {
-            await this.onDue?.(cloneCall(call), scheduledFor);
+            await this.onDue?.(cloneCall(call), scheduledFor, call.approvalCreator);
           } catch (error) {
             console.error(`calendar call ${call.id}: scheduled room kickoff failed`, error);
             continue;
@@ -373,7 +385,7 @@ export class CalendarCallManager {
   }
 
   private commit(mutate: () => void): void {
-    const before = this.calls.map(cloneCall);
+    const before = this.calls.map(cloneStoredCall);
     try {
       mutate();
       this.save();

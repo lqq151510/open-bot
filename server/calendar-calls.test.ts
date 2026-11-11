@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CalendarCallManager, type CalendarCallInput } from "./calendar-calls.ts";
+import { personKey } from "./person-key.ts";
 
 const dirs: string[] = [];
 
@@ -62,6 +63,27 @@ describe("CalendarCallManager", () => {
       durationMinutes: 5,
       attachments: [{ path: "/safe/local/Launch brief.pdf", kind: "file" }],
     });
+  });
+
+  it("passes only the verified calendar creator to a due call after restart", async () => {
+    const file = tempFile();
+    const person = personKey({ id: "verified-creator" });
+    const spoofed = personKey({ id: "spoofed-creator" });
+    const calls = manager(file, 1_000);
+    const supplied = { ...input({ schedule: { type: "once", at: 2_000 } }), approvalCreator: spoofed };
+    const known = calls.create(supplied, person);
+    const unknown = calls.create(supplied);
+    calls.update(known.id, { description: "Rescheduled by someone else" });
+    expect(calls.list().every((call) => !Object.hasOwn(call, "approvalCreator"))).toBe(true);
+
+    const onDue = vi.fn<NonNullable<ConstructorParameters<typeof CalendarCallManager>[0]["onDue"]>>();
+    const restored = new CalendarCallManager({ file, now: () => 2_000, botExists: () => true, onDue });
+    await restored.tick();
+    expect(onDue.mock.calls).toEqual([
+      [expect.objectContaining({ id: known.id, description: "Rescheduled by someone else" }), 2_000, person],
+      [expect.objectContaining({ id: unknown.id }), 2_000, undefined],
+    ]);
+    expect(onDue.mock.calls.every(([call]) => !Object.hasOwn(call, "approvalCreator"))).toBe(true);
   });
 
   it("fires a due call once and persists the occurrence cursor", async () => {

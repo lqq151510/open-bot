@@ -1,0 +1,119 @@
+- generic [ref=f1e6]:
+  - complementary "Bots and navigation" [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e11]:
+          - button "Search bots and messages" [ref=f1e12] [cursor=pointer]
+          - button "New or share" [ref=f1e17] [cursor=pointer]
+        - button "Inbox" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e26]:
+          - button "Fixture Starter · Chief of Staff" [ref=f1e27] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f1e30]
+            - button "Rename Fixture Starter" [ref=f1e39]: Fixture Starter
+          - status [ref=f1e40]
+      - separator "Resize sidebar" [ref=f1e41]
+      - generic [ref=f1e47]:
+        - 'button "Pepper Rename Pepper Hi, I''m Pepper. What would you like me to do? Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e48] [cursor=pointer]':
+          - img "Pepper" [ref=f1e51]
+          - generic [ref=f1e62]:
+            - button "Rename Pepper" [ref=f1e65]: Pepper
+            - generic [ref=f1e66]:
+              - generic [ref=f1e67]: Hi, I'm Pepper. What would you like me to do?
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e69]'
+        - button "Actions for Pepper"
+      - paragraph [ref=f1e73]
+      - generic [ref=f1e76]:
+        - button "You" [ref=f1e78] [cursor=pointer]
+        - button "Connect apps" [ref=f1e84] [cursor=pointer]
+  - main [ref=f1e90]:
+    - generic [ref=f1e91]:
+      - generic [ref=f1e94]:
+        - generic [ref=f1e95]:
+          - button "Open Pepper's profile" [active] [ref=f1e96] [cursor=pointer]:
+            - img "Pepper" [ref=f1e98]
+            - generic [ref=f1e109]: Pepper
+          - status [ref=f1e112]
+        - button "Share" [ref=f1e115] [cursor=pointer]
+      - log "Conversation with Pepper" [ref=f1e121]:
+        - generic [ref=f1e122]:
+          - generic [ref=f1e123]: Today 1:28 PM
+          - generic [ref=f1e125]:
+            - generic "11/9/2026, 1:28:40 PM" [ref=f1e126]:
+              - paragraph [ref=f1e129]: Hi, I'm Pepper. What would you like me to do?
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f1e130]: 1:28 PM
+          - region "What should I help you with first?" [ref=f1e131]:
+            - generic [ref=f1e132]:
+              - heading "What should I help you with first?" [level=3] [ref=f1e133]
+              - button "Close" [ref=f1e134] [cursor=pointer]
+            - generic [ref=f1e138]:
+              - button "A Research and digging into topics" [ref=f1e139] [cursor=pointer]:
+                - generic [ref=f1e140]: A
+                - generic [ref=f1e141]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [ref=f1e142] [cursor=pointer]:
+                - generic [ref=f1e143]: B
+                - generic [ref=f1e144]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [ref=f1e145] [cursor=pointer]:
+                - generic [ref=f1e146]: C
+                - generic [ref=f1e147]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [ref=f1e148] [cursor=pointer]:
+                - generic [ref=f1e149]: D
+                - generic [ref=f1e150]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [ref=f1e151] [cursor=pointer]:
+                - generic [ref=f1e152]: E
+                - generic [ref=f1e153]: Data, spreadsheets and reports
+              - button "F Something else" [ref=f1e154] [cursor=pointer]:
+                - generic [ref=f1e155]: F
+                - generic [ref=f1e156]: Something else
+      - status [ref=f1e157]
+      - generic [ref=f1e162]:
+        - generic [ref=f1e163]:
+          - button "Add" [ref=f1e165] [cursor=pointer]
+          - generic [ref=f1e168]:
+            - button "Switch to Fun mode" [ref=f1e169] [cursor=pointer]:
+              - generic [ref=f1e173]: Normal
+            - button "Turn on Think mode" [ref=f1e174] [cursor=pointer]:
+              - generic [ref=f1e183]: Think
+        - textbox "Message Pepper" [ref=f1e185]
+        - button "Live call with Pepper" [ref=f1e188] [cursor=pointer]
+  - complementary [ref=f1e296]:
+    - separator "Resize panel" [ref=f1e297]
+    - generic [ref=f1e299]:
+      - tablist "Bot panel view" [ref=f1e300]:
+        - tab "Screen" [ref=f1e301] [cursor=pointer]
+        - tab "Browser" [selected] [ref=f1e302] [cursor=pointer]
+        - tab "Data" [ref=f1e303] [cursor=pointer]
+        - tab "Files" [ref=f1e304] [cursor=pointer]
+      - button "Close the Screen panel" [ref=f1e305] [cursor=pointer]
+    - tabpanel "Browser" [ref=f1e309]:
+      - generic [ref=f1e310]:
+        - generic [ref=f1e314]: Let Pepper use a browser
+        - switch "Let Pepper use a browser" [checked] [ref=f1e316] [cursor=pointer]
+      - generic [ref=f1e318]:
+        - generic [ref=f1e319]:
+          - generic [ref=f1e320]:
+            - tablist "Browser tabs" [ref=f1e321]:
+              - generic [ref=f1e322]:
+                - tab "New tab" [selected] [ref=f1e326] [cursor=pointer]
+                - button "Close tab" [ref=f1e327] [cursor=pointer]
+              - button "New tab" [ref=f1e331] [cursor=pointer]
+            - button "Watching. Take control" [ref=f1e333] [cursor=pointer]:
+              - generic [ref=f1e339]: Watching
+              - generic [ref=f1e340]: · Take control
+            - button "Maximize" [ref=f1e341] [cursor=pointer]
+            - button "Full screen" [ref=f1e344] [cursor=pointer]
+            - button "Browser profiles" [ref=f1e350] [cursor=pointer]
+          - generic [ref=f1e354]:
+            - group "Navigation" [ref=f1e355]:
+              - button "Back" [ref=f1e356] [cursor=pointer]
+              - button "Forward" [ref=f1e359] [cursor=pointer]
+              - button "Reload page" [ref=f1e362] [cursor=pointer]
+            - textbox "Browser address" [ref=f1e366]:
+              - /placeholder: Search or enter address
+            - group [ref=f1e367]:
+              - generic "Browser menu" [ref=f1e368] [cursor=pointer]
+        - textbox "Pepper’s browser page" [ref=f1e377]

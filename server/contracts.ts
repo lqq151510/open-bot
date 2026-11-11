@@ -132,6 +132,10 @@ export interface SendTurnInput {
   /** The conversation's level right now, which the person may change while the turn runs. A driver that gates its own
    * tool calls reads it before each one; a native engine keeps `approvalMode` until its next turn. */
   approvalModeNow?: () => ApprovalMode;
+  /** When active, native session grants must pass through the workspace approval broker. */
+  approvalRulesActive?: () => boolean;
+  /** Reviews a tool that the driver can intercept before it runs. Errors must require human confirmation. */
+  approvalRuleForTool?: (action: { tool: string; command?: string }) => boolean | Promise<boolean>;
   /** Fresh owner selection, independent of execution approval and resume state. */
   toolScope?: ToolScope;
   /** A guest turn: no shell or command execution, no reads outside its folder. Sent only to drivers whose guestTurns is "confined". */

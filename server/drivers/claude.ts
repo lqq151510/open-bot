@@ -14,7 +14,8 @@ import { brokerSocketPath, describeSpawnFailure, execCli, killCliTree, spawnCli 
 import { cliVersionProbe } from "../cli-version-probe.ts";
 import { claudeAuthStatus } from "./claude-auth-status.ts";
 import { projectMcpServers } from "./claude-project-mcp.ts";
-import { botSettingsFor, withBotSettings } from "./claude-bot-settings.ts";
+import { botSettingsFor, claudeApprovalAskRules, claudeHookSettings, withBotSettings } from "./claude-bot-settings.ts";
+export { claudeHookSettings } from "./claude-bot-settings.ts";
 import { claudeBilling, claudeCallUsage } from "./claude-billing.ts";
 import { claudeAuthFailure, claudeAuthRecovery } from "./claude-auth-recovery.ts";
 import { CLAUDE_MODEL_ID, STATIC_CLAUDE_MODELS, claudeModelExtras, endpointModelCatalog } from "./claude-model-extras.ts";
@@ -408,19 +409,6 @@ const steerSilenceScale = () => fakeTimerScale("FAKE_CLAUDE_STEER_SILENCE_SCALE"
 export function hookTokenFile(threadId: string, botId?: string): string {
   const digest = createHash("sha256").update(`${botId ?? ""}\0${threadId}`).digest("hex").slice(0, 24);
   return join(DATA_DIR, "hook-tokens", digest, "token");
-}
-
-/** Hooks for the private --settings file. Claude Code runs each command with the event JSON on
- * stdin and applies any hookSpecificOutput it prints. */
-export function claudeHookSettings(helperPath: string, platform: NodeJS.Platform = process.platform): Record<string, unknown> {
-  // Claude Code runs `command` as a shell line: sh on macOS and Linux; on Windows Git Bash, or PowerShell
-  // when Git Bash is missing, and the two quote differently. Given `args` (2.1.139), it starts `command` itself.
-  // JSON quoting is not shell quoting: $(), backticks and $names expand inside double quotes.
-  const hook = platform === "win32"
-    ? { type: "command", command: process.execPath, args: [helperPath], timeout: 5 }
-    : { type: "command", command: [process.execPath, helperPath].map(path => `'${path.replace(/'/g, "'\\''")}'`).join(" "), timeout: 5 };
-  const entry = [{ matcher: "", hooks: [hook] }];
-  return { PostToolUse: entry, PostToolUseFailure: entry, PreCompact: entry, SessionStart: entry, Stop: entry };
 }
 
 export function permissionSocketPath(threadId: string, botId?: string) {
@@ -980,7 +968,8 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
             await killCliTree(stopped.child)) await stopped.closed;
         if (active.has(threadId)) throw new Error("a turn is already running on this thread");
       }
-      const permissionMode = turn.approvalMode === undefined
+      const approvalRules = turn.approvalRulesActive?.() === true;
+      const permissionMode = approvalRules ? "default" : turn.approvalMode === undefined
         ? config.permissionMode
         : turn.approvalMode === "full" ? "bypassPermissions"
           : turn.approvalMode === "auto" ? "auto"
@@ -1165,6 +1154,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
       if (isolated) own.claudeMdExcludes = [join(homedir(), ".claude", "CLAUDE.md")];
       if (hooks) own.hooks = claudeHookSettings(HOOK_HELPER_PATH);
       if (turn.guestConfined) own.permissions = GUEST_CLAUDE_PERMISSIONS;
+      if (approvalRules) own.permissions = { ...(turn.guestConfined ? GUEST_CLAUDE_PERMISSIONS : {}), ask: claudeApprovalAskRules(Object.keys(mcpServers)) };
       // Approvals and browser credentials expire at the turn boundary; native background workers must not outlive it.
       env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = "1";
       // Never for a guest: --restricted leaves project settings out, and a hook is a command.
@@ -1185,6 +1175,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
         base: env.ANTHROPIC_BASE_URL ?? null,
         configDir: env.CLAUDE_CONFIG_DIR ?? null,
         hooks: Boolean(hooks),
+        approvalRules,
         toolSearch,
         botSettings: createHash("sha256").update(JSON.stringify(botSettings)).digest("hex"),
         // Rotating an account's key/helper must not reuse the old process.
@@ -1274,7 +1265,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
                 ...shellRequest(ask.kind === "permission" && ask.tool === "Bash" ? ask.input.command : undefined, commandCwd), ...(ask.kind === "permission" && readToolPaths(ask.tool, ask.input) ? { reads: readToolPaths(ask.tool, ask.input) } : {}),
                 requiresExplicitApproval: ask.kind === "permission" && ask.tool === "Bash" && ask.input.dangerouslyDisableSandbox === true || undefined,
                 nativeReview,
-                allowSession: ask.kind === "permission" && !(controlsHost && typeof ask.tool === "string" && ask.tool.startsWith("mcp__computer")) ? true : undefined,
+                allowSession: ask.kind === "permission" && !approvalRules && !(controlsHost && typeof ask.tool === "string" && ask.tool.startsWith("mcp__computer")) ? true : undefined,
                 approvalScope:
                   typeof ask.tool === "string" && controlsHost && ask.tool.startsWith("mcp__computer")
                     ? "local-computer"
@@ -2061,10 +2052,11 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
           const elicited = await sessions.get(threadId)?.elicit.answer(requestId, decision.behavior);
           if (elicited === "failed") return "unavailable";
           if (elicited === "sent") return decision.behavior === "allow" ? "allowed-once" : "rejected";
-          const broker = sessions.get(threadId)?.broker ?? active.get(threadId)?.broker;
+          const session = sessions.get(threadId);
+          const broker = session?.broker ?? active.get(threadId)?.broker;
           if (!broker) return "unavailable";
           const behavior = decision.behavior === "answer" ? "answer" : decision.behavior;
-          if (!broker.answer(requestId, behavior, decision.message, decision.always)) return "unavailable";
+          if (!broker.answer(requestId, behavior, decision.message, decision.always && !session?.turn?.input.approvalRulesActive?.())) return "unavailable";
           return behavior === "allow" ? "allowed-once" : behavior === "answer" ? "answered" : "rejected";
         },
         hasSession: (threadId) => active.has(threadId),

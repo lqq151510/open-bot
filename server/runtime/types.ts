@@ -15,6 +15,8 @@ export interface Origin {
   quote?: string;
   /** Who the work is for when a bot acts for a named person. */
   onBehalfOf?: string;
+  /** Whose personal approval rules restrict the work, independently of its authority or whom it acts for. */
+  approvalPerson?: string;
 }
 
 export type RequesterKind = "person" | "bot_turn" | "routine_run" | "external_runtime";

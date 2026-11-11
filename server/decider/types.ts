@@ -8,7 +8,7 @@ export type DeciderJob = "roomRouting" | "inboxTriage";
 export const DECIDER_JOBS: readonly DeciderJob[] = ["roomRouting", "inboxTriage"];
 
 /** botDecide: a bot's own `decide` tool call. */
-export type DeciderSeam = DeciderJob | "keyCheck" | "botDecide";
+export type DeciderSeam = DeciderJob | "keyCheck" | "botDecide" | "permissionRules";
 
 /** Every failure means "use today's rule". */
 export type DeciderFailure =

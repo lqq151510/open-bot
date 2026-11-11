@@ -36,6 +36,7 @@ export interface OneOnOneGoalStart {
   runId?: string;
   sendId?: string;
   sender?: Message["sender"];
+  approvalPerson?: string;
 }
 
 type LiveGoal = {
@@ -186,7 +187,8 @@ export function createOneOnOneGoals(deps: OneOnOneGoalDeps) {
       cancelled: false,
     };
     live.set(threadId, goal);
-    const request = { id: message.id, origin: options.runId ? OUTSIDE : workOrigin(message) };
+    const origin = options.runId ? OUTSIDE : workOrigin(message);
+    const request = { id: message.id, origin: options.approvalPerson ? { ...origin, approvalPerson: options.approvalPerson } : origin };
     void runGoalRun({
       run: goal.run,
       coordinator: bot,

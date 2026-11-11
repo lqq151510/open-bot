@@ -36,6 +36,7 @@ export interface AppTriggerHostDeps {
   botState: (botId: string) => "ready" | "busy" | "missing";
   timeZone: () => string;
   visibleBot: (auth: RequestAuth, botId: string) => boolean;
+  approvalCreator?: (auth: RequestAuth) => string | undefined;
   emit: (frame: Record<string, unknown>) => void;
   audit: (row: { threadId: string; requestId: string; botId: string; botName: string; tool: string; summary: string }) => void;
   broker?: AppTriggerBroker;
@@ -50,6 +51,7 @@ export interface InternalTriggerContext {
   /** A run a webhook or app event started, or work one handed on. */
   outsideDriven: () => boolean;
   canCommit: () => boolean;
+  approvalCreator?: string;
 }
 
 const GUEST_REFUSAL = "Only the Cloud's owner can make a bot watch their connected apps. Tell the person to ask from their own conversation.";
@@ -129,7 +131,7 @@ export function createAppTriggerHost(deps: AppTriggerHostDeps) {
           ...(body.filter && typeof body.filter === "object" ? { filter: body.filter as never } : {}),
           ...(body.config && typeof body.config === "object" ? { config: body.config as Record<string, unknown> } : {}),
           ...(body.runOn === "cloud" ? { runOn: "cloud" as const } : {}),
-        });
+        }, deps.approvalCreator?.(auth));
         return json(res, 201, { trigger });
       }
       const match = path.match(/^\/api\/app-triggers\/([\w-]+)(?:\/(test))?$/);
@@ -203,7 +205,7 @@ export function createAppTriggerHost(deps: AppTriggerHostDeps) {
       return json(res, 403, { error: `${owner.name} has not been given access to ${appLabel(app)}. Ask the person to allow it under the bot's Access settings; do not retry until they have.` });
     }
     try {
-      const applied = await requests.submit({ botId: input.from.id, threadId: input.threadId, operation: { ...input.operation, forBot: input.forBot }, from: input.sender, canCommit: input.canCommit });
+      const applied = await requests.submit({ botId: input.from.id, threadId: input.threadId, operation: { ...input.operation, forBot: input.forBot }, from: input.sender, canCommit: input.canCommit, approvalCreator: input.approvalCreator });
       deps.audit({ threadId: input.threadId, requestId: applied.requestId, botId: input.from.id, botName: input.from.name,
         tool: applied.action === "create" ? "create_trigger" : "manage_trigger", summary: applied.summary });
       return json(res, 201, applied);

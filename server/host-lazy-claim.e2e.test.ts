@@ -336,6 +336,22 @@ describe("lazy host claim and pin on use (issue #1650)", () => {
     await idle(bot.id, task.threadId);
   }, 60_000);
 
+  itAutoHost("asks for each local operation when the device requires it, even at Full access", async () => {
+    await start({ OMB_TEST_DEVICE_EXECUTION: "ask" });
+    const { bot } = await apiOk("POST", "/api/bots", { name: "Device Approval Bot" });
+    const { task } = await apiOk("POST", `/api/bots/${bot.id}/tasks`, {});
+    resetTurn();
+    await apiOk("POST", `/api/bots/${bot.id}/messages`, { text: "Open the calendar slowly.", threadId: task.threadId });
+    await busy(bot.id, task.threadId);
+    const computer = mountedComputer(await dumpFor(bot.id));
+    const run = () => gate(computer);
+    expect(await withAnswer(base, task.threadId, run())).toEqual({ held: false, helpOpen: false });
+    expect(await withAnswer(base, task.threadId, run(), "deny")).toMatchObject({ held: true, blockedReason: "This computer call was not approved." });
+    expect(await withAnswer(base, task.threadId, run())).toEqual({ held: false, helpOpen: false });
+    writeFileSync(finishFile, "finish");
+    await idle(bot.id, task.threadId);
+  }, 60_000);
+
   itAutoHost("asks once before the first screen call below Full access, in plain words naming the app and the site", async () => {
     await start();
     const { bot } = await apiOk("POST", "/api/bots", { name: "Host Asking Bot", settings: { approvalMode: ASKS } });

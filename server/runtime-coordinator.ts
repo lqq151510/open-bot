@@ -56,8 +56,9 @@ const kindOf = (groupId: string | undefined, parent: Assignment | undefined): Ha
   groupId !== undefined && parent?.assignee.destination.groupId === groupId ? "assignment" : "work";
 
 function legacyOrigin(origin: Origin): WorkOrigin | undefined {
-  if (origin.kind !== "person") return { kind: "outside" };
-  return origin.quote ? { kind: "user", request: origin.quote } : undefined;
+  const approval = origin.approvalPerson ? { approvalPerson: origin.approvalPerson } : {};
+  if (origin.kind !== "person") return { kind: "outside", ...approval };
+  return origin.quote ? { kind: "user", request: origin.quote, ...approval } : undefined;
 }
 
 const hostFirstTurn = (a: Assignment): boolean => !a.parentId && a.status === "running" && a.executions === 1;
@@ -328,9 +329,11 @@ export class RuntimeCoordinator implements Coordinator {
     const existing = this.store.get(req.id);
     if (existing) return this.project(existing);
     const { address, opener } = req;
+    const origin = opener?.origin ?? runtimeOrigin(req.origin, address);
+    const approvalPerson = req.origin?.approvalPerson;
     const row = this.runtime.begin({
       id: req.id,
-      origin: opener?.origin ?? runtimeOrigin(req.origin, address),
+      origin: approvalPerson ? { ...origin, approvalPerson } : origin,
       requester: opener
         ? { ...opener.requester, botId: opener.requester.botId ?? address.botId, threadId: opener.requester.threadId ?? address.threadId, chief: this.host.chiefOf(address) }
         : { kind: "person", threadId: address.threadId, botId: address.botId, chief: this.host.chiefOf(address) },

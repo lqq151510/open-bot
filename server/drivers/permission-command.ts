@@ -61,6 +61,18 @@ export function acpShellRequest(isShellCommand: boolean, rawInput: unknown, laun
   return { command: isShellCommand ? acpPermissionCommand(rawInput, launchCwd) : undefined, commandLine: shellRequest(command, undefined).commandLine };
 }
 
+export function acpPermissionOptionId(
+  options: readonly { optionId?: string; kind?: string }[],
+  wanted: "allow" | "reject",
+  sessionGrantsAllowed: boolean,
+): string | null {
+  const once = options.find((option) => option.kind === `${wanted}_once` && typeof option.optionId === "string")?.optionId;
+  if (once !== undefined) return once;
+  const compatible = options.find((option) => String(option.kind ?? "").startsWith(wanted) &&
+    typeof option.optionId === "string" && (sessionGrantsAllowed || option.kind !== "allow_always"));
+  return compatible?.optionId ?? null;
+}
+
 /** An ACP permission request's exact operation, for the driver's own session allow; null for a generic title with no input. */
 export function acpSessionOperationKey(toolCall: any): string | null {
   const rawInput = toolCall?.rawInput;

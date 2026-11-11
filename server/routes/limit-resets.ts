@@ -20,6 +20,7 @@ export interface LimitResetRouteDeps {
   /** The engine this conversation runs on now. */
   threadEngine(botId: string, threadId: string): string | undefined;
   engineName(engine: string): string;
+  approvalCreator?: (auth: RequestAuth) => string | undefined;
   /** The automation the button made, for whoever's it is (a Cloud home's authors). */
   created?(routineId: string, auth: RequestAuth): void;
 }
@@ -64,7 +65,7 @@ export function createLimitResetRoutes(deps: LimitResetRouteDeps): RouteHandler 
       const short = title.length > MAX_TITLE ? `${title.slice(0, MAX_TITLE - 1).trimEnd()}…` : title;
       const schedule: Omit<LimitResetSchedule, "at"> = { type: "limit_reset", engine, repeat: "once" };
       try {
-        const submitted = await deps.requests.submit({ botId, threadId, proposal: { action: "create", routine: {
+        const submitted = await deps.requests.submit({ botId, threadId, approvalCreator: deps.approvalCreator?.(auth), proposal: { action: "create", routine: {
           name: `Continue “${short}”`.slice(0, 80), instructions: continueInstructions(short, deps.engineName(engine)), schedule,
         } } });
         const routineId = submitted.result?.resultId;

@@ -1,0 +1,101 @@
+[     297ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[ 2113578ms] Error: useStore outside provider
+    at useStore (http://127.0.0.1:5174/src/state/store.tsx?t=1794217170506:2476:19)
+    at ThreadRefsProvider (http://127.0.0.1:5174/src/components/ThreadRefs.tsx?t=1794217170506:49:21)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 2113578ms] [WARNING] %s
+
+%s
+ An error occurred in the <ThreadRefsProvider> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 2116712ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[ 4599307ms] TypeError: Cannot read properties of undefined (reading 'includes')
+    at t (http://127.0.0.1:5174/src/lib/i18n.ts?t=1794217174269:70:28)
+    at ShareMenu (http://127.0.0.1:5174/src/components/ChatMoreMenu.tsx?t=1794219657189:350:14)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 4599307ms] [WARNING] %s
+
+%s
+ An error occurred in the <ShareMenu> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 4723450ms] TypeError: Cannot read properties of undefined (reading 'includes')
+    at t (http://127.0.0.1:5174/src/lib/i18n.ts?t=1794217174269:70:28)
+    at ShareMenu (http://127.0.0.1:5174/src/components/ChatMoreMenu.tsx?t=1794219781064:350:14)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 4723445ms] [WARNING] %s
+
+%s
+ An error occurred in the <ShareMenu> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 4903396ms] TypeError: Cannot read properties of undefined (reading 'includes')
+    at t (http://127.0.0.1:5174/src/lib/i18n.ts?t=1794217174269:70:28)
+    at ShareMenu (http://127.0.0.1:5174/src/components/ChatMoreMenu.tsx?t=1794219781064:350:14)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 4903389ms] [WARNING] %s
+
+%s
+ An error occurred in the <ShareMenu> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 5062400ms] Error: useStore outside provider
+    at useStore (http://127.0.0.1:5174/src/state/store.tsx?t=1794220119565:2476:19)
+    at ThreadRefsProvider (http://127.0.0.1:5174/src/components/ThreadRefs.tsx?t=1794220119562:49:21)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 5062372ms] [WARNING] %s
+
+%s
+ An error occurred in the <ThreadRefsProvider> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 5062785ms] Error: useStore outside provider
+    at useStore (http://127.0.0.1:5174/src/state/store.tsx?t=1794220119565:2476:19)
+    at ThreadRefsProvider (http://127.0.0.1:5174/src/components/ThreadRefs.tsx?t=1794220119562:49:21)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:18509:20)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:5654:24)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:7475:21)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:8525:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:997:72)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12561:98)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12424:43)
+    at renderRootSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:12408:13)
+[ 5062785ms] [WARNING] %s
+
+%s
+ An error occurred in the <ThreadRefsProvider> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:6965
+[ 5064566ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[10472533ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=da4453aa:20102
+[11097929ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5174/@vite/client:864

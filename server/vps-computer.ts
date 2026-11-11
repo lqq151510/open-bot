@@ -7,10 +7,8 @@ import {
   BASE_IMAGE,
   CUA_DRIVER_VERSION,
   CUA_SOCKET,
-  IMAGE as CUA_IMAGE,
   cuaExecArgs,
   dockerSecurityIsHardened,
-  imageLabelsMatch,
   managedImageDockerfile,
   wholeScreenshot,
   type DockerHardeningConfig,
@@ -21,6 +19,16 @@ import {
   IMAGE_LAYER_VERSION,
   MANAGED_LABEL,
 } from "./container-computer.ts";
+import {
+  IMAGE as VPS_IMAGE,
+  VPS_IMAGE_ID as IMAGE_ID,
+  VPS_VIEWER_LABEL,
+  VPS_VIEWER_VERSION as VIEWER_VERSION,
+  inspectVpsBaseline,
+  vpsImageIdentity,
+  vpsImageMatches,
+  vpsInventoryImageVerdict,
+} from "./container-image-identity.ts";
 import { PIDS_LIMIT, raisePidsLimit } from "./container-limits.ts";
 import { DATA_DIR, isValidSshAlias, vpsSshAlias, type AppConfig } from "./config.ts";
 import { augmentedPath } from "./env-path.ts";
@@ -29,11 +37,10 @@ import { prepareVpsSsh } from "./vps-ssh.ts";
 import { loadEnvironmentId } from "./environment.ts";
 import { SPAWNED_PROXIES } from "./proxy-paths.ts";
 
-export const VPS_IMAGE = CUA_IMAGE;
+export { IMAGE as VPS_IMAGE, VPS_VIEWER_LABEL } from "./container-image-identity.ts";
 export const VPS_MANAGED_LABEL = "com.openbot.vps";
 export const VPS_CONTAINER_LABEL = "com.openbot.container";
 export const VPS_ENVIRONMENT_LABEL = "com.openbot.environment";
-export const VPS_VIEWER_LABEL = "com.openbot.vps-viewer";
 export const VPS_CONTAINER_PREFIX = "openbot-vps";
 // Lazy: index must finish data migration and take the writer lease before this may create the data directory.
 let vpsEnvironmentIdCache: string | null = null;
@@ -50,7 +57,6 @@ const CONTAINER_NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]+$/;
 const CONTAINER_ID = /^[a-f0-9]{12,64}$/i;
 const FULL_CONTAINER_ID = /^[a-f0-9]{64}$/i;
 const MANAGED_VPS_CONTAINER_NAME = /^openbot-vps-[a-z0-9]{1,12}-[a-f0-9]{12}$/;
-const IMAGE_ID = /^sha256:[a-f0-9]{64}$/i;
 const SCREENSHOT_PATH = "/tmp/openbot-vps-preview.png";
 // The Cua XFCE base ships Pillow in /opt/venv; a container without it returns the original PNG.
 const SCREENSHOT_TRANSFER = `/opt/venv/bin/python -I -c 'import base64, io, sys
@@ -61,7 +67,6 @@ with Image.open(sys.argv[1]) as image:
     image.convert("RGB").save(output, format="JPEG", quality=70)
 sys.stdout.write(base64.b64encode(output.getvalue()).decode("ascii"))' "$1" 2>/dev/null || { base64 < "$1" | tr -d "\\n"; }`;
 const INTERNAL_VIEWER_PORT = 6901;
-const VIEWER_VERSION = "1";
 const lifecycleLocks = new Map<string, Promise<void>>();
 
 /** The app config reloads in place: across awaits it could inspect one host and mutate another. */
@@ -159,6 +164,7 @@ export interface ManagedVpsInventoryInstance {
   ownerName: string | null;
   orphaned: boolean;
   inUse: boolean;
+  imageMatches?: boolean | null;
 }
 
 export interface ManagedVpsInventory {
@@ -500,21 +506,11 @@ async function computeVpsComputerStatus(
     }
   };
 
-  let inspectedImageId: string | null = null;
   try {
-    const inspected = JSON.parse((await inspect(["image", "inspect", VPS_IMAGE])).stdout) as Array<{
-      Id?: string;
-      id?: string;
-      Config?: { Labels?: Record<string, string> };
-      config?: { Labels?: Record<string, string>; labels?: Record<string, string> };
-    }>;
+    const image = vpsImageIdentity((await inspect(["image", "inspect", VPS_IMAGE])).stdout);
     status.daemonUp = true;
-    const image = inspected[0];
-    const labels = image?.Config?.Labels ?? image?.config?.Labels ?? image?.config?.labels;
-    const imageId = image?.Id ?? image?.id;
-    inspectedImageId = imageId && IMAGE_ID.test(imageId) ? imageId : null;
-    status.image_id = inspectedImageId;
-    status.image = Boolean(inspectedImageId) && imageLabelsMatch(labels);
+    status.image_id = image.id;
+    status.image = image.verified;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!isMissingObjectMessage(message)) {
@@ -550,11 +546,8 @@ async function computeVpsComputerStatus(
     status.imageMatches =
       status.image &&
       Boolean(status.container_id) &&
-      (detail?.Config?.Image === VPS_IMAGE || detail?.Config?.Image === inspectedImageId) &&
-      Boolean(inspectedImageId) &&
-      detail?.Image === inspectedImageId &&
-      imageLabelsMatch(labels) &&
-      labels?.[VPS_VIEWER_LABEL] === VIEWER_VERSION;
+      status.image_id !== null &&
+      vpsImageMatches(detail, status.image_id);
     const environmentLabel = labels?.[VPS_ENVIRONMENT_LABEL];
     status.managed =
       labels?.[VPS_MANAGED_LABEL] === "1" &&
@@ -710,6 +703,7 @@ async function scanManagedVpsAlias(
   alias: string,
   owners: ManagedVpsOwner[],
   runner: VpsCommandRunner,
+  inspectImage = false,
 ): Promise<ManagedVpsAliasScan> {
   try {
     const listed = await runner(vpsDockerArgs(alias, [
@@ -738,6 +732,9 @@ async function scanManagedVpsAlias(
       throw new Error("the VPS returned an incomplete managed-container inventory");
     }
 
+    const baseline = inspectImage
+      ? await inspectVpsBaseline(() => runner(vpsDockerArgs(alias, ["image", "inspect", VPS_IMAGE]), { timeoutMs: 20_000 }))
+      : null;
     const ownerByName = new Map(owners.map((owner) => [vpsContainerName(owner.botId), owner]));
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
@@ -748,7 +745,8 @@ async function scanManagedVpsAlias(
       const detail = raw as {
         Id?: unknown;
         Name?: unknown;
-        Config?: { Labels?: unknown };
+        Config?: { Image?: unknown; Labels?: unknown };
+        Image?: unknown;
         State?: { Status?: unknown; Running?: unknown };
       };
       const id = typeof detail.Id === "string" ? detail.Id.toLowerCase() : "";
@@ -784,7 +782,8 @@ async function scanManagedVpsAlias(
         ownerBotId: owner?.botId ?? null,
         ownerName: owner?.name ?? null,
         orphaned: !owner,
-        inUse: owner?.inUse === true,
+        inUse: owner?.inUse === true || (inspectImage && lifecycleLocks.has(`${alias}:${name}`)),
+        ...(inspectImage ? { imageMatches: vpsInventoryImageVerdict(detail, baseline) } : {}),
       });
     }
     if (seenIds.size !== ids.length) {
@@ -801,6 +800,7 @@ export async function listManagedVpsComputers(
   owners: ManagedVpsOwner[],
   runner: VpsCommandRunner = defaultRunner,
   vpsAliases?: string[],
+  options: { inspectImage?: boolean } = {},
 ): Promise<ManagedVpsInventory> {
   const defaultAlias = vpsSshAlias(snapshotVpsConfig(cfg));
   const scanning = [...new Set((vpsAliases?.length ? vpsAliases : defaultAlias ? [defaultAlias] : []).filter(isValidSshAlias))];
@@ -809,7 +809,7 @@ export async function listManagedVpsComputers(
   }
   // Concurrently: one dead host must not delay the others behind its timeouts. Promise.all keeps
   // alias order, so the aggregate below matches the old serial loop exactly.
-  const scans = await Promise.all(scanning.map((alias) => scanManagedVpsAlias(alias, owners, runner)));
+  const scans = await Promise.all(scanning.map((alias) => scanManagedVpsAlias(alias, owners, runner, options.inspectImage)));
   const problem = scans.find((scan) => !scan.available)?.problem ?? null;
   const instances = scans.flatMap((scan) => scan.instances).sort((left, right) =>
     Number(left.orphaned) - Number(right.orphaned) ||

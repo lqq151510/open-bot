@@ -48,6 +48,11 @@ describe("MinimaxDriver", () => {
     });
   });
 
+  it("is configured from Settings with an API key", () => {
+    expect(MinimaxDriver.install).toMatchObject({ settings: "connections" });
+    expect(MinimaxDriver.install?.command).toBeUndefined();
+  });
+
   it("flags every catalog model custom so the picker's custom-access pane lists them", () => {
     expect(MinimaxDriver.metadata.access).toBe("custom");
     expect(MinimaxDriver.models.options.every((option) => option.custom === true)).toBe(true);

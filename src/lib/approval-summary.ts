@@ -83,7 +83,8 @@ export function outboundSummary(card: Pick<OptionCardData, "outboundRequest" | "
     };
   }
   return {
-    headline: app ? t("approval.outbound.sendTo", { app }) : t("approval.outbound.sendOnBehalf"),
+    headline: card.outboundRequest.reviewOnly ? t("server.approval.appOperation")
+      : app ? t("approval.outbound.sendTo", { app }) : t("approval.outbound.sendOnBehalf"),
     summary: collapseOutboundCalls(calls, app === null),
   };
 }

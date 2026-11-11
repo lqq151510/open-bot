@@ -7,13 +7,18 @@ import { ROUTINE_CHECKS, type RoutineCheck } from "../shared/routines.ts";
 import { isEffortLevel, type ModelSelection } from "../shared/wire.ts";
 import { isModelVariant } from "./contracts.ts";
 import { ROUTINE_PARTS, type PartPair, type RoutinePart } from "./package-parts.ts";
-import { loadAttachments, loadTimeoutMinutes } from "./routine-attachments.ts";
+import { cloneAttachments, loadAttachments, loadTimeoutMinutes } from "./routine-attachments.ts";
 import { isRoutineHoldCause } from "./routine-holds.ts";
 import { MAX_DATE_MS } from "./routine-intervals.ts";
-import { loadSchedule } from "./routine-schedules.ts";
+import { cloneSchedule, loadSchedule } from "./routine-schedules.ts";
 import type { Routine, RoutineGoalStatus, RoutinePackageStamp, RoutineRequestReceipt, RoutineRun, RoutineTarget } from "./routines.ts";
 
 const persistedSourceThreadId = z.string().trim().min(1).optional().catch(undefined);
+const persistedApprovalCreator = z.string().regex(/^p_[\w-]{22}$/).optional().catch(undefined);
+
+export function cloneRoutine(routine: Routine): Routine {
+  return { ...routine, schedule: cloneSchedule(routine.schedule), attachments: cloneAttachments(routine.attachments) };
+}
 
 const HASH = /^[a-f0-9]{64}$/;
 export function loadInstalledPackage(value: unknown): RoutinePackageStamp | undefined {
@@ -107,6 +112,7 @@ export function loadRoutine(routine: Routine, now: number): Routine | null {
     skippedRuns: Number.isSafeInteger(routine.skippedRuns) && routine.skippedRuns! > 0 ? routine.skippedRuns : undefined,
     lastSkippedAt: Number.isSafeInteger(routine.lastSkippedAt) && routine.lastSkippedAt! >= 0 && routine.lastSkippedAt! <= MAX_DATE_MS ? routine.lastSkippedAt : undefined,
     installedPackage: loadInstalledPackage(routine.installedPackage),
+    approvalCreator: persistedApprovalCreator.parse(routine.approvalCreator),
     checkedAt: instant(routine.checkedAt),
     checkTrouble: typeof routine.checkTrouble === "string" && routine.checkTrouble ? routine.checkTrouble.slice(0, 300) : undefined,
     checkTroubleCode: typeof routine.checkTrouble === "string" && routine.checkTrouble && typeof routine.checkTroubleCode === "string" ? routine.checkTroubleCode.slice(0, 80) : undefined,
@@ -114,7 +120,16 @@ export function loadRoutine(routine: Routine, now: number): Routine | null {
     heldFor: isRoutineHoldCause(routine.heldFor) ? routine.heldFor : undefined,
   };
   delete loaded.failureStreak;
-  return withCheckFields(withoutUndefined(loaded, ["timeoutMinutes", "runOnStartup", "modelSelection", "installedPackage", "checkedAt", "checkTrouble", "checkTroubleCode", "wakeAt", "heldFor"]));
+  return withCheckFields(withoutUndefined(loaded, ["timeoutMinutes", "runOnStartup", "modelSelection", "installedPackage", "approvalCreator", "checkedAt", "checkTrouble", "checkTroubleCode", "wakeAt", "heldFor"]));
+}
+
+export function cloneRun(run: RoutineRun): RoutineRun {
+  return { ...run, attachments: cloneAttachments(run.attachments), denials: run.denials ? [...run.denials] : undefined };
+}
+
+export function publicRoutineRun(run: RoutineRun): RoutineRun {
+  const { approvalCreator: _approvalCreator, ...visible } = cloneRun(run);
+  return visible;
 }
 
 export function loadRun(run: RoutineRun): RoutineRun {
@@ -131,9 +146,10 @@ export function loadRun(run: RoutineRun): RoutineRun {
     resultsThreadId: persistedSourceThreadId.parse(run.resultsThreadId),
     access: run.access === "read-and-draft" ? "read-and-draft" : undefined,
     deliver: run.deliver === "brief" ? "brief" : undefined,
+    approvalCreator: persistedApprovalCreator.parse(run.approvalCreator),
     checkKey: typeof run.checkKey === "string" && /^[\w-]{1,128}$/.test(run.checkKey) ? run.checkKey : undefined,
   };
-  return withoutUndefined(loaded, ["timeoutMinutes", "access", "deliver", "checkKey"]);
+  return withoutUndefined(loaded, ["timeoutMinutes", "access", "deliver", "approvalCreator", "checkKey"]);
 }
 
 const REQUEST_ACTIONS = new Set<RoutineRequestOperation["action"]>(["create", "update", "pause", "resume", "run_now", "delete"]);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { assertModelVariantSupported, memberTurnSelection } from "./member-turn.ts";
+import { assertModelVariantSupported, memberTurnSelection, thinkEffortForTurn } from "./member-turn.ts";
+import { THINK_EFFORT } from "../shared/wire.ts";
 
 describe("memberTurnSelection", () => {
   it("rejects a saved variant when the returning engine cannot apply it, including room turns", () => {
@@ -23,6 +24,14 @@ describe("memberTurnSelection", () => {
     expect(
       memberTurnSelection({ instanceId: "hermes", model: "omlx::gemma-4-31b-it-bf16" }),
     ).toEqual({ model: "omlx::gemma-4-31b-it-bf16" });
+  });
+
+  it("uses Think effort only when the engine lists it and the turn has no variant", () => {
+    expect(thinkEffortForTurn(THINK_EFFORT, ["low", "medium", "high"], undefined)).toBe("high");
+    expect(thinkEffortForTurn(THINK_EFFORT, ["low", "medium"], undefined)).toBeUndefined();
+    expect(thinkEffortForTurn(THINK_EFFORT, ["low", "medium", "high"], "minimal")).toBeUndefined();
+    expect(thinkEffortForTurn("low", ["low", "medium", "high"], undefined)).toBeUndefined();
+    expect(thinkEffortForTurn(undefined, ["high"], undefined)).toBeUndefined();
   });
 
   it("keeps a configured effort", () => {

@@ -31,6 +31,8 @@ const LiveDesktop = lazy(loadLiveDesktop);
 import { browserAvailable, browserUnavailableReason, builtInBrowserEnabled } from "@/lib/feature-flags";
 import { parseComputerHelp, transitionComputerControlLease, type ComputerControlAction } from "@/lib/computer-control";
 import { openProviderDesktop, useComputerTakeover } from "./computer-takeover";
+import { ComputerHoldNotice } from "./computer-hold-notice";
+import { handBackSharedHold } from "../../shared/computer-hold-view";
 import { SignInBanner } from "./SignInRequestCard";
 import { LocalScreenPreview } from "./LocalScreenPreview";
 import { LinuxLocalControl } from "./LinuxLocalControl";
@@ -111,6 +113,7 @@ const computerControlSnapshotSchema = z.object({
   helpReason: z.string().nullable().optional().default(null),
   help: z.unknown().optional().transform(parseComputerHelp),
   owned: z.boolean().optional(),
+  heldByOther: z.boolean().optional(),
 }).passthrough();
 
 export function ComputerPanel({
@@ -634,7 +637,7 @@ export function ComputerPanel({
     dispatch({
       type: "computerControl",
       botId: bot.id,
-      held: snap.held === true,
+      held: snap.held === true, heldByOther: snap.heldByOther === true,
       helpReason: snap.helpReason,
       help: snap.help,
     });
@@ -808,7 +811,7 @@ export function ComputerPanel({
         dispatch({
           type: "computerControl",
           botId: bot.id,
-          held: snap.held === true,
+          held: snap.held === true, heldByOther: snap.heldByOther === true,
           helpReason: snap.helpReason,
           help: snap.help,
         });
@@ -897,9 +900,11 @@ export function ComputerPanel({
   };
 
   const handBack = async () => {
-    setError(null);
-    void window.ogb?.desktopViewer?.close(bot.id);
-    await takeover.handBack().catch((cause) => setError(cause instanceof Error ? cause : String(cause)));
+    await handBackSharedHold({ held: control.held, heldByOther: control.heldByOther }, async () => {
+      setError(null);
+      void window.ogb?.desktopViewer?.close(bot.id);
+      await takeover.handBack().catch((cause) => setError(cause instanceof Error ? cause : String(cause)));
+    });
   };
 
   const run = (kind: "sleep" | "provision") => {
@@ -1557,21 +1562,8 @@ export function ComputerPanel({
         {signInHelp && signInHelp.place !== "browser" && signInBanner(bannerTakesControl && !control.held
           ? () => phase === "vm" || cloudPreviewReady ? void takeControl() : void controlAction("take")
           : undefined)}
-        {(cloudPreviewReady || phase === "vm" || currentTeamComputer) && control.held && (
-          <div className="mt-3 rounded-xl border border-accent/25 bg-accent/10 p-4">
-            <div className="text-[13px] leading-relaxed text-ink">
-              {t("computer.youHaveWheel")}
-              {cloudPreviewReady && !liveTarget && ` ${t(advanced ? "computer.useOpenDesktop" : "computer.simple.useFullScreen")}`}
-            </div>
-            <button
-              onClick={() => void handBack()}
-              disabled={controlPending || takeover.handingBack}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-50"
-            >
-              <Hand size={14} />
-              {t("computer.handBack")}
-            </button>
-          </div>
+        {(cloudPreviewReady || phase === "vm" || currentTeamComputer) && (control.held || control.heldByOther) && (
+          <ComputerHoldNotice hold={{ held: control.held, heldByOther: control.heldByOther }} pending={controlPending || takeover.handingBack} aside={cloudPreviewReady && !liveTarget ? t(advanced ? "computer.useOpenDesktop" : "computer.simple.useFullScreen") : ""} onHandBack={() => void handBack()} />
         )}
         {advanced && phase === "vm" && (control.held || !bannerTakesControl) && (
           <button

@@ -534,7 +534,7 @@ test("a protected directory spelled in another case is still refused", async t =
   folder.write = true;
   await assert.rejects(run({ action: "read_file", path: "OpenBot/credentials.bin" }), /Desktop credentials/);
   await assert.rejects(run({ action: "read_file", path: "openbot/credentials.bin" }), /Desktop credentials/);
-  await assert.rejects(run({ action: "read_file", path: "OPENOPENBOT/credentials.bin" }), /Desktop credentials/);
+  await assert.rejects(run({ action: "read_file", path: "OPENBOT/credentials.bin" }), /Desktop credentials/);
   await assert.rejects(run({ action: "list_files", path: "openbot" }), /Desktop credentials/);
   await assert.rejects(run({ action: "write_file", path: "openbot/computer-sharing.json", content: "{}" }), /sharing settings/);
 });

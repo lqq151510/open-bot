@@ -6,14 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildErrorPage, desktopViewerErrorPage } from "./error-pages.mjs";
-import { startCua, stopCua, registerCuaIpc, requestComputerUse, setCuaStateListener, grantLocalComputer } from "./cua.mjs";
+import { startCua, stopCua, registerCuaIpc, requestComputerUse, setCuaStateListener, grantLocalComputer, refreshLocalComputerGrant } from "./cua.mjs";
 import { createAndroidDeviceController } from "./android-device.mjs";
 import { finishSpeech, speechBusy, startSpeech, stopSpeech } from "./speech.mjs";
 import { installTalk, isTalkPanel } from "./talk-main.mjs";
 import { openBlankTerminal } from "./terminal-launch.mjs";
 import { linuxDisablesGpu } from "./linux-gpu.mjs";
 import { pasteMenuItem } from "./paste-menu-item.mjs";
-import { attachUpdaterWindow, startUpdater, registerUpdaterIpc, sendUpdaterState, reopenedOutOfSight } from "./updater.mjs";
+import { attachUpdaterWindow, startUpdater, registerUpdaterIpc, sendUpdaterState, reopenedOutOfSight, quietSignals } from "./updater.mjs";
 import {
   appendDesktopCrashRecord,
   buildDiagnosticsReport,
@@ -1178,7 +1178,7 @@ async function startServerOn(port, dataDir = runningDataDir ?? startupEnvironmen
     slog(`spawned pid=${proc.pid}`);
     if (!serverSupervisor.isCurrent(proc)) return;
     syncDesktopMutationToken(proc);
-    syncPhoneSecretKey(proc); grantLocalComputer(proc, (child) => serverSupervisor.isCurrent(child));
+    syncPhoneSecretKey(proc); grantLocalComputer(proc, child => serverSupervisor.isCurrent(child), () => nativeText.prefs.deviceAccess().execution);
   });
   let exited = false;
   proc.once("exit", (code) => {
@@ -1443,6 +1443,9 @@ function sharingController() {
     fetch: (...args) => session.defaultSession.fetch(...args),
     environments: () => environmentsState.environments, localEnvironments: () => ownEnvironmentIds([desktopDataDir(), runningDataDir]),
     enabled: refreshSharedComputersAllowed, t: nativeT,
+    deviceExecution: () => nativeText.prefs.deviceAccess().execution,
+    forwardTraffic: () => nativeText.prefs.deviceAccess().forwardTraffic,
+    confirmDeviceOperation: (env, action, signal) => lendingDialogs.confirmDeviceOperation(env, action, signal),
     cloud: lendingTarget.cloud, myCloud: lendingTarget.environment, ownClouds: lendingTarget.places, screen: screenControl.now, askForScreen, power: cloudPower, cloudPower: origin => cloudAccount?.powerOf?.(origin) ?? null, reconnect: reconnectCloud,
     prompt: createAskPrompt({ t: nativeT, dialog, window: () => mainWindow, idleSeconds: () => powerMonitor.getSystemIdleState(1) === "unknown" ? null : powerMonitor.getSystemIdleTime() }), startScreen: screenControl.start, confirmTerminal: () => lendingDialogs.lendTerminal(true, () => sharingController().lendTerminal(true)), log: slog,
     linkHeaders: async env => ({ cookie: (await session.defaultSession.cookies.get({ url: env.origin })).map(cookie => `${cookie.name}=${cookie.value}`).join("; ") }),
@@ -2495,6 +2498,13 @@ const workspaceOnly = (handler) => (event, ...args) => {
   return handler(event, ...args);
 };
 const localWorkspaceOnly = (channel, handler) => localOnly(channel, workspaceOnly(handler));
+ipcMain.handle("device-access:state", localWorkspaceOnly("device-access:state", () => nativeText.prefs.deviceAccess()));
+ipcMain.handle("device-access:set", localWorkspaceOnly("device-access:set", (_event, patch) => {
+  const before = nativeText.prefs.deviceAccess(), after = nativeText.prefs.setDeviceAccess(patch);
+  if (before.execution !== after.execution) refreshLocalComputerGrant();
+  if (before.forwardTraffic !== after.forwardTraffic) computerSharing?.refreshTraffic();
+  return after;
+}));
 // No renderer-supplied address, token, paid flag or callback can choose an account or activate Pro.
 for (const method of ["state", "begin", "signInAgain", "reopen", "cancel", "refresh", "signOut", "openDashboard", "offer"]) {
   ipcMain.handle(`cloud-account:${method}`, localWorkspaceOnly(`cloud-account:${method}`, () => (method === "signOut" ? accounts.signOutActive() : ensureCloudAccount()[method]())));
@@ -3094,7 +3104,13 @@ app.whenReady().then(async () => {
       return credentials;
     }).finally(syncManagedComposioCredentials);
   }
-  startUpdater();
+  startUpdater(desktopRemoteAccess ? null : quietSignals({
+    powerMonitor, window: () => mainWindow, lastInput: oneHome.lastInput, local: localServerRequest,
+    place: () => homeWindow.placeOrigin(), cloudFetch: (...args) => session.defaultSession.fetch(...args),
+    asleep: origin => homeWindow.asleepAt(origin),
+    busy: () => (desktopShutdownStarted && "shutdown") || ((oneHome.oneHome.busy() || ownHome?.busy()) && "move")
+      || (computerSharing?.busy() && "lending") || (talk.busy() && "talk") || (companyBackupController || companyRestoreCommitting ? "backup" : null),
+  }), desktopPrefs);
   refreshApplicationMenu();
   openWindowForLink = () => {
     if (!mainWindow || mainWindow.isDestroyed()) createWindow({ deferNavigation: homeWindow.current().kind !== "computer" });

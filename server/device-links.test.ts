@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { getEventListeners } from "node:events";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { connect as tcpConnect, createServer as createTcpServer, type AddressInfo, type Socket } from "node:net";
+import { Duplex } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runDeviceLink } from "../electron/device-link.mjs";
@@ -69,13 +70,14 @@ async function website() {
 }
 
 /** The computer's link: names resolve only here, to a public address the test routes to `website`. */
-function link(base: string, id: string, websitePort: number, options: { session?: string; secret?: string } = {}) {
+function link(base: string, id: string, websitePort: number, options: { session?: string; secret?: string; chrome?: boolean } = {}) {
   const stop = new AbortController();
   const outgoing: number[] = [];
   let opens = 0;
   const ended = runDeviceLink({
     url: `${base.replace("http", "ws")}${linkPath(id)}`, signal: stop.signal, onOpen: () => opens++,
     headers: { authorization: `Bearer session-${options.session ?? "owner"}`, "x-omb-computer-secret": options.secret ?? secret },
+    ...(options.chrome ? { lends: () => ({ internet: true, chrome: true }), chrome: { open: async () => ({ socket: tcpConnect(websitePort, "127.0.0.1") }) } } : {}),
     egress: {
       interfaces: () => ({}),
       resolve: async (host: string) => (host.endsWith(".example") ? [{ address: "93.184.215.14", family: 4 }] : host === "router.example.net" ? [{ address: "192.168.1.1", family: 4 }] : []),
@@ -126,6 +128,31 @@ describe("the device link", () => {
     expect(await home.links.route(PERSON)!.open({ host: "router.example.net", port: 443 })).toEqual({ refused: "home-network" });
     expect(await home.links.route(PERSON)!.open({ host: "www.instagram.example", port: 25 })).toEqual({ refused: "port" });
     expect(home.computers.known(PERSON)[0]!.scopes.internet).toBe(true);
+  });
+
+  it("revokes only internet streams when a computer still lends Chrome on the same link", async () => {
+    const home = await cloud(), site = await website();
+    const id = await home.register("owner", true, randomUUID(), true);
+    const mac = link(home.base, id, site.port, { chrome: true });
+    await until(() => home.links.chromeRoute(PERSON) !== null, "the shared link");
+    const oldRoute = home.links.route(PERSON)!;
+    const internet = await oldRoute.open({ host: "site.example", port: 443 });
+    const chrome = await home.links.chromeRoute(PERSON)!.open();
+    if (!("join" in internet) || !("join" in chrome)) throw new Error("Expected two open streams.");
+    const stream = () => new Duplex({ read() {}, write(_chunk, _encoding, done) { done(); } });
+    const internetSocket = stream(), chromeSocket = stream();
+    internet.join(internetSocket);
+    chrome.join(chromeSocket);
+    await home.register("owner", false, id, true);
+    await until(() => internetSocket.destroyed, "the existing internet stream to close");
+    expect(chromeSocket.destroyed).toBe(false);
+    expect(home.links.route(PERSON)).toBeNull();
+    expect(await oldRoute.open({ host: "site.example", port: 443 })).toEqual({ gone: true });
+    expect(home.links.chromeRoute(PERSON)).not.toBeNull();
+    expect(mac.opens()).toBe(1);
+    await home.register("owner", true, id, true);
+    expect(await fetchThrough(home.links.route(PERSON)!, "site.example")).toHaveProperty("text");
+    expect(chromeSocket.destroyed).toBe(false);
   });
 
   it("marks the computer used when a page opens through it, at most once a minute, and not for a refusal", async () => {

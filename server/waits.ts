@@ -47,6 +47,7 @@ export interface WaitRecord {
   /** Decided and saved first; posted once its chat is free. */
   ending?: WaitNotice;
 }
+type StoredWait = WaitRecord & { approvalCreator?: string };
 export interface NewWait { botId: string; threadId: string; label: string; condition: NewWaitCondition; followUp?: string; hours?: number }
 export type CreateWaitResult =
   | { state: "created"; wait: WaitRecord; note?: string }
@@ -60,7 +61,7 @@ export interface WaitManagerOptions {
   botBusy(botId: string): boolean | undefined;
   /** False while a turn runs in the chat: try again next tick. */
   post(wait: WaitRecord, notice: WaitNotice): boolean;
-  followUp(wait: WaitRecord & { followUp: string }): void;
+  followUp(wait: WaitRecord & { followUp: string }, approvalCreator?: string): void;
   showCard(wait: WaitRecord & { followUp: string }): string | undefined;
   settleCard(wait: WaitRecord, how: "fired" | "expired" | "cancelled"): void;
 }
@@ -81,6 +82,7 @@ const recordSchema = z.object({
   label: z.string(),
   condition: conditionSchema,
   followUp: z.string().optional(),
+  approvalCreator: z.string().regex(/^p_[\w-]{22}$/).optional().catch(undefined),
   createdAt: z.number(),
   expiresAt: z.number(),
   nextCheckAt: z.number(),
@@ -131,8 +133,9 @@ function interval(kind: WaitKind, errors: number): number {
   return Math.min(URL_CHECK_MS * 2 ** errors, URL_BACKOFF_MAX_MS);
 }
 
-function cloneWait(wait: WaitRecord): WaitRecord {
-  return structuredClone(wait);
+function cloneWait(wait: StoredWait): WaitRecord {
+  const { approvalCreator: _approvalCreator, ...visible } = wait;
+  return structuredClone(visible);
 }
 
 type Verdict = { met: boolean; gone?: boolean; unlisted?: boolean; page?: { ok: true } | { ok: false; refused: boolean; error: string } };
@@ -142,7 +145,7 @@ export class WaitManager {
   private readonly now: () => number;
   private readonly probes: WaitProbes;
   private readonly options: WaitManagerOptions;
-  private waits: WaitRecord[] = [];
+  private waits: StoredWait[] = [];
   private timer: DueTimer | null = null;
   private running = false;
   private stopped = false;
@@ -165,7 +168,7 @@ export class WaitManager {
       this.waits = parsed.success
         ? parsed.data.waits.flatMap((candidate) => {
             const record = recordSchema.safeParse(candidate);
-            return record.success ? [record.data as WaitRecord] : [];
+            return record.success ? [record.data as StoredWait] : [];
           })
         : [];
     } catch {
@@ -173,7 +176,7 @@ export class WaitManager {
     }
   }
 
-  async create(input: NewWait): Promise<CreateWaitResult> {
+  async create(input: NewWait, approvalCreator?: string): Promise<CreateWaitResult> {
     const full = this.limitRefusal(input);
     if (full) return full;
     const condition = await this.startingCondition(input.condition);
@@ -185,8 +188,9 @@ export class WaitManager {
     const crowded = this.limitRefusal(input);
     if (crowded) return crowded;
     const now = this.now();
-    const wait: WaitRecord = {
+    const wait: StoredWait = {
       id: randomUUID(),
+      ...(input.followUp && approvalCreator ? { approvalCreator } : {}),
       botId: input.botId,
       threadId: input.threadId,
       label: input.label,
@@ -366,7 +370,7 @@ export class WaitManager {
         if (!posted) continue;
         const status = wait.ending.status;
         this.commit(() => { this.waits = this.waits.filter((w) => w !== wait); });
-        if (status === "fired" && wait.followUp) this.safely(() => this.options.followUp(wait as WaitRecord & { followUp: string }));
+        if (status === "fired" && wait.followUp) this.safely(() => this.options.followUp(wait as WaitRecord & { followUp: string }, wait.approvalCreator));
         if (wait.cardMessageId) this.safely(() => this.options.settleCard(wait, status === "fired" ? "fired" : "expired"));
       }
     } finally {
@@ -423,7 +427,7 @@ export class WaitManager {
   }
 
   private commit(mutate: () => void): void {
-    const before = this.waits.map(cloneWait);
+    const before = structuredClone(this.waits);
     const identity = this.waits.slice();
     try {
       mutate();

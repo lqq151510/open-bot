@@ -1,11 +1,17 @@
 // What tells a quiet moment for a downloaded update, from Electron and from the servers this app's window talks to.
 import { BACKGROUND_HEADERS } from "./cloud-power.mjs";
 
-/** A server's JSON answer; a failure or a server error throws, since nothing can be known from it. */
 async function answer(response) {
   const got = await response;
-  if (got.status >= 500 || got.status === 0) throw new Error(`answered ${got.status}`);
-  return got.ok ? got.json().catch(() => null) : null;
+  if (!got.ok) throw new Error(`answered ${got.status}`);
+  return got.json();
+}
+
+async function activeCall(response) {
+  const call = (await answer(response))?.call;
+  if (call === null) return false;
+  if (typeof call === "object" && !Array.isArray(call)) return true;
+  throw new Error("Live call status is unavailable.");
 }
 
 /**
@@ -36,13 +42,14 @@ export function quietSignals({ powerMonitor, window, lastInput, local, place, cl
      * sign-in), or a Live call here or on the Cloud the window shows. */
     async work() {
       const held = await answer(local("/api/move/freeze", { signal: timeout() }));
-      if (!held) throw new Error("This computer's server did not say what it is doing.");
-      if (typeof held.busy === "string") return held.what ?? "bot";
-      if ((await answer(local("/api/live/call", { signal: timeout() })))?.call) return "call";
+      if (typeof held?.frozen !== "boolean" || (Object.hasOwn(held, "busy") && typeof held.busy !== "string")) {
+        throw new Error("This computer's server did not say what it is doing.");
+      }
+      if (typeof held.busy === "string") return (typeof held.what === "string" && held.what) || "bot";
+      if (await activeCall(local("/api/live/call", { signal: timeout() }))) return "call";
       const origin = place();
       if (origin && !asleep(origin)) {
-        const there = await answer(cloudFetch(`${origin}/api/live/call`, { headers: BACKGROUND_HEADERS, credentials: "include", cache: "no-store", redirect: "error", signal: timeout() }));
-        if (there?.call) return "call";
+        if (await activeCall(cloudFetch(`${origin}/api/live/call`, { headers: BACKGROUND_HEADERS, credentials: "include", cache: "no-store", redirect: "error", signal: timeout() }))) return "call";
       }
       return null;
     },

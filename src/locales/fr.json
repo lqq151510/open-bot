@@ -1844,6 +1844,7 @@
   "computer.twoDesktops": "Ouvrir deux bureaux",
   "computer.takeControl": "Prendre la main",
   "computer.youHaveWheel": "Vous avez la main — les clics et les frappes du bot sont refusés jusqu'à ce que vous la rendiez.",
+  "computer.heldByOther": "Quelqu’un d’autre utilise cet ordinateur partagé.",
   "computer.inControl": "Vous avez la main",
   "computer.useOpenDesktop": "Utilisez « Ouvrir le bureau en direct » pour piloter.",
   "computer.handBack": "Rendre la main",

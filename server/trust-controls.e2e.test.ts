@@ -212,6 +212,59 @@ it("honors outbound approval and Send without asking at Full access, and still r
   expect(relayed).toHaveLength(before + 3);
 });
 
+it("holds an exact team rule before a connected-app send with a standing allow", async () => {
+  const b = fullBot;
+  const rulesPath = "/api/permission-rules/always-ask";
+  const configured = await api("POST", rulesPath + "?scope=team", { text: "tool:GMAIL_SEND_EMAIL" });
+  expect(configured.status).toBe(200);
+  const rule = configured.body.teamRules.find((candidate: { text: string }) => candidate.text === "tool:GMAIL_SEND_EMAIL");
+  try {
+    expect((await api("PATCH", `/api/bots/${b.id}`, { outbound: { policy: "allow" }, connectorScopes: { apps: { gmail: "write" } } })).status).toBe(200);
+    const token = await mint(b.id, b.threadId);
+    const before = relayed.length;
+    const denied = relay(token, "GMAIL_SEND_EMAIL", { to: "rule-fixture@example.test" });
+    const card = await pending(b.threadId);
+    expect(card.card.heldCode).toBe("approval.held.alwaysAsk");
+    expect(relayed).toHaveLength(before);
+    await api("POST", `/api/threads/${b.threadId}/respond`, { requestId: card.card.requestId, behavior: "deny" });
+    expect((await denied).body.result.isError).toBe(true);
+    expect(relayed).toHaveLength(before);
+
+    const approved = relay(token, "GMAIL_SEND_EMAIL", { to: "rule-fixture@example.test" });
+    const next = await pending(b.threadId);
+    expect(next.card.requestId).not.toBe(card.card.requestId);
+    expect(relayed).toHaveLength(before);
+    await api("POST", `/api/threads/${b.threadId}/respond`, { requestId: next.card.requestId, behavior: "allow" });
+    expect((await approved).body.result.isError).not.toBe(true);
+    expect(relayed).toHaveLength(before + 1);
+
+    const opaqueBot = await bot("Always-ask opaque fixture");
+    expect((await api("PATCH", `/api/bots/${opaqueBot.id}`, { approvalMode: "full", applyToAllThreads: true })).status).toBe(200);
+    const fullToken = await mint(opaqueBot.id, opaqueBot.threadId);
+    expect((await api("POST", "/api/internal/connectors/mcp", [{ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "GMAIL_SEND_EMAIL" } }], fullToken)).status).toBe(400);
+    expect(relayed).toHaveLength(before + 1);
+    const opaque = relay(fullToken, "COMPOSIO_REMOTE_WORKBENCH", { code_to_execute: 'run_tool("GMAIL_" + "SEND_EMAIL", {})' });
+    const opaqueCard = await pending(opaqueBot.threadId);
+    expect(opaqueCard.card.heldCode).toBe("approval.held.alwaysAsk");
+    expect(relayed).toHaveLength(before + 1);
+    await api("POST", `/api/threads/${opaqueBot.threadId}/respond`, { requestId: opaqueCard.card.requestId, behavior: "deny" });
+    expect((await opaque).body.result.isError).toBe(true);
+    expect(relayed).toHaveLength(before + 1);
+
+    expect((await api("PATCH", rulesPath + "/" + rule.id + "?scope=team", { text: "tool:GMAIL_CREATE_EMAIL_DRAFT" })).status).toBe(200);
+    const draft = relay(token, "COMPOSIO_MULTI_EXECUTE_TOOL", { tools: [{ tool_slug: "GMAIL_CREATE_EMAIL_DRAFT", arguments: { body: "Fixture draft" } }] });
+    const draftCard = await pending(b.threadId);
+    expect(draftCard.card).toMatchObject({ heldCode: "approval.held.alwaysAsk", outboundRequest: { reviewOnly: true, tool: "GMAIL_CREATE_EMAIL_DRAFT" } });
+    expect(relayed).toHaveLength(before + 1);
+    await api("POST", `/api/threads/${b.threadId}/respond`, { requestId: draftCard.card.requestId, behavior: "deny" });
+    expect((await draft).body.result.isError).toBe(true);
+    expect(relayed).toHaveLength(before + 1);
+  } finally {
+    await api("DELETE", rulesPath + "/" + rule.id + "?scope=team");
+    await api("PATCH", `/api/bots/${b.id}`, { connectorScopes: { apps: { gmail: "read" } } });
+  }
+});
+
 it("honors Ask every time at Full access before the first send for any prompt language", async () => {
   const b = outboundPolicyBot;
   expect((await api("GET", "/api/bots")).body.bots.find((bot: any) => bot.id === b.id).outbound).toEqual({ policy: "ask" });

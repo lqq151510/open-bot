@@ -1,0 +1,21 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [ref=e5] [cursor=pointer]
+        - tab "Generate" [ref=e6] [cursor=pointer]
+        - tab "Upload" [selected] [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - generic [ref=e213]:
+          - img "Preview Bot avatar preview" [ref=e216]
+          - generic [ref=e217]:
+            - paragraph [ref=e218]: sample.png · 160×240
+            - paragraph [ref=e219]: Drag to reposition
+          - generic [ref=e220]:
+            - generic [aria-hidden] [ref=e221]: −
+            - slider "Zoom avatar" [ref=e222]: "1"
+            - generic [aria-hidden] [ref=e223]: +
+        - generic [ref=e224]:
+          - button "Start over" [ref=e225] [cursor=pointer]
+          - button "Set avatar" [ref=e226] [cursor=pointer]

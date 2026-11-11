@@ -4,9 +4,10 @@
 // this computer only from this message (server/desktop-computer.ts), so a second OpenBot server never finds it.
 export const LOCAL_COMPUTER_GRANT = "openbot:local-computer";
 
-export function localComputerGrantMessage(connection) {
+export function localComputerGrantMessage(connection, execution) {
   return {
     type: LOCAL_COMPUTER_GRANT,
+    ...(execution === undefined ? {} : { execution }),
     connection: connection && typeof connection === "object" && !Array.isArray(connection) ? connection : null,
   };
 }
@@ -16,18 +17,20 @@ export function localComputerGrantMessage(connection) {
 export function createLocalComputerGrant({ connection, log = () => {} }) {
   let target = null;
   let current = () => false;
+  let execution = () => undefined;
   const send = () => {
     const proc = target;
     if (!proc || !current(proc)) return;
     try {
-      proc.postMessage(localComputerGrantMessage(connection()));
+      proc.postMessage(localComputerGrantMessage(connection(), execution()));
     } catch (error) {
       log(`local computer grant failed: ${error?.message ?? error}`);
     }
   };
   return Object.freeze({
-    attach(proc, isCurrent) {
+    attach(proc, isCurrent, deviceExecution = () => undefined) {
       target = proc;
+      execution = deviceExecution;
       current = typeof isCurrent === "function" ? isCurrent : () => true;
       send();
     },

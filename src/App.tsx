@@ -310,7 +310,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((snap) => {
-          if (snap) dispatch({ type: "computerControl", botId, held: snap.held === true, helpReason: snap.helpReason ?? null, help: parseComputerHelp(snap.help) });
+          if (snap) dispatch({ type: "computerControl", botId, held: snap.held === true, heldByOther: snap.heldByOther === true, helpReason: snap.helpReason ?? null, help: parseComputerHelp(snap.help) });
         })
         .catch(() => {});
       void fetch(`/api/bots/${botId}/computer/viewer-close`, {

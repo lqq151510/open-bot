@@ -1,0 +1,18 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [ref=e5] [cursor=pointer]
+        - tab "Generate" [selected] [ref=e6] [cursor=pointer]
+        - tab "Upload" [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e187]:
+        - generic [ref=e188]: Generate with AI
+        - paragraph [ref=e192]:
+          - text: Uses OpenAI, as set in Image generation.
+          - button "Open image settings" [active] [ref=e193] [cursor=pointer]
+        - textbox "Avatar generation direction" [ref=e194]:
+          - /placeholder: Optional direction, e.g. “a calm navigator inspired by Preview Bot”
+        - generic [ref=e195]:
+          - generic [ref=e196]: 0/400
+          - button "Generate avatar" [disabled] [ref=e197]

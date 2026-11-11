@@ -122,3 +122,41 @@ it("an Owner or Admin's paired session (as the Admin holds one) sets a team key 
   const settings = await admin("GET", "/api/config");
   expect([settings.status, settings.body.language]).toEqual([200, "de"]);
 }, 30_000);
+
+it("isolates personal rules between signed members and gives team rule edits only to administrators", async () => {
+  const member = async (email: string, role: "admin" | "member") => {
+    const granted = await signed("POST", "/api/cloud/pairing", JSON.stringify({
+      label: "Always-ask fixture", ttlSeconds: 300, team: TEAM, member: { email, role },
+    }));
+    expect(granted.status).toBe(200);
+    const paired = await call("POST", "/api/auth/pair", {
+      body: JSON.stringify({ code: granted.body.code }), headers: { "content-type": "application/json" },
+    });
+    expect(paired.status).toBe(200);
+    return (method: string, path: string, body?: unknown) => call(method, path, {
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      headers: { authorization: `Bearer ${paired.body.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    });
+  };
+  const rules = "/api/permission-rules/always-ask";
+  const admin = await member("rules-admin@acme.test", "admin");
+  const alice = await member("rules-alice@acme.test", "member");
+  const bob = await member("rules-bob@acme.test", "member");
+  expect((await admin("POST", rules + "?scope=team", { text: "tool:Write" })).status).toBe(200);
+  const created = await alice("POST", rules + "?scope=personal", { text: "tool:Read" });
+  expect(created.status).toBe(200);
+  expect(created.body).toMatchObject({
+    teamRules: [{ text: "tool:Write" }], personalRules: [{ text: "tool:Read" }], canEditPersonal: true, canEditTeam: false,
+  });
+  const id = created.body.personalRules[0].id;
+  expect((await bob("GET", rules)).body).toMatchObject({
+    teamRules: [{ text: "tool:Write" }], personalRules: [],
+  });
+  expect((await admin("GET", rules)).body).toMatchObject({ personalRules: [], canEditTeam: true });
+  expect((await bob("PATCH", `${rules}/${id}?scope=personal`, { text: "tool:Bash" })).status).toBe(404);
+  await bob("DELETE", `${rules}/${id}?scope=personal`);
+  expect((await alice("GET", rules)).body.personalRules).toEqual(created.body.personalRules);
+  expect((await alice("POST", rules + "?scope=team", { text: "tool:Bash" })).status).toBe(403);
+  const aliceAgain = await member("rules-alice@acme.test", "member");
+  expect((await aliceAgain("GET", rules)).body.personalRules).toEqual(created.body.personalRules);
+}, 30_000);

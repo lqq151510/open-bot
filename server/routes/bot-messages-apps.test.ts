@@ -87,7 +87,6 @@ async function fixture() {
     store,
     routines: () => null,
     desktopManaged: true,
-    cloudHome: false,
     DirectSendRefused,
     acceptDirectSend: accept,
     directSendRefusal: (botId: string, thread: string) => (store.taskByThread(botId, thread) ? null : { status: 409, body: { error: "gone" } }),

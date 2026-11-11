@@ -86,6 +86,20 @@ describe("createOutboundHold", () => {
     expect(rows[0]).toMatchObject({ threadId: "t1", botId: "b1", botName: "Scout", tool: "GMAIL_SEND_EMAIL" });
   });
 
+  it("holds an always-ask send despite a saved allow or Full access", async () => {
+    for (const outbound of [undefined, { policy: "allow" } as const]) {
+      const { hold, appended, outboundRequests, input } = setup(bot(outbound));
+      const request = { ...input, fullAccess: true, mustAsk: true };
+      const waiting = hold.hold({ ...request, active: () => true });
+      const card = appended[0].message.card!;
+      expect(card.heldCode).toBe("approval.held.alwaysAsk");
+      expect(() => hold.beforeDispatch({ ...request, approved: false })).toThrow(/requires approval/);
+      outboundRequests.resolve({ threadId: input.threadId, requestId: card.requestId as string, behavior: "allow" });
+      await expect(waiting).resolves.toEqual({ ok: true, approved: true });
+      expect(() => hold.beforeDispatch({ ...request, approved: true })).not.toThrow();
+    }
+  });
+
   it("ignores a daily cap an older app stored on the rule", async () => {
     const held = setup(bot({ policy: "allow", dailyCap: 2 } as HoldBot["outbound"]));
     for (let sent = 0; sent < 5; sent++) await expect(send(held)).resolves.toEqual({ ok: true, approved: false });

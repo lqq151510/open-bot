@@ -1,0 +1,137 @@
+- generic [ref=e6]:
+  - complementary "机器人与导航" [ref=e68]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - button "新建或分享" [ref=e69] [cursor=pointer]
+        - textbox "搜索机器人和消息" [ref=e70]:
+          - /placeholder: 搜索
+        - button "收件箱" [ref=e71] [cursor=pointer]
+      - separator "调整侧栏大小" [ref=e72]
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - button "群组聊天" [expanded] [ref=e77] [cursor=pointer]
+          - generic [ref=e89]:
+            - button "Pepper Miso Launch team 还没有消息" [ref=e90] [cursor=pointer]:
+              - generic [ref=e92]:
+                - img "Pepper" [ref=e94]
+                - img "Miso" [ref=e106]
+              - generic [ref=e117]:
+                - generic [ref=e118]: Launch team
+                - generic [ref=e120]: 还没有消息
+            - button "展开 Launch team 对话" [ref=e122] [cursor=pointer]
+            - button "新建对话"
+        - generic [ref=e125]:
+          - button "机器人" [expanded] [ref=e127] [cursor=pointer]
+          - generic [ref=e139]:
+            - button "Miso 模型：Claude Sonnet 5（Verification fixture） 重命名 Miso 19:27 Hi, I'm Miso. What would you like me to do?" [ref=e140] [cursor=pointer]:
+              - generic "Miso" [ref=e141]:
+                - img "Miso" [ref=e143]
+                - img "模型：Claude Sonnet 5（Verification fixture）" [ref=e154]
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - button "重命名 Miso" [ref=e161]: Miso
+                  - generic [ref=e162]: 19:27
+                - generic [ref=e163]: Hi, I'm Miso. What would you like me to do?
+            - button "新建对话"
+            - button "在 Miso 下添加文件夹"
+            - button "Miso 的操作" [ref=e166] [cursor=pointer]
+          - generic [ref=e171]:
+            - button "Pepper 模型：Claude Sonnet 5（Verification fixture） 重命名 Pepper Bash 未读对话" [ref=e172] [cursor=pointer]:
+              - generic "Pepper" [ref=e173]:
+                - img "Pepper" [ref=e175]
+                - img "模型：Claude Sonnet 5（Verification fixture）" [ref=e186]
+              - generic [ref=e190]:
+                - button "重命名 Pepper" [ref=e193]: Pepper
+                - generic [ref=e194]:
+                  - generic [ref=e195]: Bash
+                  - generic "未读对话" [ref=e197]
+            - button "展开 Pepper 对话" [ref=e198] [cursor=pointer]
+            - button "新建对话"
+            - button "在 Pepper 下添加文件夹"
+            - button "Pepper 的操作"
+          - generic [ref=e201]:
+            - 'button "Pepper: Triage iCloud · 未读" [ref=e202] [cursor=pointer]':
+              - generic [ref=e207]: Triage iCloud
+              - generic [ref=e208]: 未读
+            - 'button "Pepper: Website ideas · 未读" [ref=e209] [cursor=pointer]':
+              - generic [ref=e214]: Website ideas
+              - generic [ref=e215]: 未读
+      - paragraph [ref=e31]
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - button "工具" [expanded] [ref=e216] [cursor=pointer]
+          - navigation "工具" [ref=e217]:
+            - button "自动化" [ref=e218] [cursor=pointer]
+            - button "团队地图" [ref=e219] [cursor=pointer]
+        - generic [ref=e51]:
+          - button "Threads preview" [ref=e220] [cursor=pointer]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: TP
+              - generic [ref=e58]: Threads preview
+          - button "应用" [ref=e221] [cursor=pointer]
+  - main [ref=e222]:
+    - generic [ref=e223]:
+      - generic [ref=e226]:
+        - generic [ref=e227]:
+          - generic [ref=e228]:
+            - button "打开 Miso 的资料" [ref=e229] [cursor=pointer]:
+              - img "Miso" [ref=e231]
+            - generic [ref=e242]:
+              - button "打开 Miso 的资料" [ref=e243] [cursor=pointer]: Miso
+              - button "重命名 Miso" [ref=e244] [cursor=pointer]
+          - status [ref=e248]
+        - generic [ref=e249]:
+          - button "Claude Sonnet 5" [ref=e251] [cursor=pointer]
+          - button "机器人的屏幕" [ref=e260] [cursor=pointer]
+          - button "更多" [ref=e264] [cursor=pointer]
+      - log "与 Miso 的对话" [ref=e271]:
+        - generic [ref=e272]:
+          - generic [ref=e273]: 今天 19:27
+          - generic [ref=e275]:
+            - generic "2026/11/9 19:27:45" [ref=e276]:
+              - paragraph [ref=e279]: Hi, I'm Miso. What would you like me to do?
+            - generic:
+              - button "回复消息"
+              - generic:
+                - button "添加表情回应"
+              - button "复制消息"
+              - button "消息操作"
+            - generic [ref=e280]: 19:27
+          - region "你先想让我帮你做什么？" [ref=e281]:
+            - generic [ref=e282]:
+              - heading "你先想让我帮你做什么？" [level=3] [ref=e283]
+              - button "关闭" [ref=e284] [cursor=pointer]
+            - generic [ref=e288]:
+              - button "A Research and digging into topics" [ref=e289] [cursor=pointer]:
+                - generic [ref=e290]: A
+                - generic [ref=e291]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [ref=e292] [cursor=pointer]:
+                - generic [ref=e293]: B
+                - generic [ref=e294]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [ref=e295] [cursor=pointer]:
+                - generic [ref=e296]: C
+                - generic [ref=e297]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [ref=e298] [cursor=pointer]:
+                - generic [ref=e299]: D
+                - generic [ref=e300]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [ref=e301] [cursor=pointer]:
+                - generic [ref=e302]: E
+                - generic [ref=e303]: Data, spreadsheets and reports
+              - button "F 其他事情" [ref=e304] [cursor=pointer]:
+                - generic [ref=e305]: F
+                - generic [ref=e306]: 其他事情
+      - status [ref=e307]
+      - generic [ref=e312]:
+        - generic [ref=e313]:
+          - button "附加文件" [ref=e314] [cursor=pointer]
+          - button "教它一项任务" [ref=e317] [cursor=pointer]
+          - button "做到完成" [ref=e321] [cursor=pointer]: 目标
+          - button "Verification fixture的完全访问" [ref=e327] [cursor=pointer]
+          - button "此对话的运行位置：自动" [ref=e331] [cursor=pointer]
+          - generic [ref=e335]:
+            - button "Switch to Fun mode" [ref=e336] [cursor=pointer]:
+              - generic [ref=e340]: Normal
+            - button "Turn on Think mode" [ref=e341] [cursor=pointer]:
+              - generic [ref=e350]: Think
+        - textbox "给 Miso 发消息" [ref=e352]
+        - button "与 Miso 的实时通话" [ref=e355] [cursor=pointer]

@@ -1,0 +1,14 @@
+{
+  "id": "unk_395e636dbbabc2c9",
+  "revision": 2,
+  "question": "What are the default bots and models in Grok Bot?",
+  "severity": "medium",
+  "domain": "general",
+  "status": "resolved",
+  "probes": [],
+  "evidence_for": [
+    "ev_9d27e05678ee81df70af4b50273b4b9c1ecfe007813081f0df0f6da53e6c1c5b"
+  ],
+  "evidence_against": [],
+  "resolution": "OpenBot / Grok Bot uses a team roster model: default bots include OpenBot (Chief of Staff, helper), coder bot, researcher bot, with engines supporting Grok, Claude, and OpenAI Codex."
+}

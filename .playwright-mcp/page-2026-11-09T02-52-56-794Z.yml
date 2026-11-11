@@ -1,0 +1,41 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [active] [selected] [ref=e5] [cursor=pointer]
+        - tab "Generate" [ref=e6] [cursor=pointer]
+        - tab "Upload" [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - button "Use the Cursor body" [pressed] [ref=e11] [cursor=pointer]
+          - button "Use the Blob body" [ref=e24] [cursor=pointer]
+          - button "Use the Circle body" [ref=e37] [cursor=pointer]
+          - button "Use the Squircle body" [ref=e50] [cursor=pointer]
+          - button "Use the Capsule body" [ref=e63] [cursor=pointer]
+          - button "Use the Drop body" [ref=e76] [cursor=pointer]
+          - button "Use the Shield body" [ref=e89] [cursor=pointer]
+          - button "Use the Hexagon body" [ref=e102] [cursor=pointer]
+          - button "Use the Diamond body" [ref=e115] [cursor=pointer]
+          - button "Use the Star body" [ref=e128] [cursor=pointer]
+        - generic [ref=e141]:
+          - button "Use green mascot color" [ref=e142] [cursor=pointer]
+          - button "Use blue mascot color" [ref=e143] [cursor=pointer]
+          - button "Use red mascot color" [ref=e144] [cursor=pointer]
+          - button "Use orange mascot color" [ref=e145] [cursor=pointer]
+          - button "Use purple mascot color" [ref=e146] [cursor=pointer]
+          - button "Use cyan mascot color" [ref=e147] [cursor=pointer]
+          - button "Use pink mascot color" [ref=e148] [cursor=pointer]
+          - button "Use yellow mascot color" [ref=e149] [cursor=pointer]
+          - button "Use teal mascot color" [ref=e150] [cursor=pointer]
+          - button "Use coral mascot color" [ref=e151] [cursor=pointer]
+          - button "Use silver mascot color" [ref=e152] [cursor=pointer]
+          - button "Use chrome mascot color" [ref=e153] [cursor=pointer]
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - generic [ref=e156]: Facial features
+            - generic [ref=e157]: Body default
+          - group "Facial features" [ref=e158]:
+            - button "White" [ref=e159] [cursor=pointer]
+            - button "Black" [ref=e160] [cursor=pointer]
+        - button "More looks" [ref=e161] [cursor=pointer]

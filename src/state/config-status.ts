@@ -19,6 +19,7 @@ export interface ConfigStatus {
   mistral?: SavedKey;
   cerebras?: SavedKey;
   groq?: SavedKey;
+  minimax?: SavedKey;
   greenference?: SavedKey;
   deepseek?: SavedKey;
   meta?: SavedKey;

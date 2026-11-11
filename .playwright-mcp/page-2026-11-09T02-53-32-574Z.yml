@@ -1,0 +1,21 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [ref=e5] [cursor=pointer]
+        - tab "Generate" [ref=e6] [cursor=pointer]
+        - tab "Upload" [active] [selected] [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - button "Choose File" [ref=e201]
+        - button "Drop or paste a picture, or choose one Choose an image PNG, JPEG, GIF, or WebP · up to 10 MB" [ref=e202] [cursor=pointer]:
+          - generic [ref=e203]: Drop or paste a picture, or choose one
+          - generic [ref=e204]: Choose an image
+          - generic [ref=e205]: PNG, JPEG, GIF, or WebP · up to 10 MB
+        - generic [ref=e206]:
+          - generic [ref=e207]: Shape
+          - group "Shape" [ref=e208]:
+            - button "Circle" [disabled] [ref=e209]
+            - button "Rounded" [disabled] [ref=e210]
+            - button "Square" [disabled] [ref=e211]
+        - paragraph [ref=e212]: After uploading, drag the picture to reposition it and scroll to zoom.

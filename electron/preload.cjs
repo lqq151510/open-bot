@@ -430,6 +430,8 @@ const bridge = {
     check: () => ipcRenderer.invoke("update:check"),
     install: () => isLocalPage || navigator.userActivation?.isActive === true
       ? ipcRenderer.invoke("update:install") : Promise.reject(new Error("Choose Restart to update.")),
+    setAutoUpdateWhenIdle: (on) => isLocalPage || navigator.userActivation?.isActive === true
+      ? ipcRenderer.invoke("update:set-auto-update-when-idle", on) : Promise.reject(new Error("Choose whether to install updates automatically.")),
     seen: () => ipcRenderer.invoke("update:seen"),
     onState: (cb) => {
       ipcRenderer
@@ -440,6 +442,11 @@ const bridge = {
       ipcRenderer.on("update:state", handler);
       return () => ipcRenderer.removeListener("update:state", handler);
     },
+  },
+
+  deviceAccess: {
+    state: () => ipcRenderer.invoke("device-access:state"),
+    set: (patch) => ipcRenderer.invoke("device-access:set", patch),
   },
 
   /** A remote page may read the list but never change where this window goes. */

@@ -268,6 +268,10 @@ const __APP_VERSION__: string;
         /** Main's word that a server's status changed: read status() again. */
         onStatus?: (callback: () => void) => () => void;
       };
+      deviceAccess?: {
+        state(): Promise<import("../../shared/device-access.ts").DeviceAccessState>;
+        set(patch: import("../../shared/device-access.ts").DeviceAccessPatch): Promise<import("../../shared/device-access.ts").DeviceAccessState>;
+      };
       /** Local main-window only. Hosted renderers cannot grant themselves access. */
       computerSharing?: {
         state(id: string): Promise<DesktopComputerSharing>;
@@ -468,6 +472,7 @@ const __APP_VERSION__: string;
         install(): Promise<void>;
         /** The person saw the line that the app updated itself: it is not shown again. */
         seen?(): Promise<void>;
+        setAutoUpdateWhenIdle?(on: boolean): Promise<void>;
         onState(cb: (s: UpdaterState) => void): () => void;
       };
     };
@@ -525,6 +530,8 @@ export interface UpdaterState {
   terminalOpened?: boolean;
   /** downloaded only: the app installs it by itself the next time the person is away and nothing is running */
   installsByItself?: boolean;
+  /** Available only where this desktop can install an update automatically while away. */
+  autoUpdateWhenIdle?: boolean;
   /** the version the app updated itself to while the person was away, until they have seen it said */
   updated?: string;
 }

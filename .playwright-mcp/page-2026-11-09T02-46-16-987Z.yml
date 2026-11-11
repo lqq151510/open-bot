@@ -1,0 +1,20 @@
+- generic [ref=e2]:
+  - main:
+    - dialog "Edit avatar" [ref=e3]:
+      - generic [ref=e4]:
+        - tab "Bot" [ref=e5] [cursor=pointer]
+        - tab "Generate" [ref=e6] [cursor=pointer]
+        - tab "Upload" [selected] [ref=e7] [cursor=pointer]
+        - button "Reset" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - generic [ref=e179]:
+          - img "Preview Bot avatar preview" [ref=e182]
+          - generic [ref=e183]:
+            - generic [ref=e184]: Zoom
+            - generic [ref=e185]: 100%
+          - slider "Zoom avatar" [ref=e186]: "1"
+          - generic [ref=e187]: Drag the picture to reposition it. Scroll to zoom.
+        - paragraph [ref=e189]: sample.png
+        - generic [ref=e190]:
+          - button "Start over" [ref=e191] [cursor=pointer]
+          - button "Set avatar" [ref=e192] [cursor=pointer]

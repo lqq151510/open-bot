@@ -1,0 +1,18 @@
+- generic [ref=f1e6]:
+  - complementary "机器人与导航" [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e11]:
+          - button "搜索机器人和消息" [ref=f1e12] [cursor=pointer]
+          - button "新建或分享" [ref=f1e17] [cursor=pointer]
+        - button "收件箱" [ref=f1e20] [cursor=pointer]
+      - separator "调整侧栏大小" [ref=f1e26]
+      - paragraph [ref=f1e31]
+      - generic [ref=f1e34]:
+        - button "你" [ref=f1e36] [cursor=pointer]
+        - button "连接应用" [ref=f1e42] [cursor=pointer]
+  - main [ref=f1e48]:
+    - generic [ref=f1e51]: 正在连接你的机器人…
+    - generic [ref=f1e52]:
+      - text: 用它启动
+      - code [ref=f1e53]: pnpm dev:server

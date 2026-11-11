@@ -65,6 +65,18 @@ describe("this computer, only for the desktop app's own server", () => {
     expect(desktop.connection()).toBeNull();
   });
 
+  it("takes execution policy only from a valid parent grant and immediately removes the connection for never", () => {
+    const desktop = createDesktopComputer({ platform: "darwin" });
+    expect(desktop.receive({ type: DESKTOP_COMPUTER_GRANT, connection: READY, execution: "ask" })).toBe(true);
+    expect(desktop.execution()).toBe("ask");
+    expect(desktop.connection()).not.toBeNull();
+    expect(() => desktop.receive({ type: DESKTOP_COMPUTER_GRANT, connection: READY, execution: "open" })).toThrow();
+    expect(desktop.execution()).toBe("ask");
+    expect(desktop.receive({ type: DESKTOP_COMPUTER_GRANT, connection: READY, execution: "never" })).toBe(true);
+    expect(desktop.execution()).toBe("never");
+    expect(desktop.connection()).toBeNull();
+  });
+
   it("ignores every other parent message and refuses a malformed grant", () => {
     const desktop = createDesktopComputer({ platform: "darwin" });
     for (const message of [null, "x", [], { type: "openbot:desktop-mutation-token", token: "t" }, { connection: READY }]) {

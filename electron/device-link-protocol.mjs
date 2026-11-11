@@ -29,7 +29,7 @@ export function createLinkMux({ send, accept = null, window = STREAM_WINDOW, max
   let closed = false;
   const control = (message) => { if (!closed) send(JSON.stringify(message)); };
 
-  const stream = (id) => ({ id, socket: null, pending: [], room: window, unread: 0, consumed: 0, credited: 0, inbox: [], ended: false, endSent: false, peerEnded: false, settle: null, timer: null });
+  const stream = (id, chrome) => ({ id, chrome, socket: null, pending: [], room: window, unread: 0, consumed: 0, credited: 0, inbox: [], ended: false, endSent: false, peerEnded: false, settle: null, timer: null });
 
   /** Sends what the peer has room for; a socket whose bytes wait for room is paused. */
   const flush = (entry) => {
@@ -70,6 +70,7 @@ export function createLinkMux({ send, accept = null, window = STREAM_WINDOW, max
   };
 
   const attach = (entry, socket, early = []) => {
+    if (closed || streams.get(entry.id) !== entry) { socket.destroy(); return; }
     entry.socket = socket;
     socket.on("data", (chunk) => { entry.pending.push(chunk); flush(entry); });
     socket.on("end", () => { entry.ended = true; flush(entry); });
@@ -87,7 +88,7 @@ export function createLinkMux({ send, accept = null, window = STREAM_WINDOW, max
       case "open": {
         if (!accept || !validId(message.id) || streams.has(message.id)) return;
         if (streams.size >= maxStreams) return control({ t: "failed", id: message.id, reason: "busy" });
-        const opening = stream(message.id);
+        const opening = stream(message.id, message.chrome === true);
         streams.set(opening.id, opening);
         void Promise.resolve().then(() => accept(message.chrome === true ? { chrome: true } : { host: message.host, port: message.port })).catch(() => ({ failed: "unreachable" })).then((result) => {
           if (streams.get(opening.id) !== opening || closed) { result?.socket?.destroy(); return; }
@@ -158,7 +159,7 @@ export function createLinkMux({ send, accept = null, window = STREAM_WINDOW, max
       if (closed) return Promise.resolve({ gone: true });
       if (streams.size >= maxStreams) return Promise.resolve({ failed: "busy" });
       while (streams.has(nextId)) nextId = nextId >= MAX_ID ? 1 : nextId + 1;
-      const entry = stream(nextId);
+      const entry = stream(nextId, target.chrome === true);
       nextId = nextId >= MAX_ID ? 1 : nextId + 1;
       streams.set(entry.id, entry);
       return new Promise((settle) => {
@@ -170,6 +171,9 @@ export function createLinkMux({ send, accept = null, window = STREAM_WINDOW, max
       });
     },
     get size() { return streams.size; },
+    closeInternet() {
+      for (const entry of streams.values()) if (!entry.chrome) forget(entry, true);
+    },
     /** The link ended: every stream ends with it, and one still opening goes another way. */
     close() {
       if (closed) return;

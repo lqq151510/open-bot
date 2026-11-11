@@ -36,7 +36,9 @@ import type {
 } from "../contracts.ts";
 import { EFFORT_LEVELS } from "../../shared/wire.ts";
 import { newEventId, newId } from "../contracts.ts";
-import { ASK_USER_TOOL, MAX_QUESTION_TEXT, parseAskQuestions, parseChoices, questionAnswersByQuestion } from "../../shared/ask-question.ts";
+import { ASK_USER_TOOL } from "../../shared/ask-question.ts";
+import { handlePiExtensionApproval } from "./pi-tool-approval.ts";
+import { PI_TOOL_REVIEW_TITLE } from "./tool-rule-approval.ts";
 import {
   decodeInjectId,
   encodeInjectId,
@@ -467,8 +469,12 @@ export const PiDriver: ProviderDriver<PiConfig> = {
       const askUser = toolScope === undefined || allowsTool(toolScope, { kind: "native", name: ASK_USER_TOOL });
       const mcpTempDir = mkdtempSync(join(tmpdir(), "omb-pi-mcp-"));
       const scopeReadyPath = toolScope !== undefined ? join(mcpTempDir, "scope-ready.json") : undefined;
+      const approvalReviewReadyPath = turn.approvalRulesActive?.() ? join(mcpTempDir, "approval-review-ready") : undefined;
       try {
-        writeFileSync(join(mcpTempDir, "mcp.json"), JSON.stringify({ mcpServers: mcpServers ?? {}, toolScope, scopeReadyPath, approvalMode: turn.approvalMode, askUser }), { mode: 0o600 });
+        writeFileSync(join(mcpTempDir, "mcp.json"), JSON.stringify({
+          mcpServers: mcpServers ?? {}, toolScope, scopeReadyPath, approvalMode: turn.approvalMode, askUser,
+          approvalReviewReadyPath,
+        }), { mode: 0o600 });
       } catch (err) {
         // A partial file could still hold credentials.
         try {
@@ -616,7 +622,9 @@ export const PiDriver: ProviderDriver<PiConfig> = {
       active.set(threadId, { stop, turnId, pending, child, steer: steerActiveTurn });
 
       const onEvent = (evt: PiEvent) => {
-        appendNative(threadId, { dir: "in", source: "pi.rpc", msg: evt });
+        const msg = evt.type === "extension_ui_request" && evt.title === PI_TOOL_REVIEW_TITLE
+          ? { ...evt, message: "[private tool input]" } : evt;
+        appendNative(threadId, { dir: "in", source: "pi.rpc", msg });
         if (settled) return;
         switch (evt.type) {
           case "response": {
@@ -665,65 +673,12 @@ export const PiDriver: ProviderDriver<PiConfig> = {
             });
             return;
           }
-          case "extension_ui_request": {
-            // pi floods setWidget/setStatus; only select/confirm/input wait for an answer.
-            if (evt.method === "select" || evt.method === "confirm" || evt.method === "input") {
-              flushAssistantText();
-              const reqId = evt.id ?? newId();
-              const isSelect = evt.method === "select";
-              const isQuestion = isSelect || evt.method === "input";
-              const selectOptions: string[] = isSelect && Array.isArray(evt.options)
-                ? evt.options.filter((option): option is string => typeof option === "string") : [];
-              const summary = String(evt.title ?? (isQuestion ? "pi has a question" : "pi wants confirmation")).slice(0, isQuestion ? MAX_QUESTION_TEXT : 200);
-              const question = isSelect
-                ? (parseAskQuestions({
-                    questions: [{ question: summary, options: selectOptions }],
-                  }) ?? [])[0]
-                : undefined;
-              const choices = question?.options.length ? question.options.map((option) => option.label) : undefined;
-              let timer: ReturnType<typeof setTimeout> | undefined;
-              // Register BEFORE emitting: the harness may auto-approve inside its synchronous request.opened listener.
-              pending.set(reqId, (decision) => {
-                if (timer) {
-                  clearTimeout(timer);
-                  askTimers.delete(timer);
-                }
-                if (decision.behavior === "deny") send({ type: "extension_ui_response", id: reqId, cancelled: true });
-                else if (isQuestion) {
-                  const value = question
-                    ? questionAnswersByQuestion(decision.message ?? "", [question])[question.question] ?? decision.message ?? ""
-                    : decision.message ?? "";
-                  // pi expects the original option, not the capped display label; never guess between two.
-                  const matched = selectOptions.filter(option => parseChoices([option], 1)?.[0] === value);
-                  send(matched.length > 1
-                    ? { type: "extension_ui_response", id: reqId, cancelled: true }
-                    : { type: "extension_ui_response", id: reqId, value: matched[0] ?? value });
-                }
-                else send({ type: "extension_ui_response", id: reqId, confirmed: true });
-              });
-              if (!isQuestion) {
-                timer = setTimeout(() => {
-                  if (timer) askTimers.delete(timer);
-                  if (!pending.delete(reqId)) return;
-                  send({ type: "extension_ui_response", id: reqId, cancelled: true });
-                  emit({ ...base(threadId, turnId), requestId: reqId, type: "request.resolved", behavior: "deny", source: "timeout" });
-                }, 15 * 60_000);
-                askTimers.add(timer);
-                timer.unref?.();
-              }
-              emit({
-                ...base(threadId, turnId),
-                requestId: reqId,
-                type: "request.opened",
-                requestType: isQuestion ? "question" : "permission",
-                tool: String(evt.title ?? "pi"),
-                summary,
-                ...(choices ? { choices } : {}),
-                ...(question ? { questions: [question] } : {}),
-              });
-            }
+          case "extension_ui_request":
+            handlePiExtensionApproval({
+              turn, settled: () => settled, flushAssistantText, pending, timers: askTimers, send, emit,
+              base: () => base(threadId, turnId),
+            }, evt);
             return;
-          }
           case "compaction_start":
           case "compaction_end":
           case "auto_compaction_start":
@@ -879,6 +834,13 @@ export const PiDriver: ProviderDriver<PiConfig> = {
           settle(false);
           throw new Error(message);
         }
+      }
+
+      if (turn.approvalRulesActive?.() && (!approvalReviewReadyPath || !existsSync(approvalReviewReadyPath))) {
+        const message = "Pi's tool approval extension did not start.";
+        emit({ ...base(threadId, turnId), type: "runtime.error", message });
+        settle(false);
+        throw new Error(message);
       }
 
       const halves = promptHalves(turn);

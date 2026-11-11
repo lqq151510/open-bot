@@ -907,6 +907,26 @@ describe("default fleet", () => {
     expect(map.groq).toEqual({ driver: "openai-compat", config: { url: "https://existing.example.test/v1" }, environment: { OPENAI_COMPAT_API_KEY: "own-key" } });
   });
 
+  it("adds MiniMax to product fleets and keeps its workspace key on that instance", () => {
+    const map = instanceConfigs({ minimax: { key: "minimax-fixture" }, instances: { codex: { driver: "codex" } } });
+    expect(map.minimax).toEqual({ driver: "minimax", environment: { MINIMAX_API_KEY: "minimax-fixture" } });
+    expect(map.codex.environment).toEqual({});
+    const own = instanceConfigs({
+      minimax: { key: "minimax-workspace" },
+      instances: {
+        codex: { driver: "codex" },
+        minimaxOwn: { driver: "minimax", environment: { MINIMAX_API_KEY: "minimax-own" } },
+        minimaxProxy: { driver: "minimax", config: { url: "https://minimax-proxy.example.test/v1" } },
+      },
+    });
+    expect(own.minimaxOwn.environment).toEqual({ MINIMAX_API_KEY: "minimax-own" });
+    expect(own.minimaxProxy.environment).toEqual({});
+    expect(parseConfigPatch({ minimax: { key: "" } })).toEqual({ minimax: { key: "" } });
+    const env = { OMB_MINIMAX_API_KEY: "minimax-fixture", KEEP: "yes" };
+    stripWorkspaceCredentialEnv(env);
+    expect(env).toEqual({ KEEP: "yes" });
+  });
+
   it("accepts clearing a Groq key and removes it from child environments", () => {
     expect(parseConfigPatch({ groq: { key: "" } })).toEqual({ groq: { key: "" } });
     const env = { OMB_GROQ_API_KEY: "groq-fixture", KEEP: "yes" };

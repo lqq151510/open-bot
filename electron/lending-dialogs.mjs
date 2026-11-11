@@ -61,6 +61,17 @@ export function createLendingDialogs({ dialog, window, validate, isHome = async 
       }
       return (await validate([folder]))[0];
     },
+    async confirmDeviceOperation(env, action, signal) {
+      const parent = window();
+      if (!parent || parent.isDestroyed() || signal.aborted) return false;
+      const { response } = await dialog.showMessageBox(parent, {
+        type: "warning", signal, defaultId: 1, cancelId: 1,
+        message: t("native.lend.operationTitle", { name: env.name }),
+        detail: [t("native.lend.server", { origin: env.origin }), t("native.lend.operationDetail", { action })].join("\n"),
+        buttons: [t("native.lend.operationAllow"), t("native.common.cancel")],
+      });
+      return !signal.aborted && response === 0;
+    },
     async confirmServerAccess(env, grant) {
       const { response } = await dialog.showMessageBox(window(), { type: "warning", message: t("native.lend.allow.title", { name: env.name }), detail: serverAccessDetail(env, grant, t),
         buttons: [t("native.lend.allow.button"), t("native.common.cancel")], defaultId: 1, cancelId: 1 });

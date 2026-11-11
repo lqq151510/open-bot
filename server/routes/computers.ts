@@ -1,6 +1,7 @@
 import { z, type ZodString } from "zod";
 import * as boat from "../boat.ts";
 import type { ComputerControl } from "../computer-control.ts";
+import { readComputerImageUpdates } from "../computer-image-updates.ts";
 import { isValidSshAlias, localVmMaxInstances, localVmMode, type AppConfig } from "../config.ts";
 import {
   containerComputerAction,
@@ -200,6 +201,18 @@ export function createComputerRoutes(deps: ComputerRouteDeps): RouteHandler {
     }
 
     // Read-only; lifecycle changes are revalidated against a fresh provider listing. The path keeps its historical /boxes segment.
+    if (method === "GET" && path === "/api/computers/image-updates") {
+      res.setHeader("cache-control", "private, no-store");
+      return json(res, 200, await readComputerImageUpdates({
+        cfg,
+        bots: store.bots,
+        owners: managedBoatOwners(),
+        localBusy: (target) => localVmImageBusy.get() || localVmModeChangeBusy.get() ||
+          localVmActiveThreads.has(target.key) || localVmLifecycleBusy.has(target.key) ||
+          (target.key.startsWith("bot:") && localVmProvisionBusy.get()) ||
+          localVmLeaseFor(target).current(localVmOwnerBusy) !== null,
+      }));
+    }
     if (method === "GET" && path === "/api/computers/boxes") {
       res.setHeader("cache-control", "private, no-store");
       return json(res, 200, await boat.listManagedBoats(cfg, managedBoatOwners()));

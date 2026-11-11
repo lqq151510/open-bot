@@ -19,6 +19,11 @@ const LANGUAGE = /^(?:[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,2})?$/i;
 const isLanguage = value => typeof value === "string" && value.length <= 24 && LANGUAGE.test(value);
 const CHAT_ID = /^[\w-]{1,128}$/;
 const INSTALL_ID = /^[A-Za-z0-9_-]{22,64}$/;
+const DEVICE_EXECUTION = new Set(["always", "ask", "never"]);
+const deviceAccess = record => ({
+  execution: DEVICE_EXECUTION.has(record?.execution) ? record.execution : "always",
+  forwardTraffic: record?.forwardTraffic !== false,
+});
 
 /** Security: a write that fails (a full disk, a kill mid-write) leaves the last whole record, analytics opt-out included.
  * A file another tool saved with a byte-order mark (Notepad on Windows) still reads. */
@@ -48,10 +53,11 @@ function parse(raw) {
   const quickAsks = record.quickAsks && typeof record.quickAsks === "object" && !Array.isArray(record.quickAsks)
     ? Object.fromEntries(Object.entries(record.quickAsks).flatMap(([server, chat]) => { const parsed = parseChat(chat); return parsed ? [[server, parsed]] : []; }))
     : {};
-  return { seen, ...(typeof record.analytics === "boolean" ? { analytics: record.analytics } : {}),
+  return { seen, ...(record.deviceAccess ? { deviceAccess: deviceAccess(record.deviceAccess) } : {}), ...(typeof record.analytics === "boolean" ? { analytics: record.analytics } : {}),
     ...(isLanguage(record.language) ? { language: record.language } : {}),
     ...(typeof record.installId === "string" && INSTALL_ID.test(record.installId) ? { installId: record.installId } : {}),
     ...(updatesConsent ? { updatesConsent } : {}),
+    ...(typeof record.autoUpdateWhenIdle === "boolean" ? { autoUpdateWhenIdle: record.autoUpdateWhenIdle } : {}),
     ...(typeof record.talkShortcut === "boolean" ? { talkShortcut: record.talkShortcut } : {}),
     ...(isTalkKey(record.talkKey) ? { talkKey: record.talkKey } : {}),
     ...(typeof record.railHidden === "boolean" ? { railHidden: record.railHidden } : {}),
@@ -113,6 +119,31 @@ export function createDesktopPrefs({ read, write }) {
       if (!updatesConsent) return false;
       save({ ...current(), updatesConsent });
       return true;
+    },
+    deviceAccess: () => deviceAccess(current().deviceAccess),
+    setDeviceAccess(patch) {
+      if (!patch || typeof patch !== "object" || Array.isArray(patch)
+        || Object.keys(patch).some(key => key !== "execution" && key !== "forwardTraffic")
+        || (Object.hasOwn(patch, "execution") && !DEVICE_EXECUTION.has(patch.execution))
+        || (Object.hasOwn(patch, "forwardTraffic") && typeof patch.forwardTraffic !== "boolean")) {
+        throw new TypeError("Invalid device access preference.");
+      }
+      const saved = current();
+      const before = deviceAccess(saved.deviceAccess);
+      const next = { ...before, ...patch };
+      if (before.execution === next.execution && before.forwardTraffic === next.forwardTraffic) return before;
+      const updated = { ...saved, deviceAccess: next };
+      write(updated);
+      record = updated;
+      return { ...next };
+    },
+    autoUpdateWhenIdle: () => current().autoUpdateWhenIdle === true,
+    setAutoUpdateWhenIdle(on) {
+      const saved = current();
+      if (on === (saved.autoUpdateWhenIdle === true)) return;
+      const next = { ...saved, autoUpdateWhenIdle: on };
+      write(next);
+      record = next;
     },
     talkShortcut: () => current().talkShortcut ?? true,
     setTalkShortcut(enabled) { save({ ...current(), talkShortcut: enabled === true }); },

@@ -34,15 +34,17 @@ interface Entry {
   pleas: Array<{ reason: string; ref: ComputerHelpRef }>;
   /** Opaque workspace lease. It is deliberately absent from every snapshot. */
   controlLeaseId: string | null;
+  /** Which member took a shared computer. Absent from every snapshot. */
+  holderBotId: string | null;
 }
 
 export class ComputerControl {
   private entries = new Map<string, Entry>();
-  private onChange: (botId: string, snapshot: ControlSnapshot) => void;
+  private onChange: (botId: string, snapshot: ControlSnapshot, holderBotId: string | null) => void;
   private now: () => number;
 
   constructor(
-    onChange: (botId: string, snapshot: ControlSnapshot) => void = () => {},
+    onChange: (botId: string, snapshot: ControlSnapshot, holderBotId: string | null) => void = () => {},
     now: () => number = Date.now,
   ) {
     this.onChange = onChange;
@@ -62,15 +64,15 @@ export class ComputerControl {
   }
 
   /** Idempotent: a second click must not reset `heldSinceMs`. */
-  take(botId: string): ControlSnapshot {
+  take(botId: string, actorBotId?: string): ControlSnapshot {
     const entry = this.entries.get(botId);
     if (entry?.heldSinceMs != null) return this.snapshot(botId);
-    this.entries.set(botId, { heldSinceMs: this.now(), pleas: entry?.pleas ?? [], controlLeaseId: null });
+    this.entries.set(botId, { heldSinceMs: this.now(), pleas: entry?.pleas ?? [], controlLeaseId: null, holderBotId: actorBotId ?? null });
     return this.changed(botId);
   }
 
   /** The opaque lease is never returned in a snapshot, broadcast or API response. */
-  acquireLease(botId: string, controlLeaseId: string): ControlLeaseResult {
+  acquireLease(botId: string, controlLeaseId: string, actorBotId?: string): ControlLeaseResult {
     const entry = this.entries.get(botId);
     if (entry?.heldSinceMs != null) {
       return {
@@ -79,7 +81,7 @@ export class ComputerControl {
         acquired: false,
       };
     }
-    this.entries.set(botId, { heldSinceMs: this.now(), pleas: entry?.pleas ?? [], controlLeaseId });
+    this.entries.set(botId, { heldSinceMs: this.now(), pleas: entry?.pleas ?? [], controlLeaseId, holderBotId: actorBotId ?? null });
     return { snapshot: this.changed(botId), owned: true, acquired: true };
   }
 
@@ -88,10 +90,16 @@ export class ComputerControl {
     return entry?.heldSinceMs != null && entry.controlLeaseId === controlLeaseId;
   }
 
+  holder(botId: string): string | null {
+    const entry = this.entries.get(botId);
+    return entry?.heldSinceMs != null ? entry.holderBotId : null;
+  }
+
   /** An open plea stays: handing back is not answering the card that asked. */
-  release(botId: string): ControlSnapshot {
+  release(botId: string, actorBotId?: string): ControlSnapshot {
     const entry = this.entries.get(botId);
     if (!entry || (entry.heldSinceMs === null && entry.pleas.length)) return this.snapshot(botId);
+    if (botId.startsWith("computer_") && entry.holderBotId && actorBotId !== undefined && entry.holderBotId !== actorBotId) return this.snapshot(botId);
     this.drop(botId, entry);
     return this.changed(botId);
   }
@@ -109,7 +117,7 @@ export class ComputerControl {
   /** Never grants anything by itself; the same card asking again replaces its own plea. */
   requestHelp(botId: string, reason: unknown, ref: ComputerHelpRef): ControlSnapshot {
     const text = typeof reason === "string" ? reason.trim().slice(0, MAX_REASON_CHARS) : "";
-    const entry = this.entries.get(botId) ?? { heldSinceMs: null, pleas: [], controlLeaseId: null };
+    const entry = this.entries.get(botId) ?? { heldSinceMs: null, pleas: [], controlLeaseId: null, holderBotId: null };
     entry.pleas = [...entry.pleas.filter((plea) => plea.ref.messageId !== ref.messageId),
       { reason: text || `sign in to ${ref.site}`, ref }];
     this.entries.set(botId, entry);
@@ -129,17 +137,17 @@ export class ComputerControl {
   }
 
   forget(botId: string): void {
-    if (this.entries.delete(botId)) this.onChange(botId, NO_CONTROL);
+    if (this.entries.delete(botId)) this.onChange(botId, NO_CONTROL, null);
   }
 
   private drop(botId: string, entry: Entry): void {
-    if (entry.pleas.length) this.entries.set(botId, { heldSinceMs: null, pleas: entry.pleas, controlLeaseId: null });
+    if (entry.pleas.length) this.entries.set(botId, { heldSinceMs: null, pleas: entry.pleas, controlLeaseId: null, holderBotId: null });
     else this.entries.delete(botId);
   }
 
   private changed(botId: string): ControlSnapshot {
     const snapshot = this.snapshot(botId);
-    this.onChange(botId, snapshot);
+    this.onChange(botId, snapshot, this.holder(botId));
     return snapshot;
   }
 }

@@ -35,7 +35,7 @@ describe("the waits route", () => {
   });
   it("makes a wait for the capability's bot and chat, never ids from the body", async () => {
     waits.create.mockClear();
-    const { status, payload } = await call("POST", "/api/internal/waits", { label: "the report", kind: "file_exists", path: "~/r.txt", botId: "evil", threadId: "evil" });
+    const { status, payload } = await call("POST", "/api/internal/waits", { label: "the report", kind: "file_exists", path: "~/r.txt", botId: "evil", threadId: "evil", approvalCreator: "evil" });
     expect(waits.create).toHaveBeenCalledWith({ botId: "bot-1", threadId: "thread-1", label: "the report", condition: { kind: "file_exists", path: join(HOME, "r.txt") }, hours: 24 });
     expect([status, payload.text]).toEqual([201, expect.stringContaining("(wait id w1)")]);
   });

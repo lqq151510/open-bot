@@ -82,6 +82,7 @@ export type AutoVerdictSource =
   | "explicit-approval-block"
   | "outbound-guard"
   | "safety-floor"
+  | "always-ask-rule"
   | "no-grant";
 
 export interface AutoVerdict {
@@ -136,6 +137,7 @@ export function undeliveredApprovalTool(
 export const HELD_NOTE = {
   "approval.held.outbound": "This sends something on your behalf, so it asks you first.",
   "approval.held.native": "The provider requires your approval for this action.",
+  "approval.held.alwaysAsk": "An always-ask rule requires your approval.",
   "approval.held.sandbox":
     "This loosens the AI's own safety limits, so only Full access can approve it automatically.",
   "approval.held.undeliveredFull": "Full access couldn't deliver this approval.",
@@ -152,6 +154,7 @@ export function approvalHeldNote(context: {
   if (context.source === "outbound-guard") return "approval.held.outbound";
   if (context.source === "explicit-approval-block") return "approval.held.sandbox";
   if (context.source === "native-approval") return "approval.held.native";
+  if (context.source === "always-ask-rule") return "approval.held.alwaysAsk";
   return undefined;
 }
 

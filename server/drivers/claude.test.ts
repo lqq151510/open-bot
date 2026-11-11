@@ -919,6 +919,41 @@ describe("ClaudeDriver turns (fake CLI)", () => {
     expect(seen.argv).toContain("--permission-prompt-tool");
   });
 
+  it.skipIf(process.platform === "win32")("holds a native Bash action before execution and reloads native rules on resume", async () => {
+    const dump = join(scratch, "native-rules.json");
+    const marker = join(scratch, "ran.txt");
+    process.env.FAKE_CLAUDE_DUMP = dump;
+    await create("permission-rules", {
+      FAKE_CLAUDE_TOOL_CALLS: JSON.stringify([{ name: "Bash", input: { command: "printf 'ran' > ran.txt" } }]),
+      FAKE_CLAUDE_RUN_BASH: "1",
+    }, { permissionMode: "bypassPermissions" });
+    const threadId = "native-rule";
+    const send = (rules: boolean) => instance.adapter.sendTurn({
+      threadId, text: "Run one tool", cwd: scratch, approvalMode: "ask", approvalRulesActive: () => rules,
+      resumeCursor: "11111111-1111-4111-8111-111111111111",
+      integrations: { browser: { command: "node", args: [], env: {} } },
+    });
+    const first = await send(false);
+    await recorder.until((event) => event.type === "turn.completed" && event.turnId === first.turnId);
+    expect(readFileSync(marker, "utf8")).toBe("ran");
+    const firstPid = dumpedPid(dump);
+    unlinkSync(marker);
+
+    const second = await send(true);
+    const opened = await recorder.until((event) => event.type === "request.opened" && event.turnId === second.turnId);
+    expect(opened).toMatchObject({ requestType: "permission", tool: "Bash" });
+    expect(existsSync(marker)).toBe(false);
+    const seen = JSON.parse(readFileSync(dump, "utf8"));
+    expect(seen.pid).not.toBe(firstPid);
+    expect(seen.argv).toContain("--resume");
+    expect(seen.settings.permissions.ask).toEqual(expect.arrayContaining(["Bash", "Read", "mcp__browser__*"]));
+    expect(seen.settings.permissions.ask).not.toContain("mcp__ogb__*");
+    if (opened.type !== "request.opened" || !opened.requestId) throw new Error("expected permission");
+    expect(await instance.adapter.respondToRequest(threadId, opened.requestId, { behavior: "deny" })).toBe("rejected");
+    await recorder.until((event) => event.type === "turn.completed" && event.turnId === second.turnId);
+    expect(existsSync(marker)).toBe(false);
+  });
+
   it.each(["claude-sonnet-5", "claude-fable-5"])("reapplies Full, Auto, and Ask on the same resumed %s conversation", async (model) => {
     await create(undefined, {}, { permissionMode: "bypassPermissions" });
     const dump = join(scratch, "approval-transitions.json");

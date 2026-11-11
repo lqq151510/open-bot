@@ -65,7 +65,9 @@ function settle(entry: Pending, answer: "allow" | "deny", source: "user" | "syst
     entry.store.patchMessage(entry.threadId, entry.messageId, { card: { ...card, answered: answer, dismissed: source !== "user" } });
   }
   const task = entry.botId ? entry.store.projectBotForTask(entry.botId, entry.threadId) : null;
-  if (turnWaitedOnPerson(task)) entry.store.setTaskActivity(task.id, entry.threadId, "working");
+  if (turnWaitedOnPerson(task) && !yourComputerWaiting(entry.threadId, entry.generation)) {
+    entry.store.setTaskActivity(task.id, entry.threadId, "working");
+  }
 }
 
 /** Resolves when the person allows; rejects with YourComputerDeclined when they deny or the request ends first. */
@@ -74,7 +76,9 @@ export function askToUseYourComputer(
   bot: Pick<BotRecord, "id" | "name" | "color" | "avatarUrl" | "notifications"> | undefined,
   owner: { threadId: string; generation: string },
   call?: YourComputerCall,
+  signal?: AbortSignal,
 ): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new YourComputerDeclined(YOUR_COMPUTER_ENDED));
   const { store } = bus;
   const { key, params } = yourComputerQuestion(call);
   const title = yourComputerText(key, params);
@@ -97,10 +101,22 @@ export function askToUseYourComputer(
         yourComputer: call ? { ...(call.app ? { app: call.app } : {}), ...(call.site ? { site: call.site } : {}) } : {},
       },
     });
+    const abort = () => {
+      const entry = pending.get(requestId);
+      if (!entry) return;
+      pending.delete(requestId);
+      settle(entry, "deny", "system");
+      entry.resolve(false, YOUR_COMPUTER_ENDED);
+    };
     pending.set(requestId, {
       threadId: owner.threadId, generation: owner.generation, messageId: message.id, botId: bot?.id, store,
-      resolve: (allowed, why) => (allowed ? resolve() : reject(new YourComputerDeclined(why ?? YOUR_COMPUTER_DECLINED))),
+      resolve: (allowed, why) => {
+        signal?.removeEventListener("abort", abort);
+        if (allowed) resolve();
+        else reject(new YourComputerDeclined(why ?? YOUR_COMPUTER_DECLINED));
+      },
     });
+    signal?.addEventListener("abort", abort, { once: true });
     if (bot) {
       const task = store.projectBotForTask(bot.id, owner.threadId);
       if (task?.busy) store.setTaskActivity(bot.id, owner.threadId, "waiting-on-you");

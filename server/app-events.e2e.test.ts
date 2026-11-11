@@ -2,24 +2,19 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { launchVerificationServer, runControlOmb } from "../scripts/control-omb.ts";
-import { startBrokerFake, type BrokerFake } from "./testing/broker-fake.ts";
+import { startAppEventBrokerFixture } from "./testing/app-event-broker-fixture.ts";
 
-// App events end to end on a real server (temporary home, scripted engine) against the connected-apps service's own
-// code with a fake Composio behind it: a chat request becomes an app-event automation, a Composio delivery reaches the
-// service's queue, the server's long-poll turns it into a run, and the automation shows what happened.
-let broker: BrokerFake;
-let owner: { id: string; token: string; userId: string };
-let gmail = "";
+// OpenBot runs in a temporary home with a scripted engine and an independent loopback broker contract fixture.
+let broker: Awaited<ReturnType<typeof startAppEventBrokerFixture>>;
+const gmail = "fixture-account";
 let fixture: Awaited<ReturnType<typeof launchVerificationServer>>;
 const evidence: unknown[] = [];
 
 beforeAll(async () => {
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  broker = await startBrokerFake();
-  owner = await broker.install();
-  gmail = broker.account(owner.userId, "gmail", "sales");
-  fixture = await launchVerificationServer({ ...process.env, OMB_COMPOSIO_BROKER_URL: broker.url, OMB_COMPOSIO_BROKER_TOKEN: owner.token }, undefined, undefined, undefined, undefined, { scripted: true });
+  broker = await startAppEventBrokerFixture();
+  fixture = await launchVerificationServer({ OMB_COMPOSIO_BROKER_URL: broker.url, OMB_COMPOSIO_BROKER_TOKEN: broker.token }, undefined, undefined, undefined, undefined, { scripted: true }, [], undefined, undefined, true);
   evidence.push({ fixture: fixture.info, broker: broker.url });
 }, 60_000);
 
@@ -64,7 +59,7 @@ it("sets up an app-event automation from chat, runs on a Composio event, and sho
     entries.find((entry) => entry.step?.tool === tool)!.response.result.content[0].text as string;
   const snapshot = async () => api("GET", "/api/app-triggers");
   const trigger = async (id: string) => (await snapshot()).triggers.find((candidate: any) => candidate.id === id);
-  const binding = (triggerId: string) => broker.harness.d1.rows<{ disabled_at: number | null }>("SELECT disabled_at FROM trigger_bindings WHERE composio_trigger_id = ?", triggerId)[0];
+  const binding = (triggerId: string) => broker.bindings.get(triggerId);
 
   // 1. "When I get an email from Acme, draft a reply": the bot looks up Gmail's events and sets it up in the same turn.
   const created = await turn("When I get an email from Acme, draft a reply.", [
@@ -84,11 +79,11 @@ it("sets up an app-event automation from chat, runs on a Composio event, and sho
   const made = await trigger(id);
   expect(made).toMatchObject({ botId: bot.id, app: "gmail", accountId: gmail, delivery: "poll", enabled: true, remote: { state: "active" }, received: 0 });
   const remoteId = made.remote.triggerId as string;
-  expect(broker.harness.composio.instances.get(remoteId)?.trigger_config).toEqual({ query: "from:acme.com" });
+  expect(broker.bindings.get(remoteId)?.config).toEqual({ query: "from:acme.com" });
 
   // 2. A Composio delivery reaches the service's queue; the server's long-poll starts a run that completes.
   writeFileSync(planPath, JSON.stringify({ [bot.id]: { steps: [], reply: "Drafted a reply to Ada about order #1042." } }));
-  expect((await broker.deliver(remoteId, { sender: "Ada <ada@acme.com>", subject: "Where is order #1042?", message_text: "Hi" }, "msg_e2e_1")).status).toBe(200);
+  broker.deliver(remoteId, { sender: "Ada <ada@acme.com>", subject: "Where is order #1042?", message_text: "Hi" }, "msg_e2e_1");
   await expect.poll(async () => (await trigger(id))?.received, { timeout: 30_000 }).toBe(1);
   const runId = (await trigger(id)).lastRunId as string;
   await expect.poll(async () => (await api("GET", "/api/routines")).runs.find((run: any) => run.id === runId)?.status, { timeout: 30_000 }).toBe("completed");
@@ -96,27 +91,30 @@ it("sets up an app-event automation from chat, runs on a Composio event, and sho
   expect(run).toMatchObject({ routineId: id, triggerSource: "webhook", eventSource: "app", deliveryId: "msg_e2e_1" });
   expect(run.output).toContain("Drafted a reply");
   expect((await snapshot()).attempts.find((attempt: any) => attempt.eventId === "msg_e2e_1")).toMatchObject({ outcome: "started", runId, preview: "From Ada <ada@acme.com> · Where is order #1042?" });
-  await expect.poll(() => broker.harness.d1.rows("SELECT * FROM events WHERE acked_at IS NULL").length, { timeout: 30_000 }).toBe(0);
+  await expect.poll(() => broker.pending(), { timeout: 30_000 }).toBe(0);
   expect((await messages()).some((message) => message.kind === "routine.run")).toBe(false);
 
   // 3. Pause and resume from chat reach the service; nothing waits on a card.
   const paused = await turn("Pause the Acme replies.", [{ tool: "manage_trigger", arguments: { trigger_id: id, action: "pause" } }]);
   expect(toolText(paused, "manage_trigger")).toContain("applied at once");
   expect((await trigger(id)).enabled).toBe(false);
-  expect(binding(remoteId)?.disabled_at).not.toBeNull();
+  expect(binding(remoteId)?.enabled).toBe(false);
+  broker.deliver(remoteId, { subject: "Skipped while paused" }, "msg_paused");
+  expect(broker.pending()).toBe(0);
+  expect((await trigger(id)).received).toBe(1);
   await turn("Turn the Acme replies back on.", [{ tool: "manage_trigger", arguments: { trigger_id: id, action: "resume" } }]);
   expect((await trigger(id)).enabled).toBe(true);
-  expect(binding(remoteId)?.disabled_at).toBeNull();
+  expect(binding(remoteId)?.enabled).toBe(true);
 
   // 4. Past the desktop's 500 events a day the service keeps nothing more, and the automation says how many it skipped.
-  broker.setQueuedToday(owner.id, 500);
+  broker.setQueuedToday(500);
   await broker.deliver(remoteId, { sender: "bo@acme.com", subject: "Over the limit" });
   const synced = await api("POST", "/api/app-triggers/sync");
   expect(synced.service).toMatchObject({ available: true, plan: "desktop", eventsPerDay: 500 });
   expect(synced.triggers.find((candidate: any) => candidate.id === id).skipped).toMatchObject({ dailyLimit: 1 });
 
   // 5. An expired Gmail connection shows as Reconnect.
-  await broker.expire(gmail);
+  broker.expire();
   await expect.poll(async () => (await trigger(id))?.problem?.kind, { timeout: 30_000 }).toBe("reconnect");
   const listedAgain = await turn("How are my automations?", [{ tool: "list_triggers", arguments: {} }]);
   expect(toolText(listedAgain, "list_triggers")).toContain("needs to be reconnected");
@@ -124,6 +122,6 @@ it("sets up an app-event automation from chat, runs on a Composio event, and sho
   // 6. Undo on the card deletes it here and at the service.
   await api("POST", `/api/threads/${threadId}/undo`, { requestId: card.requestId });
   expect(await trigger(id)).toBeUndefined();
-  expect(broker.harness.composio.instances.has(remoteId)).toBe(false);
+  expect(broker.bindings.has(remoteId)).toBe(false);
   expect((await messages()).find((message) => message.card?.requestId === card.requestId)!.card.undone).toBe(true);
 }, 180_000);

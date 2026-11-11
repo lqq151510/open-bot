@@ -81,6 +81,7 @@ const dropCounts = z.record(z.string(), z.number());
 const storedSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
+  approvalCreator: z.string().regex(/^p_[\w-]{22}$/).optional().catch(undefined),
   prompt: z.string(),
   botId: z.string().min(1),
   runOn: z.enum(["maus", "cloud"]),
@@ -186,7 +187,7 @@ function triggerConfig(type: BrokerTriggerType, config: Record<string, unknown>,
 }
 
 function publicTrigger(stored: StoredTrigger): AppTrigger {
-  const { drops: _drops, ...trigger } = stored;
+  const { drops: _drops, approvalCreator: _approvalCreator, ...trigger } = stored;
   return structuredClone(trigger);
 }
 
@@ -239,6 +240,10 @@ export class AppTriggerManager {
     return stored ? publicTrigger(stored) : null;
   }
 
+  approvalCreator(id: string): string | undefined {
+    return this.triggers.find((trigger) => trigger.id === id)?.approvalCreator;
+  }
+
   attempts(): AppEventAttempt[] {
     return this.attemptLog.map((attempt) => ({ ...attempt }));
   }
@@ -255,7 +260,7 @@ export class AppTriggerManager {
 
   /** Validated against the event type and the person's connected accounts, then saved and copied to the service. A
    *  service that cannot be reached leaves it pending; reconciliation finishes it. */
-  async create(input: AppTriggerInput): Promise<AppTrigger> {
+  async create(input: AppTriggerInput, approvalCreator?: string): Promise<AppTrigger> {
     this.assertWritable();
     this.assertAvailable();
     const name = input.name.trim().slice(0, NAME_MAX);
@@ -275,7 +280,7 @@ export class AppTriggerManager {
     if (duplicate) throw new AppTriggerError(`The same automation already exists (${duplicate.id}). Use trigger_info to review it, then change that one instead.`, 409);
     const now = this.now();
     const trigger: StoredTrigger = {
-      id: input.id ?? randomUUID(), name, prompt, botId: input.botId, runOn: input.runOn ?? "maus", enabled: input.enabled ?? true,
+      id: input.id ?? randomUUID(), name, prompt, botId: input.botId, runOn: input.runOn ?? "maus", enabled: input.enabled ?? true, approvalCreator,
       app, appName: appLabel(app), event: type.slug, eventName: type.name || type.slug, delivery: type.type === "poll" ? "poll" : "instant",
       accountId: account.id, ...(account.alias ? { accountLabel: account.alias } : {}), config, ...(filter ? { filter } : {}),
       remote: { state: "pending" }, ...(input.sourceThreadId ? { sourceThreadId: input.sourceThreadId } : {}),

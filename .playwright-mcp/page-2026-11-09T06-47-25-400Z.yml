@@ -1,0 +1,135 @@
+- generic [ref=f6e6]:
+  - complementary "Bots and navigation" [ref=f6e7]:
+    - generic [ref=f6e8]:
+      - generic [ref=f6e9]:
+        - generic [ref=f6e11]:
+          - button "Search bots and messages" [ref=f6e12] [cursor=pointer]
+          - button "New or share" [ref=f6e17] [cursor=pointer]
+        - button "Inbox" [ref=f6e20] [cursor=pointer]
+        - generic [ref=f6e54]:
+          - button "Fixture Starter · Chief of Staff" [ref=f6e55] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f6e58]
+            - button "Rename Fixture Starter" [ref=f6e67]: Fixture Starter
+          - status [ref=f6e68]
+      - separator "Resize sidebar" [ref=f6e26]
+      - generic [ref=f6e69]:
+        - generic [ref=f6e70]:
+          - 'button "Replica Chat Rename Replica Chat hello from fake claude Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e364] [cursor=pointer]':
+            - img "Replica Chat" [ref=f6e74]
+            - generic [ref=f6e85]:
+              - button "Rename Replica Chat" [ref=f6e88]: Replica Chat
+              - generic [ref=f6e89]:
+                - generic [ref=f6e90]: hello from fake claude
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e92]'
+          - button "Actions for Replica Chat"
+        - generic [ref=f6e96]:
+          - 'button "Pepper Rename Pepper hello from fake claude Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e97] [cursor=pointer]':
+            - img "Pepper" [ref=f6e100]
+            - generic [ref=f6e111]:
+              - button "Rename Pepper" [ref=f6e114]: Pepper
+              - generic [ref=f6e115]:
+                - generic [ref=f6e116]: hello from fake claude
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e118]'
+          - button "Actions for Pepper"
+      - paragraph [ref=f6e31]
+      - generic [ref=f6e34]:
+        - button "You" [ref=f6e36] [cursor=pointer]
+        - button "Connect apps" [ref=f6e42] [cursor=pointer]
+  - main [ref=f6e122]:
+    - generic [ref=f6e123]:
+      - generic [ref=f6e126]:
+        - generic [ref=f6e127]:
+          - button "Open Replica Chat's profile" [expanded] [ref=f6e371] [cursor=pointer]:
+            - img "Replica Chat" [ref=f6e227]
+            - generic [ref=f6e141]: Replica Chat
+          - status [ref=f6e144]
+        - button "Share" [ref=f6e376] [cursor=pointer]
+      - log "Conversation with Replica Chat" [ref=f6e235]:
+        - generic [ref=f6e381]:
+          - generic [ref=f6e382]: Today 2:46 PM
+          - generic [ref=f6e384]:
+            - generic:
+              - button "Message actions"
+            - generic "11/9/2026, 2:46:32 PM" [ref=f6e385]: 你会什么？
+            - generic [ref=f6e387]: 2:46 PM
+        - generic [ref=f6e390]:
+          - generic "Worked · 11/9/2026, 2:46:33 PM" [ref=f6e391]:
+            - paragraph [ref=f6e394]: hello from fake claude
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f6e395]: 2:46 PM
+        - generic [ref=f6e398]:
+          - generic:
+            - button "Message actions"
+          - generic "11/9/2026, 2:46:33 PM" [ref=f6e399]: 开启一个新 bot，专门收集 OpenAI 情报。
+          - generic [ref=f6e401]: 2:46 PM
+        - generic [ref=f6e404]:
+          - generic "Worked · 11/9/2026, 2:46:33 PM" [ref=f6e405]:
+            - paragraph [ref=f6e408]: hello from fake claude
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f6e409]: 2:46 PM
+        - generic [ref=f6e412]:
+          - generic:
+            - button "Message actions"
+          - generic "11/9/2026, 2:46:33 PM" [ref=f6e413]: 这个 bot 会关注哪些内容？
+          - generic [ref=f6e415]: 2:46 PM
+        - generic [ref=f6e416]:
+          - separator "New messages" [ref=f6e417]:
+            - generic [ref=f6e418]: New
+          - generic [ref=f6e424]:
+            - generic "Worked · 11/9/2026, 2:46:33 PM" [ref=f6e425]:
+              - paragraph [ref=f6e428]: hello from fake claude
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f6e429]: 2:46 PM
+      - status [ref=f6e199]
+      - generic [ref=f6e434]:
+        - button "Add" [ref=f6e437] [cursor=pointer]
+        - textbox "Message Replica Chat" [ref=f6e441]
+        - generic [ref=f6e442]:
+          - button "Start dictation" [disabled] [ref=f6e443]
+          - button "Live call with Replica Chat" [ref=f6e448] [cursor=pointer]
+  - dialog [ref=f6e450]:
+    - generic [ref=f6e451]:
+      - generic [ref=f6e452]:
+        - button "Share" [ref=f6e454] [cursor=pointer]
+        - button "Bot settings" [ref=f6e459] [cursor=pointer]
+        - button "Close settings" [ref=f6e460] [cursor=pointer]
+      - generic [ref=f6e461]:
+        - generic [ref=f6e463]:
+          - button "Edit avatar" [ref=f6e464] [cursor=pointer]:
+            - img "Replica Chat" [ref=f6e466]
+            - generic [aria-hidden]: Edit avatar
+          - heading [level=2] [ref=f6e478]:
+            - button "Replica Chat" [ref=f6e479] [cursor=pointer]
+        - tablist "Bot settings" [ref=f6e484]:
+          - tab "Activity" [ref=f6e485] [cursor=pointer]
+          - tab "Library" [active] [selected] [ref=f6e486] [cursor=pointer]
+        - tabpanel [ref=f6e487]:
+          - generic [ref=f6e627]:
+            - group "Library" [ref=f6e628]:
+              - button "All" [pressed] [ref=f6e629] [cursor=pointer]
+              - button "Pages" [ref=f6e630] [cursor=pointer]
+              - button "Media" [ref=f6e631] [cursor=pointer]
+              - button "Files" [ref=f6e632] [cursor=pointer]
+            - paragraph [ref=f6e633]: Pages, files, and apps this bot makes show up here
+            - generic [ref=f6e636]:
+              - button "What it remembers Nothing yet" [ref=f6e637] [cursor=pointer]:
+                - generic [ref=f6e647]: What it remembers
+                - generic [ref=f6e649]: Nothing yet
+              - button "Skills None" [ref=f6e652] [cursor=pointer]:
+                - generic [ref=f6e656]: Skills
+                - generic [ref=f6e658]: None
+              - button "Working folder Private" [ref=f6e661] [cursor=pointer]:
+                - generic [ref=f6e665]: Working folder
+                - generic [ref=f6e667]: Private

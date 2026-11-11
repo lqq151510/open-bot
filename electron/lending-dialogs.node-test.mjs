@@ -18,6 +18,21 @@ function fakeDialog({ response = 1, picked = { canceled: true, filePaths: [] } }
 const liveWindow = () => ({ isDestroyed: () => false });
 const named = async (folders) => folders.map((folder) => ({ ...folder, name: folder.path.split("/").pop() }));
 
+test("a shared device operation allows only this dialog's Allow before cancellation", async () => {
+  const env = { name: "Fixture Cloud", origin: "https://fixture.example" }, win = liveWindow(), active = new AbortController();
+  const { dialog, calls } = fakeDialog({ response: 0 });
+  const dialogs = createLendingDialogs({ dialog, window: () => win, validate: named });
+  assert.equal(await dialogs.confirmDeviceOperation(env, "read_file", active.signal), true);
+  assert.equal(calls[0][1], win);
+  assert.equal(calls[0][2].defaultId, 1);
+  assert.equal(calls[0][2].signal, active.signal);
+  assert.match(calls[0][2].detail, /fixture\.example/);
+  assert.match(calls[0][2].detail, /read_file/);
+  active.abort();
+  assert.equal(await dialogs.confirmDeviceOperation(env, "read_file", active.signal), false);
+  assert.equal(calls.length, 1);
+});
+
 test("a picked folder is checked and lent read only; a cancelled picker lends nothing", async () => {
   const win = liveWindow(), checked = [];
   const validate = async (folders) => { checked.push(folders); return named(folders); };

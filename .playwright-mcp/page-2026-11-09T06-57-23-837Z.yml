@@ -1,0 +1,176 @@
+- generic [ref=f6e6]:
+  - complementary "Bots and navigation" [ref=f6e7]:
+    - generic [ref=f6e8]:
+      - generic [ref=f6e9]:
+        - generic [ref=f6e11]:
+          - button "Search bots and messages" [ref=f6e12] [cursor=pointer]
+          - button "New or share" [ref=f6e17] [cursor=pointer]
+        - button "Inbox" [ref=f6e20] [cursor=pointer]
+        - generic [ref=f6e54]:
+          - button "Fixture Starter · Chief of Staff" [ref=f6e55] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f6e58]
+            - button "Rename Fixture Starter" [ref=f6e67]: Fixture Starter
+          - status [ref=f6e68]
+      - separator "Resize sidebar" [ref=f6e26]
+      - generic [ref=f6e69]:
+        - generic [ref=f6e70]:
+          - 'button "Grok Bot Rename Grok Bot 点这里就能打开：🔗 OpenAI 情报。 Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e974] [cursor=pointer]':
+            - img "Grok Bot" [ref=f6e752]
+            - generic [ref=f6e85]:
+              - button "Rename Grok Bot" [ref=f6e756]: Grok Bot
+              - generic [ref=f6e89]:
+                - generic [ref=f6e90]: 点这里就能打开：🔗 OpenAI 情报。
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e92]'
+          - button "Actions for Grok Bot"
+        - generic [ref=f6e96]:
+          - 'button "Pepper Rename Pepper hello from fake claude Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e97] [cursor=pointer]':
+            - img "Pepper" [ref=f6e100]
+            - generic [ref=f6e111]:
+              - button "Rename Pepper" [ref=f6e114]: Pepper
+              - generic [ref=f6e115]:
+                - generic [ref=f6e116]: hello from fake claude
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f6e118]'
+          - button "Actions for Pepper" [ref=f6e366] [cursor=pointer]
+      - paragraph [ref=f6e31]
+      - generic [ref=f6e34]:
+        - button "You" [ref=f6e36] [cursor=pointer]
+        - button "Connect apps" [ref=f6e42] [cursor=pointer]
+  - main [ref=f6e122]:
+    - generic [ref=f6e123]:
+      - generic [ref=f6e126]:
+        - generic [ref=f6e127]:
+          - button "Open Grok Bot's profile" [expanded] [ref=f6e976] [cursor=pointer]:
+            - img "Grok Bot" [ref=f6e768]
+            - generic [ref=f6e141]: Grok Bot
+          - status [ref=f6e144]
+        - button "Share" [ref=f6e979] [cursor=pointer]
+      - log "Conversation with Grok Bot" [ref=f6e776]:
+        - generic [ref=f6e984]:
+          - generic [ref=f6e985]: Today 2:57 PM
+          - generic [ref=f6e987]:
+            - generic:
+              - button "Message actions"
+            - generic "11/9/2026, 2:57:14 PM" [ref=f6e988]: 你会什么
+            - generic [ref=f6e990]: 2:57 PM
+        - generic [ref=f6e993]:
+          - generic "Worked · 11/9/2026, 2:57:14 PM" [ref=f6e994]:
+            - generic [ref=f6e996]:
+              - paragraph [ref=f6e997]: 我不只会聊天，也能帮你实际做事：
+              - paragraph [ref=f6e998]: • 查资料、追 AI 动态、比较工具和套餐。 • 写文案、翻译、整理文档、表格和幻灯片。 • 写代码、排查报错、处理文件。 • 用我的电脑操作网页、安装软件。 • 整理邮件、起草回复、设置定时提醒。
+              - paragraph [ref=f6e999]: 你直接说想完成什么就行；发消息、付款这类操作会先让你确认。
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f6e1000]: 2:57 PM
+        - generic [ref=f6e1003]:
+          - generic:
+            - button "Message actions"
+          - generic "11/9/2026, 2:57:15 PM" [ref=f6e1004]: 开启一个新bot关于手机openai情报的
+          - generic [ref=f6e1006]: 2:57 PM
+        - generic [ref=f6e1009]:
+          - generic "11/9/2026, 2:57:15 PM" [ref=f6e1010]:
+            - paragraph [ref=f6e1013]: 我来创建一个专门收集 OpenAI 情报的 Bot，重点关注官方动态、产品更新和额度变化。
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f6e1014]: 2:57 PM
+        - generic [ref=f6e1017]:
+          - generic "Worked · 11/9/2026, 2:57:15 PM" [ref=f6e1018]:
+            - generic [ref=f6e1020]:
+              - paragraph [ref=f6e1021]: 已创建 🔗 OpenAI 情报，专门收集 ChatGPT、Codex、模型发布和额度变化，也关注手机端更新，用中文整理并附来源。
+              - paragraph [ref=f6e1022]:
+                - text: 资料：
+                - button "JSON" [ref=f6e1024] [cursor=pointer]
+                - text: ·
+                - button "截图" [ref=f6e1029] [cursor=pointer]
+                - text: ·
+                - button "Trae" [ref=f6e1034] [cursor=pointer]
+                - text: ·
+                - button "倒计时" [ref=f6e1039] [cursor=pointer]
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f6e1043]: 2:57 PM
+        - generic [ref=f6e1046]:
+          - generic:
+            - button "Message actions"
+          - generic "11/9/2026, 2:57:15 PM" [ref=f6e1047]: 在哪啊
+          - generic [ref=f6e1049]: 2:57 PM
+        - generic [ref=f6e1050]:
+          - separator "New messages" [ref=f6e1051]:
+            - generic [ref=f6e1052]: New
+          - generic [ref=f6e1058]:
+            - generic "Worked · 11/9/2026, 2:57:15 PM" [ref=f6e1059]:
+              - paragraph [ref=f6e1062]:
+                - text: 点这里就能打开：
+                - link "🔗 OpenAI 情报" [ref=f6e1063] [cursor=pointer]:
+                  - /url: "#openai-news"
+                - text: 。
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f6e1064]: 2:57 PM
+      - status [ref=f6e199]
+      - generic [ref=f6e1069]:
+        - button "Add" [ref=f6e1072] [cursor=pointer]
+        - textbox "Message Grok Bot" [active] [ref=f6e1076]
+        - generic [ref=f6e1077]:
+          - button "Start dictation" [disabled] [ref=f6e1078]
+          - button "Live call with Grok Bot" [ref=f6e1083] [cursor=pointer]
+  - dialog [ref=f6e779]:
+    - generic [ref=f6e451]:
+      - generic [ref=f6e452]:
+        - button "Share" [ref=f6e1086] [cursor=pointer]
+        - button "Bot settings" [ref=f6e459] [cursor=pointer]
+        - button "Close settings" [ref=f6e460] [cursor=pointer]
+      - generic [ref=f6e461]:
+        - generic [ref=f6e463]:
+          - button "Edit avatar" [ref=f6e464] [cursor=pointer]:
+            - img "Grok Bot" [ref=f6e780]
+            - generic [aria-hidden]: Edit avatar
+          - heading [level=2] [ref=f6e785]:
+            - button "Grok Bot" [ref=f6e786] [cursor=pointer]
+        - tablist "Bot settings" [ref=f6e484]:
+          - tab "Activity" [ref=f6e485] [cursor=pointer]
+          - tab "Library" [selected] [ref=f6e486] [cursor=pointer]
+        - tabpanel [ref=f6e487]:
+          - generic [ref=f6e627]:
+            - group "Library" [ref=f6e628]:
+              - button "All" [pressed] [ref=f6e629] [cursor=pointer]
+              - button "Pages" [ref=f6e630] [cursor=pointer]
+              - button "Media" [ref=f6e631] [cursor=pointer]
+              - button "Files" [ref=f6e632] [cursor=pointer]
+            - generic [ref=f6e713]:
+              - generic [ref=f6e714]: This week
+              - generic [ref=f6e716]:
+                - generic "grok-bot-export-grok-bot.json" [ref=f6e1093]:
+                  - button "Save a copy of grok-bot-export-grok-bot.json" [ref=f6e1095] [cursor=pointer]:
+                    - generic [ref=f6e1099]: grok-bot-export-grok-bot.json
+                - generic "question-screen.png" [ref=f6e1104]:
+                  - button "Save a copy of question-screen.png" [ref=f6e1106] [cursor=pointer]:
+                    - generic [ref=f6e1110]: question-screen.png
+                - generic "Trae 登录页 ERR_INVALID_RESPONSE.txt" [ref=f6e1115]:
+                  - button "Save a copy of Trae 登录页 ERR_INVALID_RESPONSE.txt" [ref=f6e1117] [cursor=pointer]:
+                    - generic [ref=f6e1121]: Trae 登录页 ERR_INVALID_RESPONSE.txt
+                - generic "换机后15天倒计时.txt" [ref=f6e1126]:
+                  - button "Save a copy of 换机后15天倒计时.txt" [ref=f6e1128] [cursor=pointer]:
+                    - generic [ref=f6e1132]: 换机后15天倒计时.txt
+            - paragraph [ref=f6e750]: From this conversation
+            - generic [ref=f6e636]:
+              - button "What it remembers Nothing yet" [ref=f6e637] [cursor=pointer]:
+                - generic [ref=f6e647]: What it remembers
+                - generic [ref=f6e649]: Nothing yet
+              - button "Skills None" [ref=f6e652] [cursor=pointer]:
+                - generic [ref=f6e656]: Skills
+                - generic [ref=f6e658]: None
+              - button "Working folder Private" [ref=f6e661] [cursor=pointer]:
+                - generic [ref=f6e665]: Working folder
+                - generic [ref=f6e667]: Private

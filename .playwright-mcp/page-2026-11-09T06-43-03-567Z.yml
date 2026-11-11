@@ -1,0 +1,174 @@
+- generic [ref=f4e6]:
+  - complementary "Bots and navigation" [ref=f4e7]:
+    - generic [ref=f4e8]:
+      - generic [ref=f4e9]:
+        - generic [ref=f4e11]:
+          - button "Search bots and messages" [ref=f4e12] [cursor=pointer]
+          - button "New or share" [ref=f4e17] [cursor=pointer]
+        - button "Inbox" [ref=f4e20] [cursor=pointer]
+        - generic [ref=f4e54]:
+          - button "Fixture Starter · Chief of Staff" [ref=f4e55] [cursor=pointer]:
+            - img "Fixture Starter" [ref=f4e58]
+            - button "Rename Fixture Starter" [ref=f4e67]: Fixture Starter
+          - status [ref=f4e68]
+      - separator "Resize sidebar" [ref=f4e26]
+      - generic [ref=f4e70]:
+        - 'button "Pepper Rename Pepper hello from fake claude Model: Claude Sonnet 5 (Verification fixture)" [ref=f4e71] [cursor=pointer]':
+          - img "Pepper" [ref=f4e74]
+          - generic [ref=f4e85]:
+            - button "Rename Pepper" [ref=f4e88]: Pepper
+            - generic [ref=f4e89]:
+              - generic [ref=f4e90]: hello from fake claude
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f4e92]'
+        - button "Actions for Pepper"
+      - paragraph [ref=f4e31]
+      - generic [ref=f4e34]:
+        - button "You" [ref=f4e36] [cursor=pointer]
+        - button "Connect apps" [ref=f4e42] [cursor=pointer]
+  - main [ref=f4e96]:
+    - generic [ref=f4e97]:
+      - generic [ref=f4e100]:
+        - generic [ref=f4e101]:
+          - button "Open Pepper's profile" [expanded] [ref=f4e102] [cursor=pointer]:
+            - img "Pepper" [ref=f4e104]
+            - generic [ref=f4e115]: Pepper
+          - status [ref=f4e118]
+        - button "Share" [ref=f4e121] [cursor=pointer]
+      - log "Conversation with Pepper" [ref=f4e127]:
+        - generic [ref=f4e128]:
+          - generic [ref=f4e129]: Today 2:42 PM
+          - generic [ref=f4e131]:
+            - generic "11/9/2026, 2:42:11 PM" [ref=f4e132]:
+              - paragraph [ref=f4e135]: Hi, I'm Pepper. What would you like me to do?
+            - generic:
+              - generic:
+                - button "Add reaction"
+              - button "Reply to message"
+              - button "Message actions"
+            - generic [ref=f4e136]: 2:42 PM
+          - region "What should I help you with first?" [ref=f4e137]:
+            - heading "What should I help you with first?" [level=3] [ref=f4e139]
+            - generic [ref=f4e140]:
+              - button "A Research and digging into topics" [disabled] [ref=f4e141]:
+                - generic [ref=f4e142]: A
+                - generic [ref=f4e143]: Research and digging into topics
+              - button "B Keeping an eye on things for me" [disabled] [ref=f4e144]:
+                - generic [ref=f4e145]: B
+                - generic [ref=f4e146]: Keeping an eye on things for me
+              - button "C Email, calendar and messages" [disabled] [ref=f4e147]:
+                - generic [ref=f4e148]: C
+                - generic [ref=f4e149]: Email, calendar and messages
+              - button "D Bookings, shopping and errands" [disabled] [ref=f4e150]:
+                - generic [ref=f4e151]: D
+                - generic [ref=f4e152]: Bookings, shopping and errands
+              - button "E Data, spreadsheets and reports" [disabled] [ref=f4e153]:
+                - generic [ref=f4e154]: E
+                - generic [ref=f4e155]: Data, spreadsheets and reports
+              - button "F Something else" [disabled] [ref=f4e156]:
+                - generic [ref=f4e157]: F
+                - generic [ref=f4e158]: Something else
+        - generic [ref=f4e161]:
+          - generic:
+            - button "Message actions"
+          - generic "11/9/2026, 2:42:34 PM" [ref=f4e162]: 开启一个新bot，专门收集 OpenAI 情报。
+          - generic [ref=f4e164]: 2:42 PM
+        - generic [ref=f4e167]:
+          - generic "Worked · 11/9/2026, 2:42:35 PM" [ref=f4e168]:
+            - paragraph [ref=f4e171]: hello from fake claude
+          - generic:
+            - generic:
+              - button "Add reaction"
+            - button "Reply to message"
+            - button "Message actions"
+          - generic [ref=f4e172]: 2:42 PM
+      - status [ref=f4e173]
+      - generic [ref=f4e178]:
+        - button "Add" [ref=f4e181] [cursor=pointer]
+        - textbox "Message Pepper" [ref=f4e185]
+        - generic [ref=f4e186]:
+          - button "Start dictation" [disabled] [ref=f4e187]
+          - button "Live call with Pepper" [ref=f4e192] [cursor=pointer]
+  - dialog [active] [ref=f4e194]:
+    - generic [ref=f4e195]:
+      - generic [ref=f4e196]:
+        - button "Share" [ref=f4e198] [cursor=pointer]
+        - button "Bot settings" [ref=f4e203] [cursor=pointer]
+        - button "Close settings" [ref=f4e204] [cursor=pointer]
+      - generic [ref=f4e205]:
+        - generic [ref=f4e207]:
+          - button "Edit avatar" [ref=f4e208] [cursor=pointer]:
+            - img "Pepper" [ref=f4e210]
+            - generic [aria-hidden]: Edit avatar
+          - heading [level=2] [ref=f4e222]:
+            - button "Pepper" [ref=f4e223] [cursor=pointer]
+        - tablist "Bot settings" [ref=f4e228]:
+          - tab "Activity" [selected] [ref=f4e229] [cursor=pointer]
+          - tab "Library" [ref=f4e230] [cursor=pointer]
+        - tabpanel [ref=f4e231]:
+          - generic [ref=f4e232]:
+            - generic [ref=f4e233]:
+              - generic [ref=f4e234]:
+                - generic [ref=f4e235]: Suggestions
+                - button "Hide" [ref=f4e236] [cursor=pointer]
+              - generic [ref=f4e237]:
+                - button "Add to Slack" [ref=f4e238] [cursor=pointer]
+                - button "Create a routine" [ref=f4e253] [cursor=pointer]
+            - generic [ref=f4e261]:
+              - generic [ref=f4e262]: Computer
+              - button "Pepper's screen Not using its computer right now Pepper" [ref=f4e265] [cursor=pointer]:
+                - generic [ref=f4e269]:
+                  - generic [ref=f4e270]: Pepper's screen
+                  - generic [ref=f4e271]: Not using its computer right now
+                - img "Pepper" [ref=f4e275]
+            - generic [ref=f4e288]:
+              - generic [ref=f4e289]: Voice chat
+              - generic [ref=f4e292]:
+                - generic [ref=f4e293]:
+                  - generic [ref=f4e294]: Voice
+                  - combobox "Voice" [ref=f4e296] [cursor=pointer]:
+                    - option "Marin (default)" [selected]
+                    - option "Cedar"
+                    - option "Alloy"
+                    - option "Ash"
+                    - option "Ballad"
+                    - option "Coral"
+                    - option "Echo"
+                    - option "Sage"
+                    - option "Shimmer"
+                    - option "Verse"
+                    - option "Gleam — North American, feminine"
+                    - option "Meridian — North American, masculine"
+                    - option "Quartz — Australian, feminine"
+                    - option "Ripple — Australian, masculine"
+                    - option "Vesper — British, masculine"
+                    - option "Willow — Irish, feminine"
+                    - option "Stone — Irish, masculine"
+                    - option "Delta — Southern U.S., feminine"
+                    - option "Cinder — Southern U.S., masculine"
+                    - option "Beacon — Filipino, masculine"
+                    - option "Bossa — Brazilian Portuguese, feminine"
+                    - option "Tempo — Brazilian Portuguese, masculine"
+                - generic [ref=f4e297]:
+                  - generic [ref=f4e298]: Speed
+                  - combobox "Speed" [ref=f4e300] [cursor=pointer]:
+                    - option "0.75x"
+                    - option "1x" [selected]
+                    - option "1.25x"
+                    - option "1.5x"
+                - generic [ref=f4e301]:
+                  - generic [ref=f4e302]: Language
+                  - combobox "Language" [ref=f4e304] [cursor=pointer]:
+                    - option "Auto-detect" [selected]
+                    - option "English"
+                    - option "Chinese"
+            - region "Conversations" [ref=f4e305]:
+              - button "New conversation" [ref=f4e307] [cursor=pointer]
+            - generic [ref=f4e312]:
+              - generic [ref=f4e313]: This conversation
+              - generic [ref=f4e315]:
+                - button "Find in conversation" [ref=f4e316] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f4e323]: ⌘ F
+                - button "Usage $0.01 · 0% context used" [ref=f4e324] [cursor=pointer]:
+                  - generic [ref=f4e329]: Usage
+                  - 'generic "1 turn 10 uncached input · 2 cached input · 5 output Last message: 10 uncached input · 2 cached input · 5 output Context 12 (0% of 200k) $0.01 equivalent (on your subscription, not billed)" [ref=f4e331]': $0.01 · 0% context used
+                - button "Activity" [ref=f4e332] [cursor=pointer]

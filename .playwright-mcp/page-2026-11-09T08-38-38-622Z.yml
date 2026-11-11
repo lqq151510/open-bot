@@ -1,0 +1,136 @@
+- generic [ref=f1e6]:
+  - complementary "Bots and navigation" [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - button "New or share" [ref=f1e13] [cursor=pointer]
+        - textbox "Search bots and messages" [ref=f1e20]:
+          - /placeholder: Search
+        - button "Inbox" [ref=f1e22] [cursor=pointer]
+      - separator "Resize sidebar" [ref=f1e28]
+      - generic [ref=f1e98]:
+        - generic [ref=f1e100]:
+          - 'button "Fixture Starter Model: Claude Sonnet 5 (Verification fixture) Rename Fixture Starter Chief of Staff Hi, I''m Fixture Starter, your helper for everything here." [ref=f1e101] [cursor=pointer]':
+            - generic "Fixture Starter · Chief of Staff" [ref=f1e102]:
+              - img "Fixture Starter" [ref=f1e104]
+              - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e109]'
+            - generic [ref=f1e113]:
+              - generic [ref=f1e115]:
+                - button "Rename Fixture Starter" [ref=f1e116]: Fixture Starter
+                - img "Chief of Staff" [ref=f1e117]
+              - generic [ref=f1e119]: Hi, I'm Fixture Starter, your helper for everything here.
+          - button "New thread"
+          - button "New folder under Fixture Starter"
+          - button "Actions for Fixture Starter"
+        - generic [ref=f1e122]:
+          - button "Bots" [expanded] [ref=f1e124] [cursor=pointer]
+          - generic [ref=f1e128]:
+            - 'button "Grok Bot Model: Claude Sonnet 5 (Verification fixture) Rename Grok Bot 4:12 PM Bash" [ref=f1e129] [cursor=pointer]':
+              - generic "Grok Bot" [ref=f1e130]:
+                - img "Grok Bot" [ref=f1e132]
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e143]'
+              - generic [ref=f1e147]:
+                - generic [ref=f1e148]:
+                  - button "Rename Grok Bot" [ref=f1e150]: Grok Bot
+                  - generic [ref=f1e151]: 4:12 PM
+                - generic [ref=f1e152]: Bash
+            - button "Expand Grok Bot threads" [ref=f1e155] [cursor=pointer]
+            - button "New thread"
+            - button "New folder under Grok Bot"
+            - button "Actions for Grok Bot" [ref=f1e158] [cursor=pointer]
+          - generic [ref=f1e163]:
+            - 'button "Pepper Model: Claude Sonnet 5 (Verification fixture) Rename Pepper Hi, I''m Pepper. What would you like me to do?" [ref=f1e164] [cursor=pointer]':
+              - generic "Pepper" [ref=f1e165]:
+                - img "Pepper" [ref=f1e167]
+                - 'img "Model: Claude Sonnet 5 (Verification fixture)" [ref=f1e178]'
+              - generic [ref=f1e182]:
+                - button "Rename Pepper" [ref=f1e185]: Pepper
+                - generic [ref=f1e186]: Hi, I'm Pepper. What would you like me to do?
+            - button "New thread"
+            - button "New folder under Pepper"
+            - button "Actions for Pepper"
+      - paragraph [ref=f1e31]
+      - generic [ref=f1e33]:
+        - generic [ref=f1e34]:
+          - button "Tools" [expanded] [ref=f1e36] [cursor=pointer]
+          - navigation "Tools" [ref=f1e40]:
+            - button "Automations" [ref=f1e41] [cursor=pointer]
+            - button "Team map" [ref=f1e45] [cursor=pointer]
+        - generic [ref=f1e51]:
+          - button "You" [ref=f1e54] [cursor=pointer]:
+            - generic [ref=f1e55]:
+              - generic [ref=f1e56]: "?"
+              - generic [ref=f1e58]: You
+          - button "Apps" [ref=f1e61] [cursor=pointer]
+  - main [ref=f1e189]:
+    - generic [ref=f1e190]:
+      - generic [ref=f1e193]:
+        - generic [ref=f1e194]:
+          - generic [ref=f1e195]:
+            - button "Open Grok Bot's profile" [ref=f1e196] [cursor=pointer]:
+              - img "Grok Bot" [ref=f1e198]
+            - generic [ref=f1e209]:
+              - button "Open Grok Bot's profile" [ref=f1e210] [cursor=pointer]: Grok Bot
+              - button "Rename Grok Bot" [ref=f1e211] [cursor=pointer]
+          - status [ref=f1e215]
+        - generic [ref=f1e216]:
+          - button "Verification fixture · Claude Sonnet 5 Uses Grok Bot's model" [ref=f1e218] [cursor=pointer]
+          - button "Bot's screen" [ref=f1e223] [cursor=pointer]
+          - button "More" [ref=f1e227] [cursor=pointer]
+      - log "Conversation with Grok Bot" [ref=f1e234]:
+        - generic [ref=f1e235]:
+          - generic [ref=f1e236]: Today 4:12 PM
+          - generic [ref=f1e238]:
+            - generic:
+              - button "Reply to message"
+              - button "Copy message"
+              - button "Message actions"
+            - generic "11/9/2026, 4:12:17 PM" [ref=f1e239]: 你会什么
+            - generic [ref=f1e241]: 4:12 PM
+        - generic [ref=f1e244]:
+          - generic "11/9/2026, 4:12:17 PM" [ref=f1e245]:
+            - paragraph [ref=f1e248]: hello from fake claude
+          - generic:
+            - button "Reply to message"
+            - generic:
+              - button "Add reaction"
+            - button "Copy message"
+            - button "Message actions"
+          - generic [ref=f1e249]: 4:12 PM
+      - status [ref=f1e250]
+      - generic [ref=f1e255]:
+        - generic [ref=f1e256]:
+          - button "Attach a file" [ref=f1e257] [cursor=pointer]
+          - button "Teach a task" [ref=f1e260] [cursor=pointer]
+          - button "Work until done" [ref=f1e264] [cursor=pointer]: Goal
+          - button "Full access for Verification fixture" [ref=f1e270] [cursor=pointer]
+          - 'button "Where this conversation works: Browser" [ref=f1e274] [cursor=pointer]'
+          - generic [ref=f1e278]:
+            - button "Switch to Fun mode" [ref=f1e279] [cursor=pointer]:
+              - generic [ref=f1e283]: Normal
+            - button "Turn on Think mode" [ref=f1e284] [cursor=pointer]:
+              - generic [ref=f1e293]: Think
+        - textbox "Message Grok Bot" [ref=f1e295]
+        - generic [ref=f1e297]:
+          - button "Live call with Grok Bot" [ref=f1e298] [cursor=pointer]
+          - button "Call mode" [ref=f1e300] [cursor=pointer]
+  - dialog "Grok Bot" [active] [ref=f1e304]:
+    - generic [ref=f1e305]:
+      - generic [ref=f1e306]: Grok Bot
+      - button "Close settings" [ref=f1e308] [cursor=pointer]
+    - textbox "Search settings" [ref=f1e313]:
+      - /placeholder: Search
+    - generic [ref=f1e314]:
+      - button "Overview" [ref=f1e316] [cursor=pointer]
+      - button "Identity" [ref=f1e326] [cursor=pointer]
+      - button "Soul" [ref=f1e334] [cursor=pointer]
+      - button "Skills" [ref=f1e342] [cursor=pointer]
+      - button "Memory" [ref=f1e349] [cursor=pointer]
+      - button "Library" [ref=f1e362] [cursor=pointer]
+      - button "Routines" [ref=f1e369] [cursor=pointer]
+      - button "Access" [ref=f1e378] [cursor=pointer]
+      - button "Model" [ref=f1e388] [cursor=pointer]
+      - button "Permissions" [ref=f1e396] [cursor=pointer]
+      - button "Voice & alerts" [ref=f1e404] [cursor=pointer]
+      - button "Who can see it" [ref=f1e412] [cursor=pointer]
+      - button "History" [ref=f1e420] [cursor=pointer]
+      - button "Usage" [ref=f1e429] [cursor=pointer]

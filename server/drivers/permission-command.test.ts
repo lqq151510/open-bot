@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { acpPermissionCommand, permissionCommand } from "./permission-command.ts";
+import { acpPermissionCommand, acpPermissionOptionId, permissionCommand } from "./permission-command.ts";
 
 const CWD = "/home/user/work";
 
@@ -40,6 +40,14 @@ describe("acpPermissionCommand", () => {
     expect(acpPermissionCommand(null, CWD)).toBeUndefined();
     expect(acpPermissionCommand(["ls"], CWD)).toBeUndefined();
   });
+});
+
+it("does not fall back to a persistent ACP allow while workspace rules require approval", () => {
+  const persistent = { kind: "allow_always", optionId: "save" };
+  const once = { kind: "allow_once", optionId: "run" };
+  expect(acpPermissionOptionId([persistent], "allow", true)).toBe("save");
+  expect(acpPermissionOptionId([persistent], "allow", false)).toBeNull();
+  expect(acpPermissionOptionId([persistent, once], "allow", false)).toBe("run");
 });
 
 describe("permissionCommand", () => {

@@ -1,0 +1,24 @@
+- generic [ref=e6]:
+  - complementary "机器人与导航" [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - button "新建或分享" [ref=e13] [cursor=pointer]
+        - textbox "搜索机器人和消息" [ref=e20]:
+          - /placeholder: 搜索
+        - button "收件箱" [ref=e22] [cursor=pointer]
+      - separator "调整侧栏大小" [ref=e28]
+      - paragraph [ref=e31]
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - button "工具" [expanded] [ref=e36] [cursor=pointer]
+          - navigation "工具" [ref=e40]:
+            - button "自动化" [ref=e41] [cursor=pointer]
+            - button "团队地图" [ref=e45] [cursor=pointer]
+        - generic [ref=e51]:
+          - button "你" [ref=e54] [cursor=pointer]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: "?"
+              - generic [ref=e58]: 你
+          - button "应用" [ref=e61] [cursor=pointer]
+  - main [ref=e64]:
+    - generic [ref=e67]: 正在连接你的机器人…

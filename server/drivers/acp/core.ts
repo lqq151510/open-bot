@@ -6,8 +6,8 @@ import { type ServerText } from "../../../shared/server-text.ts";
 // `allow`-kind option approves, and option order is never a security contract.
 import { mkdtempSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 import { PROVIDER_CREDENTIAL_ENV, stripControlPlaneEnv, WORKSPACE_CREDENTIAL_ENV } from "../../config.ts";
@@ -56,12 +56,13 @@ import { supportsApprovalMode } from "../../../shared/approval-mode.ts";
 import { MAX_QUESTION_TEXT, parseAskQuestions, parseChoices, questionAnswersByQuestion } from "../../../shared/ask-question.ts";
 
 import { appendNative } from "../native.ts";
-import { acpSessionOperationKey, acpShellRequest, answersAlone, permissionLaunchCwd } from "../permission-command.ts"; import { acpReadPaths } from "../../own-file-reads.ts";
+import { acpPermissionOptionId, acpSessionOperationKey, acpShellRequest, answersAlone, permissionLaunchCwd } from "../permission-command.ts"; import { acpReadPaths } from "../../own-file-reads.ts";
 import { openQuestionRequest, questionRequestFor, type AcpQuestionRequest } from "./question-requests.ts";
 import { commandSummary, toolDetailPreview } from "../../tool-summary.ts";
 import { acpToolEndEvents } from "./tool-items.ts";
 import { AcpHost } from "./host.ts";
 import { exitDetail } from "./exit-report.ts";
+import { runAcpClientFileRequest } from "./client-files.ts";
 import { endTurn, trackRunningTool, type AcpAskFinish, type AcpSession, type AcpTurn } from "./turn-state.ts";
 import { recoveryPromptFor } from "../../resume-recovery.ts";
 import { noticeFailure } from "../../chat-notices.ts";
@@ -276,7 +277,6 @@ function nextUnkeyedToolId(current: AcpTurn): string {
   current.unkeyedToolIds.push(id);
   return id;
 }
-const CLIENT_FILE_MAX_BYTES = 8 * 1024 * 1024;
 
 async function readAcpImageBlocks(images: readonly TurnImageInput[]) {
   return Promise.all(images.map(async (image) => ({
@@ -651,80 +651,14 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
         const acp = host.link(threadId, cwd);
         const send = (obj: unknown) => acp.send(obj);
 
-        const resolveClientPath = async (requestPath: unknown): Promise<string> => {
-          if (typeof requestPath !== "string" || !isAbsolute(requestPath)) {
-            throw new Error("ACP file paths must be absolute.");
-          }
-          const workspace = await realpath(cwd).catch(() => resolve(cwd));
-          const requested = resolve(requestPath);
-          const lexical = relative(resolve(cwd), requested);
-          if (lexical === ".." || lexical.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(lexical)) {
-            throw new Error("ACP file path is outside the session workspace.");
-          }
-          const suffix = [basename(requested)];
-          let ancestor = dirname(requested);
-          while (!(await lstat(ancestor).catch(() => null))) {
-            const parent = dirname(ancestor);
-            if (parent === ancestor) throw new Error("ACP file path has no accessible parent.");
-            suffix.unshift(basename(ancestor));
-            ancestor = parent;
-          }
-          const candidate = resolve(await realpath(ancestor), ...suffix);
-          const rel = relative(workspace, candidate);
-          if (rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(rel)) {
-            throw new Error("ACP file path is outside the session workspace.");
-          }
-          const existing = await lstat(candidate).catch(() => null);
-          if (existing?.isSymbolicLink()) throw new Error("ACP file path cannot be a symbolic link.");
-          return candidate;
-        };
-
-        const handleClientFileRequest = async (msg: any): Promise<void> => {
-          const fail = (error: unknown) => send({
-            jsonrpc: "2.0",
-            id: msg.id,
-            error: { code: -32602, message: error instanceof Error ? error.message : String(error) },
-          });
-          try {
-            if (!support.clientFileSystem) throw new Error("Client file access is disabled.");
-            const params = msg.params ?? {};
-            const path = await resolveClientPath(params.path);
-            if (msg.method === "fs/read_text_file") {
-              const info = await stat(path);
-              if (!info.isFile() || info.size > CLIENT_FILE_MAX_BYTES) {
-                throw new Error(`ACP can only read text files under ${CLIENT_FILE_MAX_BYTES} bytes.`);
-              }
-              const content = await readFile(path, "utf8");
-              if (params.line == null && params.limit == null) {
-                send({ jsonrpc: "2.0", id: msg.id, result: { content } });
-                return;
-              }
-              const line = typeof params.line === "number" && Number.isInteger(params.line) && params.line > 0 ? params.line : 1;
-              const limit = typeof params.limit === "number" && Number.isInteger(params.limit) && params.limit >= 0 ? params.limit : undefined;
-              const lines = content.split("\n");
-              const start = line - 1;
-              send({
-                jsonrpc: "2.0",
-                id: msg.id,
-                result: { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") },
-              });
-              return;
-            }
-            if (typeof params.content !== "string" || Buffer.byteLength(params.content) > CLIENT_FILE_MAX_BYTES) {
-              throw new Error(`ACP can only write text files under ${CLIENT_FILE_MAX_BYTES} bytes.`);
-            }
-            await mkdir(dirname(path), { recursive: true });
-            await writeFile(path, params.content, "utf8");
-            send({ jsonrpc: "2.0", id: msg.id, result: {} });
-          } catch (error) {
-            fail(error);
-          }
-        };
-
         const handleServerRequest = (msg: any, current: AcpTurn) => {
           current.state.startupActivity = true;
           if (msg.method === "fs/read_text_file" || msg.method === "fs/write_text_file") {
-            void handleClientFileRequest(msg);
+            const reply = (value: object) => send({ jsonrpc: "2.0", id: msg.id, ...value });
+            const fail = (error: unknown) => reply({ error: { code: -32602, message: error instanceof Error ? error.message : String(error) } });
+            if (!support.clientFileSystem) return fail("Client file access is disabled.");
+            void runAcpClientFileRequest({ method: msg.method, params: msg.params ?? {}, cwd, current, emit,
+              base: () => base(threadId, current.turnId) }).then(result => reply({ result }), fail);
             return;
           }
           const question = questionRequestFor(support.questionRequests, msg.method);
@@ -736,10 +670,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
           const params = msg.params ?? {};
           current.flushAssistantText();
           const options: Array<{ optionId?: string; kind?: string; name?: string }> = Array.isArray(params.options) ? params.options : [];
-          const optionFor = (want: "allow" | "reject") =>
-            options.find((o) => o.kind === `${want}_once` && typeof o.optionId === "string")?.optionId
-              ?? options.find((o) => String(o.kind ?? "").startsWith(want) && typeof o.optionId === "string")?.optionId
-              ?? null;
+          const optionFor = (want: "allow" | "reject") => acpPermissionOptionId(options, want, !current.turn.approvalRulesActive?.());
           const optionAlways = options.find((o) => o.kind === "allow_always" && typeof o.optionId === "string")?.optionId ?? null;
           const cancelled = { outcome: { outcome: "cancelled" } };
           const missing = (want: string) =>
@@ -752,7 +683,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
           const rawToolCall = params.toolCall ?? {};
           const toolCall = { ...rawToolCall, ...(rawToolCall.rawInput ? { rawInput: sanitizeAcpToolArguments(rawToolCall.rawInput) } : {}) };
           const isQuestion = String(toolCall.toolCallId ?? "").startsWith("interaction_");
-          if (current.turnConfig.fullAuto && current.turn.approvalMode === undefined && !isQuestion && answersAlone(toolCall.rawInput?.command)) {
+          if (current.turnConfig.fullAuto && current.turn.approvalMode === undefined && !current.turn.approvalRulesActive?.() && !isQuestion && answersAlone(toolCall.rawInput?.command)) {
             const allow = optionFor("allow");
             if (!allow) missing("allow");
             return send({
@@ -763,7 +694,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
           }
           const kind = String(toolCall.kind ?? "");
           const operationKey = isQuestion || current.controlsHost ? null : acpSessionOperationKey(toolCall);
-          if (operationKey && answersAlone(toolCall.rawInput?.command) && sessionAllows.get(threadId)?.has(operationKey)) {
+          if (operationKey && !current.turn.approvalRulesActive?.() && answersAlone(toolCall.rawInput?.command) && sessionAllows.get(threadId)?.has(operationKey)) {
             const allow = optionFor("allow");
             if (allow) {
               return send({ jsonrpc: "2.0", id: msg.id, result: { outcome: { outcome: "selected", optionId: allow } } });
@@ -790,7 +721,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
             if (!current.asks.delete(requestId)) return "unavailable";
             clearTimeout(timer);
             const want = behavior === "allow" ? "allow" : "reject";
-            const forSession = want === "allow" && always === true && !isQuestion && !current.controlsHost;
+            const forSession = want === "allow" && always === true && !current.turn.approvalRulesActive?.() && !isQuestion && !current.controlsHost;
             const picked = askQuestions
               ? questionAnswersByQuestion(message ?? "", askQuestions)[askQuestions[0]!.question] ?? message
               : message;
