@@ -13,6 +13,7 @@ const fixture = vi.hoisted(() => ({
   status: 200,
   body: { label: "Fixture-Host.local" } as { label?: string },
   images: { status: "unavailable", computers: [], unverified: false } as ComputerImageUpdates,
+  phones: [] as unknown[],
 }));
 
 vi.mock("@/lib/use-owner-or-admin", () => ({ useOwnerOrAdmin: () => true }));
@@ -38,6 +39,7 @@ beforeEach(() => {
   fixture.status = 200;
   fixture.body = { label: "Fixture-Host.local" };
   fixture.images = { status: "unavailable", computers: [], unverified: false };
+  fixture.phones = [];
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/.well-known/openbot/environment")) {
@@ -47,6 +49,7 @@ beforeEach(() => {
       }));
     }
     if (url === "/api/computers/image-updates") return Promise.resolve(Response.json(fixture.images));
+    if (url === "/api/phones") return Promise.resolve(Response.json({ phones: fixture.phones }));
     return Promise.resolve(new Response("{}", { status: 404, headers: { "content-type": "application/json" } }));
   });
   host = document.createElement("div");
@@ -127,5 +130,34 @@ describe("managed devices", () => {
     expect(host.textContent).not.toContain("Fixture-Host.local");
     expect(host.textContent).not.toContain("V2606A");
     expect(host.textContent).not.toContain("Online");
+  });
+
+  it("renders paired phones in managed devices list alongside the local computer", async () => {
+    fixture.phones = [{
+      key: "companion:p1",
+      registration: { installId: "i1", name: "Pixel 9", platform: "android", appVersion: "1.0", timeZone: "UTC", capabilities: {} },
+      registeredAt: Date.now() - 4 * 86_400_000,
+      seen: Date.now() - 4 * 86_400_000,
+      lastUsedAt: null,
+      online: false,
+      busy: false,
+    }];
+    await act(async () => { root.render(page()); });
+    await vi.waitFor(() => {
+      expect(host.querySelector("[data-managed-devices='this-computer']")?.textContent).toContain("Fixture-Host.local");
+      expect(host.textContent).toContain("Pixel 9");
+      expect(host.textContent).toContain("Android");
+    });
+  });
+
+  it("displays up-to-date banner when image update status is current", async () => {
+    fixture.images = {
+      status: "current", unverified: false,
+      computers: [{ id: "vm-1", name: "Local VM", provider: "local-vm", status: "current" }],
+    };
+    await act(async () => { root.render(page()); });
+    await vi.waitFor(() => {
+      expect(host.textContent).toContain("Your computer is up to date");
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { api } from "@/state/store";
 import type { LocaleKey } from "@/locales";
@@ -41,15 +42,40 @@ export function ComputerImageUpdates() {
   const summary = loading ? t("settings.computer.image.checking")
     : failed || !data ? t("settings.computer.image.failed")
       : t(imageLabels[data.status]);
+
+  const isUpToDate = !loading && data && (data.status === "current" || data.status === "unavailable");
+  const isPending = !loading && data && (data.status === "ready" || data.status === "busy" || data.status === "waiting");
+
   return (
     <SettingsRows>
-      <SettingRow title={t("settings.computer.image.title")} subtitle={summary}
-        message={!loading && data?.unverified ? t("settings.computer.image.partial") : undefined}>
-        <button type="button" className="ui-button" disabled={loading}
-          onClick={() => { setLoading(true); setFailed(false); setRefresh((value) => value + 1); }}>
+      <SettingRow
+        title={t("settings.computer.updateBotsComputer")}
+        subtitle={t("settings.computer.updateBotsComputerSubtitle")}
+        message={!loading && data?.unverified ? t("settings.computer.image.partial") : undefined}
+      >
+        <button
+          type="button"
+          className="ui-button"
+          disabled={loading}
+          onClick={() => { setLoading(true); setFailed(false); setRefresh((value) => value + 1); }}
+        >
           {t("settings.computer.image.check")}
         </button>
       </SettingRow>
+
+      {isUpToDate && (
+        <div className="mx-4 mb-3 flex items-center gap-2 rounded-lg border border-sky-200/60 bg-sky-50/80 px-3.5 py-2.5 text-[13px] font-medium text-sky-700 dark:border-sky-800/40 dark:bg-sky-950/30 dark:text-sky-300">
+          <CheckCircle2 size={16} className="shrink-0 text-sky-600 dark:text-sky-400" />
+          <span>{t("settings.computer.upToDate")}</span>
+        </div>
+      )}
+
+      {isPending && (
+        <div className="mx-4 mb-3 flex items-center gap-2 rounded-lg bg-ink/[0.04] px-3.5 py-2.5 text-[13px] text-ink">
+          <span>{summary}</span>
+        </div>
+      )}
+
       {!loading && Boolean(data?.computers.length) && (
         <ul className="space-y-1 px-4 pb-3">
           {data?.computers.map((computer) => (
@@ -121,7 +147,7 @@ export function ComputerExecutionRows() {
           <option value="never">{t("settings.computer.neverAllow")}</option>
         </Select>
       </SettingRow>
-      <SettingRow title={t("settings.computer.forwardTraffic")} subtitle={t("settings.computer.forwardTrafficSubtitle")}>
+      <SettingRow title={t("settings.computer.forwardTraffic")} subtitle={t("settings.computer.forwardTrafficSubtitle", { count: 0 })}>
         <Switch checked={data.forwardTraffic} disabled={pending}
           aria-label={t("settings.computer.forwardTraffic")}
           onClick={() => void save({ forwardTraffic: !data.forwardTraffic })} />
