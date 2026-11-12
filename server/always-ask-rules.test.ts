@@ -93,3 +93,28 @@ it("keeps an async review valid across another person's edits and holds on chang
   rules.create("tool:Bash");
   await expect(affected).resolves.toBe(true);
 });
+
+it("handles edge cases in tool and command matching accurately", () => {
+  rules.create("tool:mail");
+  rules.create("command: git push ");
+  const yesNo = vi.fn<Decider["yesNo"]>();
+
+  // Bare tool name matches MCP tool
+  expect(alwaysAskRequired(rules, { tool: "mcp__provider__mail" }, { yesNo })).toBe(true);
+  // Bare tool name does not match different tool with same prefix
+  expect(alwaysAskRequired(rules, { tool: "mcp__provider__mailer" }, undefined)).toBe(false);
+
+  // Case-insensitivity in tool names
+  expect(alwaysAskRequired(rules, { tool: "MAIL" }, { yesNo })).toBe(true);
+  expect(alwaysAskRequired(rules, { tool: "mcp__PROVIDER__Mail" }, { yesNo })).toBe(true);
+
+  // Command matching with whitespace / newline trimming
+  expect(alwaysAskRequired(rules, { tool: "Bash", command: "git push\n" }, { yesNo })).toBe(true);
+  expect(alwaysAskRequired(rules, { tool: "Bash", command: "git push" }, { yesNo })).toBe(true);
+  expect(alwaysAskRequired(rules, { tool: "Bash", command: "git push origin main" }, { yesNo })).toBe(false);
+
+  // Missing command on non-shell tool does not hold command rule
+  expect(alwaysAskRequired(rules, { tool: "Read" }, undefined)).toBe(false);
+
+  expect(yesNo).not.toHaveBeenCalled();
+});

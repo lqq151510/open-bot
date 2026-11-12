@@ -153,4 +153,18 @@ describe("simple permissions", () => {
     expect(host.querySelector("[data-permission-ask-rule]")).toBeNull();
     expect(host.querySelector("[data-permission-bot='atlas']")).not.toBeNull();
   });
+
+  it("toggles auto-review for all bots when the master switch is toggled", async () => {
+    fixture.bots = [bot("atlas", "Atlas", { approvalMode: "ask" })];
+    await show();
+    const toggle = host.querySelector<HTMLButtonElement>("button[role='switch']");
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute("aria-checked")).toBe("false");
+    await act(async () => { toggle!.click(); });
+    expect(fixture.dispatch).toHaveBeenCalledWith({
+      type: "updateBot",
+      botId: "atlas",
+      patch: { approvalMode: "auto", applyToAllThreads: true },
+    });
+  });
 });
