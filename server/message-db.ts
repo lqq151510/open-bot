@@ -11,6 +11,7 @@ import type { UsageTrigger } from "./usage-ledger.ts";
 import { ensureMemoryIndex } from "./message-db-memory-index.ts";
 import { attentionSelect } from "./message-db-attention.ts";
 import { MessageSearchWorker } from "./message-search-worker.ts";
+import { createMessagePageQueries } from "./message-page-query.ts";
 import { searchMessagesInDatabase, type SearchHit } from "./message-search-query.ts";
 import type { Notification, NotificationLogEntry } from "../shared/notification.ts";
 export type { SearchHit } from "./message-search-query.ts";
@@ -402,33 +403,7 @@ export interface ThreadTailRows extends ThreadRows {
   hasMore?: boolean;
 }
 
-export function readThreadTail(threadId: string, legacyFile: string, limit: number): ThreadTailRows {
-  const rows = prepared("SELECT json FROM messages WHERE thread_id = ? ORDER BY rowid DESC LIMIT ?").all(threadId, limit + 1) as Array<{ json: string }>;
-  if (rows.length) {
-    const hasMore = rows.length > limit;
-    if (hasMore) rows.length = limit;
-    rows.reverse();
-    const state = prepared(ACTIVE_LEAF).get(threadId) as { active_leaf_id: string | null } | undefined;
-    return { messages: rows.map(rowToMessage), activeLeafId: state?.active_leaf_id ?? null, hasMore };
-  }
-  return importLegacy(threadId, legacyFile);
-}
-
-export function readThreadBefore(threadId: string, legacyFile: string, before: string, limit: number): ThreadTailRows | null {
-  const cursor = prepared("SELECT rowid FROM messages WHERE thread_id = ? AND id = ?").get(threadId, before) as { rowid: number } | undefined;
-  if (!cursor) {
-    if (prepared("SELECT 1 FROM messages WHERE thread_id = ? LIMIT 1").get(threadId)) return null;
-    const imported = importLegacy(threadId, legacyFile);
-    return imported.messages.some((message) => message.id === before) ? imported : null;
-  }
-  const rows = prepared("SELECT json FROM messages WHERE thread_id = ? AND rowid < ? ORDER BY rowid DESC LIMIT ?").all(threadId, cursor.rowid, limit + 1) as Array<{ json: string }>;
-  const hasMore = rows.length > limit;
-  if (hasMore) rows.length = limit;
-  rows.reverse();
-  const state = prepared(ACTIVE_LEAF).get(threadId) as { active_leaf_id: string | null } | undefined;
-  const last = state?.active_leaf_id ? undefined : prepared("SELECT id FROM messages WHERE thread_id = ? ORDER BY rowid DESC LIMIT 1").get(threadId) as { id: string } | undefined;
-  return { messages: rows.map(rowToMessage), activeLeafId: state?.active_leaf_id || last?.id || null, hasMore };
-}
+export const { readThreadTail, readThreadBefore } = createMessagePageQueries({ prepared, importLegacy, rowToMessage });
 
 function importLegacy(threadId: string, legacyFile: string): ThreadRows {
   let messages: Message[] = [];
