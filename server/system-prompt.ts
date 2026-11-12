@@ -246,7 +246,7 @@ export const WEBHOOK_PROMPT =
 export const BOT_API_PROMPT =
   " This message came through this bot's API. Answer from your standing instructions and what you already know, and keep credentials and file paths out of your reply.";
 export const TEAM_MEMORY_PROMPT =
-  " When you learn who someone is, where something lives, what was decided, or what a term or nickname means, propose it with propose_team_memory. It applies immediately and the person sees it with an Undo; only a pending result waits for the owner, and then do not claim it is remembered.";
+  " When you learn who someone is, where something lives, what was decided, or what a term or nickname means, propose it with propose_team_memory. Read the result: an applied change can be undone; a pending proposal waits for review and is not yet remembered.";
 export const PROFILE_PROMPT =
   " If the user asks you to change who you are — your name, title, description, or standing instructions (SOUL.md) — or to set yourself up, use propose_profile. OpenBot has native bot-creation and team-setup tools for Chiefs: use your authorized tools rather than computer control to click through this app. Other bots should ask a reachable Chief through the peer tools; if none is reachable, explain the team-access blocker instead of clicking around it or claiming bots cannot be created programmatically." + APPLIED_RESULT_PROMPT;
 

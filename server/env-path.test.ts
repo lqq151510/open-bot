@@ -250,7 +250,46 @@ describe("augmentedPath", () => {
     }
   });
 
-  // MOCA-152: the Podman installer (and Podman Desktop's) puts podman.exe in %ProgramFiles%\RedHat\Podman.
+  it("keeps Windows machine-wide runtimes out of sealed fixtures unless explicitly selected", () => {
+    const realPlatform = process.platform;
+    const previous = { ProgramFiles: process.env.ProgramFiles, PATHEXT: process.env.PATHEXT, PATH: process.env.PATH,
+      OMB_EXTRA_PATH: process.env.OMB_EXTRA_PATH, OMB_TEST_SEALED_PATH: process.env.OMB_TEST_SEALED_PATH };
+    const programFiles = mkdtempSync(join(tmpdir(), "omb-programfiles-sealed-"));
+    const docker = join(programFiles, "Docker", "Docker", "resources", "bin");
+    const podman = join(programFiles, "RedHat", "Podman");
+    try {
+      Object.defineProperty(process, "platform", { value: "win32" });
+      process.env.ProgramFiles = programFiles;
+      process.env.PATHEXT = ".exe";
+      process.env.PATH = join(programFiles, "empty");
+      delete process.env.OMB_EXTRA_PATH;
+      mkdirSync(docker, { recursive: true });
+      mkdirSync(podman, { recursive: true });
+      writeFileSync(join(docker, "docker.exe"), "");
+      writeFileSync(join(podman, "podman.exe"), "");
+      delete process.env.OMB_TEST_SEALED_PATH;
+      resetPathCacheForTests();
+      expect(findCliCandidates("docker")).toContain(join(docker, "docker.exe"));
+      expect(findCliCandidates("podman")).toContain(join(podman, "podman.exe"));
+      process.env.OMB_TEST_SEALED_PATH = "1";
+      resetPathCacheForTests();
+      expect(findCliCandidates("docker")).toEqual([]);
+      expect(findCliCandidates("podman")).toEqual([]);
+      process.env.OMB_EXTRA_PATH = podman;
+      resetPathCacheForTests();
+      expect(findCliCandidates("podman")).toContain(join(podman, "podman.exe"));
+      expect(findCliCandidates("docker")).toEqual([]);
+    } finally {
+      Object.defineProperty(process, "platform", { value: realPlatform });
+      for (const [name, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      resetPathCacheForTests();
+      rmSync(programFiles, { recursive: true, force: true });
+    }
+  });
+
   it("finds Podman installed after launch on Windows", () => {
     const realPlatform = process.platform;
     const previous = { ProgramFiles: process.env.ProgramFiles, PATHEXT: process.env.PATHEXT };

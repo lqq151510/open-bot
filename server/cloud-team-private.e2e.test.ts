@@ -280,6 +280,41 @@ it("a bot never carries Bob's chat to an Admin: not its tools in the Admin's cha
   }
 }, hostTimeout(120_000));
 
+it("holds shared team learning until an admin reviews it", async () => {
+  const token = await team.capability(bot.id, bot.mainThreadId);
+  const response = await fetch(`${team.base}/api/internal/team-memory`, {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ fromBotId: bot.id, fromThreadId: bot.mainThreadId, kind: "decision", name: "Team review fixture", detail: "Use amber for the shared process" }),
+  });
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({ state: "pending" });
+  const pending = await team.as(owner, "GET", "/api/team-memory?section=");
+  expect(pending.status).toBe(200);
+  const entry = pending.body.entries.find((candidate: { name: string }) => candidate.name === "Team review fixture");
+  expect(entry.status).toBe("proposed");
+  expect(pending.body.loadedIds).not.toContain(entry.id);
+  expect((await team.as(bob, "GET", "/api/team-memory?section=")).status).toBe(403);
+  expect((await team.as(admin, "PATCH", `/api/team-memory/${entry.id}?section=`, { accept: true, expectedRevision: "stale" })).status).toBe(409);
+  const afterConflict = await messages(owner, bot.mainThreadId);
+  expect(afterConflict.body.messages.find((line: { card?: { requestId?: string } }) => line.card?.requestId === entry.id)?.card.answered).toBeUndefined();
+  const accepted = await team.as(admin, "PATCH", `/api/team-memory/${entry.id}?section=`, { accept: true, expectedRevision: entry.revision });
+  expect(accepted.status).toBe(200);
+  expect(accepted.body.loadedIds).toContain(entry.id);
+  const afterAccept = await messages(owner, bot.mainThreadId);
+  expect(afterAccept.body.messages.find((line: { card?: { requestId?: string } }) => line.card?.requestId === entry.id)?.card.answered).toBe("allow");
+
+  const rejectedResponse = await fetch(`${team.base}/api/internal/team-memory`, {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ fromBotId: bot.id, fromThreadId: bot.mainThreadId, kind: "decision", name: "Reject fixture", detail: "Use violet" }),
+  });
+  expect(rejectedResponse.status).toBe(201);
+  const proposed = await team.as(owner, "GET", "/api/team-memory?section=");
+  const rejected = proposed.body.entries.find((candidate: { name: string }) => candidate.name === "Reject fixture");
+  expect((await team.as(admin, "DELETE", `/api/team-memory/${rejected.id}?section=&revision=${rejected.revision}`)).status).toBe(200);
+  const afterReject = await messages(owner, bot.mainThreadId);
+  expect(afterReject.body.messages.find((line: { card?: { requestId?: string } }) => line.card?.requestId === rejected.id)?.card.answered).toBe("deny");
+});
+
 it("when Bob leaves the team, his private chats and everything only his are deleted, never handed to an admin", async () => {
   const layer = dataDir("workspaces", `${bot.id}--member-${bobKey}`);
   const adminsLayer = dataDir("workspaces", `${bot.id}--member-${personKey({ id: "", email: ADMIN.email })}`);

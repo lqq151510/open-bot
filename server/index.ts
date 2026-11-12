@@ -9368,7 +9368,7 @@ const validateModelProposal = (selection: ModelSelection, current?: BotRecord): 
   return null;
 };
 const teamMemory = new TeamMemory(join(DATA_DIR, "team-memory.json"));
-const teamMemoryRequests = createTeamMemoryRequests({ teamMemory, store, sectionKey: sectionContextKey, decide: (row) => appendDecision(DATA_DIR, row) });
+const teamMemoryRequests = createTeamMemoryRequests({ teamMemory, store, requireReview: Boolean(CLOUD_TEAM), sectionKey: sectionContextKey, decide: (row) => appendDecision(DATA_DIR, row) });
 const outsideWrites = createOutsideWrites({ store, notify, language: (threadId) => threadLanguage(threadId), decide: (row) => appendDecision(DATA_DIR, row),
   writeMemory: (botId, threadId, change) => { const written = botMemoryUpdate(teamHost.layer(botId, threadId), change, { source: memorySourceLabel({ room: store.groupByThread(threadId), task: store.taskByThread(teamHost.baseBotId(botId), threadId), threadId }), aboutMe: null, prefer: null }); return written.ok ? null : written.error; } });
 const outboundRequests = new OutboundRequestService();
@@ -12363,7 +12363,7 @@ ROUTES.push(createEmailRoutes({ service: emailService }));
 ROUTES.push(phones.routes);
 ROUTES.push(createSkillShareRoutes({ enabled: () => skillsHost.mode() !== "off", botExists: (id) => Boolean(store.bot(id)),
   cardRefusal: (auth, threadId, requestId) => cardAnswerRefusal(auth, threadId, requestId, "allow"), shareFromReceipt: skillsHost.shareFromReceipt, shareFromBot: skillsHost.shareFromBot }));
-ROUTES.push(createTeamContextRoutes({ store, teamMemory }));
+ROUTES.push(createTeamContextRoutes({ store, teamMemory, syncReview: teamMemoryRequests.syncReview }));
 ROUTES.push(createBotMemoryRoutes({
   bot: (id) => store.bot(id),
   ...(CLOUD_TEAM ? { ownLayer: (auth: RequestAuth, botId: string) => auth.kind === "session" && visibleTo(viewerFor(auth)).bot(botId)

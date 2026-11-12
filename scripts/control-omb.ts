@@ -2,7 +2,7 @@
 // The openbot headless verbs for verifying an isolated fixture. A verb that
 // changes something never runs on a server it merely found.
 import { spawn, type ChildProcess } from "node:child_process";
-import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -128,6 +128,20 @@ export interface VerificationServer {
   close(): Promise<void>;
 }
 
+const fixtureBins = new Map<string, string>();
+
+function fixtureNodePath(dataDir: string): string {
+  const existing = fixtureBins.get(dataDir);
+  if (existing && existsSync(existing)) return existing;
+  mkdirSync(dataDir, { recursive: true });
+  const bin = mkdtempSync(join(dataDir, "fixture-bin-"));
+  const node = join(bin, process.platform === "win32" ? "node.exe" : "node");
+  if (process.platform === "win32") copyFileSync(process.execPath, node);
+  else symlinkSync(process.execPath, node);
+  fixtureBins.set(dataDir, bin);
+  return bin;
+}
+
 /** A temporary home in `dataDir`, the fake engine's knobs from `parentEnv`, node
  * on PATH, and nothing else from the parent shell or this machine's CLIs. */
 export function verificationServerEnvironment(parentEnv: NodeJS.ProcessEnv, dataDir: string, port: number): NodeJS.ProcessEnv {
@@ -156,9 +170,7 @@ export function verificationServerEnvironment(parentEnv: NodeJS.ProcessEnv, data
     // A caller's FAKE_CLAUDE_MODE overrides this below to drive failure paths.
     FAKE_CLAUDE_MODE: parentEnv.FAKE_CLAUDE_MODE || "happy",
     FAKE_CLAUDE_DUMP: join(dataDir, "fake-claude-dump.json"),
-    // POSIX resolves the fake CLI's `#!/usr/bin/env node` shebang through PATH;
-    // Windows resolves it through spawnCli without a shell.
-    PATH: dirname(process.execPath),
+    PATH: fixtureNodePath(dataDir),
     // Without it the server also scans /opt/homebrew/bin, /usr/local/bin and the
     // login shell's PATH, finding a developer's own engine CLIs that CI lacks.
     OMB_TEST_SEALED_PATH: "1",

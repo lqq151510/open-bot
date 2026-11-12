@@ -1,13 +1,33 @@
 // What crosses from the launching shell into a fixture server: only what a
 // test scripted on purpose. A real OpenAI key must never reach a fixture that
 // could send it to OpenAI.
-import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import { verificationServerEnvironment } from "./control-omb.ts";
 
 const childEnv = (parentEnv: NodeJS.ProcessEnv) => verificationServerEnvironment(parentEnv, join(tmpdir(), "omb-fixture-env"), 9100);
+
+describe("fixture executable isolation", () => {
+  it("provides node without exposing neighboring engine CLIs", () => {
+    const dir = mkdtempSync(join(tmpdir(), "omb-fixture-path-"));
+    try {
+      const env = verificationServerEnvironment({ PATH: process.env.PATH }, dir, 9100);
+      const bin = env.PATH!;
+      expect(bin).not.toBe(dirname(process.execPath));
+      expect(readdirSync(bin)).toEqual([process.platform === "win32" ? "node.exe" : "node"]);
+      const child = spawnSync(join(bin, process.platform === "win32" ? "node.exe" : "node"), ["-p", "process.versions.node"], { env, encoding: "utf8" });
+      expect(child.status).toBe(0);
+      expect(child.stdout.trim()).toBe(process.versions.node);
+      expect(verificationServerEnvironment({}, dir, 9100).PATH).toBe(bin);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("a fixture driven from a real browser", () => {
   it("trusts this machine's browsers as `pnpm dev` does, unless the caller tests the sign-in", () => {

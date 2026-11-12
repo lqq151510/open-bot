@@ -726,7 +726,7 @@ const TOOL_DEFINITIONS = [
   {
     name: "propose_team_memory",
     description:
-      "Save a shared fact or decision for your team. It applies immediately, with an Undo for the person; on a pending result end this turn and do not claim it is remembered.",
+      "Propose a shared fact or decision for your team. An applied result can be undone; a pending result awaits review and is not yet remembered.",
     inputSchema: {
       type: "object",
       additionalProperties: false,

@@ -1,5 +1,3 @@
-// propose_team_memory: a bot's fact for its team applies at once, shown as a one-line notice with Undo. In a Cloud turn
-// its owner did not drive, the owner confirms it on a card instead (direct-apply.ts).
 import type { DecisionRow } from "./decision-log.ts";
 import { UNDO_STALE, type DirectApply } from "./direct-apply.ts";
 import { TeamMemoryConflict, type TeamMemory, type TeamMemoryInput } from "./team-memory.ts";
@@ -17,6 +15,7 @@ export interface TeamMemoryRequestDeps {
     bot(id: string): { id: string; name: string } | null | undefined;
     botByThread(threadId: string): { id: string; name: string } | null | undefined;
   };
+  requireReview?: boolean;
   sectionKey(section: string | undefined): string;
   decide(row: Omit<DecisionRow, "at">): void;
 }
@@ -34,6 +33,7 @@ export function createTeamMemoryRequests(deps: TeamMemoryRequestDeps) {
   return {
     /** Throws on invalid input; a conflict with an accepted fact comes back as `error` and saves nothing. */
     submit(from: Speaker, threadId: string, inRoom: boolean, input: TeamMemoryInput, direct: DirectApply | null) {
+      if (deps.requireReview) direct = null;
       const proposed = teamMemory.propose(from.section, input, { botId: from.id, botName: from.name, threadId, at: Date.now() });
       const entry = proposed.entry;
       let revision: string | undefined;
@@ -64,6 +64,16 @@ export function createTeamMemoryRequests(deps: TeamMemoryRequestDeps) {
       deps.decide({ threadId, requestId: entry.id, botId: from.id, botName: from.name, tool: TOOL, summary,
         decision: direct ? "auto-approved" : "card-shown", source: direct ?? "team-memory" });
       return { status: 201, body: { status: direct ? "applied" : "proposed", state: direct ? "applied" : "pending", requestId: entry.id, messageId: message.id, summary } };
+    },
+
+    syncReview(threadId: string, requestId: string, answer: "allow" | "deny") {
+      if (!threadId) return;
+      const message = find(threadId, requestId);
+      if (!message?.card || message.card.answered) return;
+      store.patchMessage(threadId, message.id, { card: { ...message.card, answered: answer } });
+      const proposer = message.from?.botId ? store.bot(message.from.botId) : store.botByThread(threadId);
+      deps.decide({ threadId, requestId, botId: proposer?.id, botName: proposer?.name, tool: TOOL, summary: message.card.subtitle,
+        decision: answer === "allow" ? "user-approved" : "user-denied", source: "user" });
     },
 
     /** The owner's answer to a card; null when the request is not a team memory card. */

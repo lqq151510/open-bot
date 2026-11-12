@@ -224,7 +224,7 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
         <button type="button" onClick={() => closeRef.current()} className="rounded-xl bg-ink/[0.06] px-4 py-2 text-[14px] text-ink-secondary transition-colors hover:bg-ink/[0.10] hover:text-ink">{t("common.cancel")}</button>
         <button type="button" disabled={!ready || saving || (!defaultsMode && !bot.name.trim())} onClick={() => void save()}
           className="ui-button-primary flex items-center gap-2 rounded-xl bg-accent px-5 py-2 text-[14px] font-medium text-white hover:brightness-110 disabled:bg-ink/[0.08] disabled:text-ink-tertiary disabled:opacity-60 transition-all">
-          {saving && <Loader2 size={15} className="animate-spin" />}{t(defaultsMode ? "newBot.saveDefaults" : "newBot.create")}
+          {saving && <Loader2 size={15} className="animate-spin" />}{saving ? <span role="status">{t(defaultsMode ? "common.saving" : "templates.creating")}</span> : t(defaultsMode ? "newBot.saveDefaults" : "newBot.create")}
         </button>
       </div>
       <LocalComputerAutoWarning open={warning === "local"} onCancel={() => setWarning(null)} onConfirm={() => { draft.consent.acknowledgeLocalAuto = true; setWarning(null); void save(); }} />

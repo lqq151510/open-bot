@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TeamMemory, TeamMemoryConflict, TEAM_MEMORY_PROMPT_MAX_BYTES } from "./team-memory.ts";
+import { createTeamMemoryRequests } from "./team-memory-requests.ts";
 import { ensureSections, changeEmptySection, sectionMemoryKey, SECTION_CONTEXTS_FILE } from "./section-context.ts";
 import { removeTempDir } from "./testing/cleanup.ts";
 
@@ -18,6 +19,42 @@ beforeEach(() => {
 
 afterEach(async () => {
   await removeTempDir(dir);
+});
+
+it.each([
+  { requireReview: true, state: "pending", status: "proposed" },
+  { requireReview: false, state: "applied", status: "accepted" },
+])("shared memory respects review policy: $state", ({ requireReview, state, status }) => {
+  const cards: Array<{ card: { autoApplied?: boolean } }> = [];
+  const requests = createTeamMemoryRequests({
+    teamMemory: memory,
+    requireReview,
+    sectionKey: (section) => section ?? "",
+    decide: () => {},
+    store: {
+      messagesFor: () => [],
+      appendMessage: (_threadId, message) => { cards.push(message); return { id: "message" }; },
+      patchMessage: () => {},
+      bot: () => null,
+      botByThread: () => null,
+    },
+  });
+  const result = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+    { kind: "decision", name: "Colour", detail: "Use amber" }, "full-access");
+  expect(result.body.state).toBe(state);
+  expect(memory.list("")[0]?.status).toBe(status);
+  expect(memory.systemPrompt("")).toEqual(requireReview ? "" : expect.stringContaining("Use amber"));
+  expect(cards[0]?.card.autoApplied).toBe(requireReview ? undefined : true);
+  if (requireReview) {
+    const entry = memory.list("")[0]!;
+    memory.resolve("", entry.id, "accept", entry.revision);
+    expect(memory.systemPrompt("")).toContain("Use amber");
+    requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+      { kind: "decision", name: "Meeting", detail: "Use violet" }, "full-access");
+    const rejected = memory.list("").find((candidate) => candidate.name === "Meeting")!;
+    memory.resolve("", rejected.id, "reject", rejected.revision);
+    expect(memory.systemPrompt("")).not.toContain("Use violet");
+  }
 });
 
 describe("propose", () => {

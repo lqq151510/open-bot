@@ -70,8 +70,10 @@ function windowsKnownDirs(): string[] {
     join(home, ".bun", "bin"),
     join(home, ".deno", "bin"),
     join(home, "go", "bin"),
-    join(programFiles, "Docker", "Docker", "resources", "bin"), // Docker Desktop installer
-    join(programFiles, "RedHat", "Podman"), // Podman installer, also run by Podman Desktop
+    ...(sealedFixture() ? [] : [
+      join(programFiles, "Docker", "Docker", "resources", "bin"), // Docker Desktop installer
+      join(programFiles, "RedHat", "Podman"), // Podman installer, also run by Podman Desktop
+    ]),
   ];
 }
 

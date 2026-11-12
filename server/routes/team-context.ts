@@ -10,6 +10,7 @@ import { PASS, type RouteHandler } from "./table.ts";
 export interface TeamContextRouteDeps {
   store: Pick<Store, "sections" | "bots" | "groups">;
   teamMemory: Pick<TeamMemory, "list" | "propose" | "resolve" | "update" | "remove" | "promptSelection">;
+  syncReview(threadId: string, requestId: string, answer: "allow" | "deny"): void;
 }
 
 export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandler {
@@ -50,6 +51,7 @@ export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandle
       const body = method === "DELETE" ? { expectedRevision: url.searchParams.get("revision") } : await readBody(req);
       if (!body || typeof body.expectedRevision !== "string" || !body.expectedRevision) return json(res, 428, { error: "Reload this memory and send its expectedRevision." });
       try {
+        const proposal = teamMemory.list(section).find((entry) => entry.id === m![1] && entry.status === "proposed");
         if (method === "DELETE") {
           if (!teamMemory.remove(section, m[1], body.expectedRevision)) return json(res, 404, { error: "no such entry" });
         } else if (body.accept === true) {
@@ -60,7 +62,12 @@ export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandle
           if (!parsed.success) return json(res, 400, { error: "Invalid memory edit" });
           if (!teamMemory.update(section, m[1], parsed.data, body.expectedRevision)) return json(res, 404, { error: "no such entry" });
         }
-        return json(res, 200, { entries: teamMemory.list(section), loadedIds: teamMemory.promptSelection(section).loadedIds });
+        let cardSyncPending = false;
+        if (proposal) {
+          try { deps.syncReview(proposal.source.threadId, proposal.id, method === "DELETE" ? "deny" : "allow"); }
+          catch { cardSyncPending = true; }
+        }
+        return json(res, 200, { entries: teamMemory.list(section), loadedIds: teamMemory.promptSelection(section).loadedIds, ...(cardSyncPending ? { cardSyncPending } : {}) });
       } catch (error) {
         return json(res, error instanceof TeamMemoryConflict ? 409 : 400, { error: error instanceof Error ? error.message : String(error), ...userErrorFields(error) });
       }
