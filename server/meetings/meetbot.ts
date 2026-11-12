@@ -15,7 +15,7 @@
 //                                               {kind:"token",token}
 // Every event is one line of <dir>/events.jsonl: {seq, at, type, ...}; every transcript line also goes to transcript.jsonl.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export type MeetbotPlatform = "meet" | "teams" | "jitsi" | "zoom";
@@ -713,33 +713,103 @@ function nullSink(dir: string): { sink: string; unload(): void } {
   return { sink, unload: () => { try { execFileSync("pactl", ["unload-module", module]); } catch { /* already gone */ } } };
 }
 
-async function launchChrome(dir: string, config: MeetbotConfig, sink: string): Promise<{ chrome: ChildProcess; cdp: Cdp }> {
+interface TemporaryMeetingProfile {
+  dir: string;
+  path: string;
+  parentDevice: number;
+  parentInode: number;
+  device: number;
+  inode: number;
+}
+
+export function createTemporaryMeetingProfile(dir: string): TemporaryMeetingProfile {
+  if (!lstatSync(dir).isDirectory()) throw new Error("The meeting directory is not a directory.");
+  const parent = realpathSync(dir);
+  const parentStat = lstatSync(parent);
+  const path = join(parent, "profile");
+  mkdirSync(path, { mode: 0o700 });
+  const profile = lstatSync(path);
+  return { dir: parent, path, parentDevice: parentStat.dev, parentInode: parentStat.ino, device: profile.dev, inode: profile.ino };
+}
+
+function removeTemporaryMeetingProfile(profile: TemporaryMeetingProfile): boolean {
+  try {
+    const parent = lstatSync(profile.dir);
+    const child = lstatSync(profile.path);
+    if (!parent.isDirectory() || !child.isDirectory() || parent.dev !== profile.parentDevice || parent.ino !== profile.parentInode || child.dev !== profile.device || child.ino !== profile.inode) return false;
+    rmSync(profile.path, { recursive: true });
+    return true;
+  } catch { return false; }
+}
+
+export async function stopMeetingChrome(chrome: ChildProcess, temporaryProfile?: TemporaryMeetingProfile): Promise<boolean> {
+  const pid = chrome.pid;
+  if (!pid) return false;
+  if (process.platform === "win32") {
+    chrome.kill("SIGTERM");
+    return false;
+  }
+  const groupAlive = () => {
+    try { process.kill(-pid, 0); return true; }
+    catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
+  };
+  if (chrome.exitCode !== null || chrome.signalCode !== null) {
+    if (groupAlive()) return false;
+    return temporaryProfile ? removeTemporaryMeetingProfile(temporaryProfile) : true;
+  }
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    try { process.kill(-pid, signal); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") return false;
+    }
+    const until = Date.now() + 3_000;
+    while (groupAlive() && Date.now() < until) await sleep(100);
+    if (!groupAlive()) {
+      return temporaryProfile ? removeTemporaryMeetingProfile(temporaryProfile) : true;
+    }
+  }
+  return false;
+}
+
+export async function launchChrome(dir: string, config: MeetbotConfig, sink: string): Promise<{ chrome: ChildProcess; cdp: Cdp; temporaryProfile?: TemporaryMeetingProfile }> {
   const media = join(dir, "media");
   mkdirSync(media, { recursive: true });
   const silence = join(media, "silence.wav"), black = join(media, "black.y4m");
   execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-t", "5", "-i", "anullsrc=r=48000:cl=mono", silence]);
   execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x180:r=5", "-frames:v", "5", "-pix_fmt", "yuv420p", black]);
-  const profile = config.profileDir ?? join(dir, "profile");
-  rmSync(join(profile, "DevToolsActivePort"), { force: true });
+  const temporaryProfile = config.profileDir === undefined ? createTemporaryMeetingProfile(dir) : undefined;
+  const profile = config.profileDir ?? temporaryProfile!.path;
+  if (!temporaryProfile) rmSync(join(profile, "DevToolsActivePort"), { force: true });
   const [width, height] = config.platform === "jitsi" ? [800, 600] : [1280, 800];
   const chrome = spawn(config.chrome ?? "/usr/bin/google-chrome", [
     `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--no-first-run", "--no-default-browser-check", `--window-size=${width},${height}`,
     "--disable-blink-features=AutomationControlled", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream",
     `--use-file-for-fake-audio-capture=${silence}`, `--use-file-for-fake-video-capture=${black}`, "--autoplay-policy=no-user-gesture-required",
     "--lang=en-US", "--disable-features=Translate", "about:blank",
-  ], { env: { ...process.env, PULSE_SINK: sink, DISPLAY: process.env.DISPLAY ?? ":0" }, stdio: "ignore" });
-  const portFile = join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(200);
-  const port = readFileSync(portFile, "utf8").split("\n")[0];
-  let target: any;
-  for (let i = 0; i < 50 && !target; i++) {
-    const targets: any[] = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json() as Promise<any[]>).catch(() => []);
-    target = targets.find((t: any) => t.type === "page");
-    if (!target) await sleep(200);
+  ], { env: { ...process.env, PULSE_SINK: sink, DISPLAY: process.env.DISPLAY ?? ":0" }, stdio: "ignore", detached: process.platform !== "win32" });
+  let spawnError: Error | undefined;
+  chrome.on("error", (error) => { spawnError = error; });
+  let cdp: Cdp | undefined;
+  try {
+    const portFile = join(profile, "DevToolsActivePort");
+    for (let i = 0; i < 100 && !existsSync(portFile); i++) {
+      if (spawnError || chrome.exitCode !== null || chrome.signalCode !== null) throw new Error("The meeting browser stopped before it was ready.");
+      await sleep(200);
+    }
+    const port = readFileSync(portFile, "utf8").split("\n")[0];
+    let target: any;
+    for (let i = 0; i < 50 && !target; i++) {
+      const targets: any[] = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json() as Promise<any[]>).catch(() => []);
+      target = targets.find((t: any) => t.type === "page");
+      if (!target) await sleep(200);
+    }
+    cdp = await Cdp.connect(target.webSocketDebuggerUrl);
+    await cdp.send("Page.enable");
+    return { chrome, cdp, temporaryProfile };
+  } catch (error) {
+    cdp?.close();
+    await stopMeetingChrome(chrome, temporaryProfile);
+    throw error;
   }
-  const cdp = await Cdp.connect(target.webSocketDebuggerUrl);
-  await cdp.send("Page.enable");
-  return { chrome, cdp };
 }
 
 type Sink = (chunk: Buffer) => void;
@@ -1074,16 +1144,23 @@ async function run(dir: string): Promise<void> {
   process.on("SIGTERM", () => void finish("left").finally(() => process.exit(0)));
   const audio = nullSink(dir);
   cleanup = async () => audio.unload();
-  const { chrome, cdp } = await launchChrome(dir, config, audio.sink);
+  const { chrome, cdp, temporaryProfile } = await launchChrome(dir, config, audio.sink);
   const page = new CallPage(cdp, config.platform, config.name);
   const adapter = ADAPTERS[config.platform];
   cleanup = async () => {
-    await page.screenshot(join(dir, "end.png"));
-    if (!cdp.closed) await page.click(adapter.leave).catch(() => false);
-    await sleep(1_000);
-    cdp.close();
-    chrome.kill("SIGTERM");
-    audio.unload();
+    try {
+      if (!cdp.closed) await page.click(adapter.leave).catch(() => false);
+      await sleep(1_000);
+    } finally {
+      cdp.close();
+      try {
+        if (!(await stopMeetingChrome(chrome, temporaryProfile))) {
+          log("meeting browser did not exit; its profile was kept");
+        }
+      } finally {
+        audio.unload();
+      }
+    }
   };
   const mail = inbox(dir);
   const reason = await runSession({

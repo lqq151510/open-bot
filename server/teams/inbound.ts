@@ -11,7 +11,7 @@ export interface TeamsInboundDependencies {
   appId: string;
   verifyConnector(authorization: string | undefined, body: unknown): Promise<TeamsConnectorActivity>;
   /** Independently verifies sender identity against this exact activity; the Connector bearer alone does not bind its body. */
-  verifySender(activity: TeamsConnectorActivity, rawBody: Uint8Array): Promise<TeamsAccountIdentity | null>;
+  verifySender(activity: TeamsConnectorActivity, rawBody: Uint8Array, proof?: string): Promise<TeamsAccountIdentity | null>;
   resolveMember(identity: TeamsAccountIdentity): string | null;
   /** Resolves a published, currently enabled team Bot from its registered Teams recipient. */
   resolveBot(input: { appId: string; tenantId: string; recipientId: string }): string | null;
@@ -26,7 +26,7 @@ export interface TeamsInboundDependencies {
 export type TeamsInboundResult = "accepted" | "duplicate" | "busy" | "ignored" | "unauthorized" | "conflict" | "unavailable";
 
 export function createTeamsInbound(deps: TeamsInboundDependencies) {
-  return async (authorization: string | undefined, rawBody: Uint8Array): Promise<TeamsInboundResult> => {
+  return async (authorization: string | undefined, rawBody: Uint8Array, senderProof?: string): Promise<TeamsInboundResult> => {
     if (rawBody.byteLength > 1_000_000) return "unauthorized";
     let body: unknown;
     try { body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(rawBody)); }
@@ -34,7 +34,7 @@ export function createTeamsInbound(deps: TeamsInboundDependencies) {
     let activity: TeamsConnectorActivity;
     try { activity = await deps.verifyConnector(authorization, body); }
     catch { return "unauthorized"; }
-    const sender = await deps.verifySender(activity, rawBody);
+    const sender = await deps.verifySender(activity, rawBody, senderProof);
     if (!sender || sender.appId !== deps.appId || sender.tenantId !== activity.channelData.tenant.id || sender.objectId !== activity.from.aadObjectId) return "unauthorized";
     const conversationType = activity.conversation.conversationType;
     if (conversationType !== "personal" && conversationType !== "groupChat" && conversationType !== "channel") return "unauthorized";
