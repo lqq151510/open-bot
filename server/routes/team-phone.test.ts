@@ -67,6 +67,8 @@ describe("Open on your phone, on a Team Cloud", () => {
 
   it("reads a member only from a session the Admin's claim opened", () => {
     expect(sessionMember(session())).toEqual({ member: { email: "ada@acme.test", role: "member" }, checkedAt: 1_000 });
+    const membershipId = "10000000-0000-4000-8000-000000000001";
+    expect(sessionMember(session({ membershipId }))).toEqual({ member: { email: "ada@acme.test", role: "member", membershipId }, checkedAt: 1_000 });
     expect(sessionMember(session({ membershipAuthority: "portal" }))).toBeNull();
     expect(sessionMember(session({ email: undefined }))).toBeNull();
   });

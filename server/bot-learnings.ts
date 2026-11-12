@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { closeSync, openSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { TeamMemory, type TeamMemoryInput } from "./team-memory.ts";
@@ -38,8 +38,19 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
     aliases TEXT NOT NULL, fact_key TEXT NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('proposed', 'accepted', 'rejected')),
     revision INTEGER NOT NULL, updated_at INTEGER NOT NULL
-  ); CREATE INDEX IF NOT EXISTS bot_learnings_owner ON bot_learnings(bot_id, generation, state);`);
+  ); CREATE INDEX IF NOT EXISTS bot_learnings_owner ON bot_learnings(bot_id, generation, state);
+  CREATE TABLE IF NOT EXISTS bot_learning_events (
+    entry_id TEXT NOT NULL, bot_id TEXT NOT NULL, generation TEXT NOT NULL,
+    revision INTEGER NOT NULL, action TEXT NOT NULL CHECK (action IN ('proposed', 'accepted', 'rejected')),
+    actor_hash TEXT NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (entry_id, revision)
+  );`);
 
+  const recordEvent = (id: string, botId: string, generation: string, revision: number, action: "proposed" | "accepted" | "rejected", sessionId: string, at: number) => {
+    const actor = createHash("sha256").update(sessionId).digest("hex");
+    db.prepare("INSERT INTO bot_learning_events (entry_id, bot_id, generation, revision, action, actor_hash, at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(id, botId, generation, revision, action, actor, at);
+  };
   const owner = (botId: string, sessionId: string, action: "propose" | "review"): string => {
     const generation = access.botGeneration(botId);
     if (!generation || !UUID.test(generation) || !sessionId ||
@@ -82,8 +93,8 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
         if (!row) throw new BotLearningError("No such learning.", 404);
         if (action !== "accept" && action !== "reject") throw new BotLearningError("Invalid review.", 400);
         if (row.state !== "proposed" || row.revision !== expectedRevision) throw new BotLearningError("Learning changed. Reload and try again.", 409);
-        if (edit && !access.allowContent(edit)) throw new BotLearningError("This content cannot be shared as a learning.", 400);
         const item = edit ? TeamMemory.normalize(edit) : { kind: row.kind, name: row.name, detail: row.detail, aliases: JSON.parse(row.aliases) as string[], key: row.fact_key };
+        if (action === "accept" && !access.allowContent(item)) throw new BotLearningError("This content cannot be shared as a learning.", 400);
         if (action === "accept" && entries(botId, generation, "accepted").some((entry) => entry.fact_key === item.key)) {
           throw new BotLearningError("An accepted learning already has this key.", 409);
         }

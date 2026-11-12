@@ -36,9 +36,9 @@ export interface TeamPhoneRouteDeps {
 }
 
 /** The member a team session was opened for, and when the Admin last vouched for them; null for any other session. */
-export function sessionMember(session: Pick<SessionRecord, "membershipAuthority" | "email" | "teamRole" | "createdAt" | "memberCheckedAt">): { member: TeamMember; checkedAt: number } | null {
+export function sessionMember(session: Pick<SessionRecord, "membershipAuthority" | "email" | "teamRole" | "membershipId" | "createdAt" | "memberCheckedAt">): { member: TeamMember; checkedAt: number } | null {
   if (session.membershipAuthority !== "team" || !session.email || !session.teamRole) return null;
-  return { member: { email: session.email, role: session.teamRole }, checkedAt: session.memberCheckedAt ?? session.createdAt };
+  return { member: { email: session.email, role: session.teamRole, ...(session.membershipId ? { membershipId: session.membershipId } : {}) }, checkedAt: session.memberCheckedAt ?? session.createdAt };
 }
 
 /** The phones `viewer` may see and remove: an owner's or admin's, everyone's; a member's, their own. */

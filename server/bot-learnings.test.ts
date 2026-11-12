@@ -92,3 +92,14 @@ it("refuses a rejected privacy check both on proposal and on an edited approval"
   expect(s.store.list("a", "manager")).toMatchObject([{ state: "proposed", revision: 1 }]);
   s.store.close();
 });
+
+it("rechecks the current privacy policy on an unedited approval, but permits rejection", () => {
+  const s = setup();
+  const item = s.store.propose("a", "member", sample);
+  s.access.allowContent = () => false;
+  expect(() => s.store.resolve("a", "manager", item.id, 1, "accept")).toThrow("cannot be shared");
+  expect(s.store.prompt("a")).toBe("");
+  expect(s.store.list("a", "manager")).toMatchObject([{ state: "proposed", revision: 1 }]);
+  expect(s.store.resolve("a", "manager", item.id, 1, "reject")).toMatchObject({ state: "rejected" });
+  s.store.close();
+});

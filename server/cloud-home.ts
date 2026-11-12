@@ -205,7 +205,7 @@ export function createCloudPairing(options: {
         return { status: 400, body: { error: "invalid_owner" } };
       }
       const ttl = Math.min((ttlSeconds as number | undefined) ?? CLOUD_PAIRING_DEFAULT_TTL_S, browser ? CLOUD_BROWSER_SIGN_IN_MAX_TTL_S : CLOUD_PAIRING_MAX_TTL_S);
-      if (member) sessions.revokeMember(member.email, member.role);
+      if (member) sessions.revokeMember(member.email, member.role, member.membershipId);
       const opened = sessions.openPairing({
         scopes: member ? teamRoleScopes(member.role) : ["admin", "client"],
         label: typeof label === "string" && label.trim() ? label.trim() : "OpenBot Cloud",

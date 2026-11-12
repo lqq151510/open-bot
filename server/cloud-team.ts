@@ -18,6 +18,7 @@ export interface CloudTeam {
 export interface TeamMember {
   email: string;
   role: TeamRole;
+  membershipId?: string;
 }
 
 export function isTeamRole(value: unknown): value is TeamRole {
@@ -56,9 +57,10 @@ export function parseMemberClaim(body: Record<string, unknown>, team: CloudTeam)
   const member = body.member;
   if (member === undefined) return { ok: false, error: "member_required" };
   if (!member || typeof member !== "object" || Array.isArray(member)) return { ok: false, error: "invalid_member" };
-  const { email, role } = member as { email?: unknown; role?: unknown };
-  if (typeof email !== "string" || email.length > 254 || !MEMBER_EMAIL.test(email) || !isTeamRole(role)) return { ok: false, error: "invalid_member" };
-  return { ok: true, member: { email: email.trim().toLowerCase(), role } };
+  const { email, role, membershipId } = member as { email?: unknown; role?: unknown; membershipId?: unknown };
+  if (typeof email !== "string" || email.length > 254 || !MEMBER_EMAIL.test(email) || !isTeamRole(role) ||
+      (membershipId !== undefined && (typeof membershipId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(membershipId)))) return { ok: false, error: "invalid_member" };
+  return { ok: true, member: { email: email.trim().toLowerCase(), role, ...(membershipId ? { membershipId } : {}) } };
 }
 
 /** A member's own connection (a Composio share, an MCP sign-in, a mailbox) has no path into a team. */
