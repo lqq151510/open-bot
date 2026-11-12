@@ -9,6 +9,14 @@ import { HELPER_ASK_KEYS } from "./HelperIntro";
 // clicks on top of it.
 const noDrag = { WebkitAppRegion: "no-drag" } as CSSProperties;
 
+export const DEFAULT_BOT_CAN_DO_KEYS: readonly LocaleKey[] = [
+  "chat.canDo.item.research",
+  "chat.canDo.item.writing",
+  "chat.canDo.item.coding",
+  "chat.canDo.item.computer",
+  "chat.canDo.item.tasks",
+];
+
 function helperLead(bot: Pick<Bot, "defaultBot" | "chiefOfStaff">, teamName: string | undefined): LocaleKey | null {
   if (!bot.defaultBot) return null;
   if (bot.chiefOfStaff) return "helperIntro.lead.chiefOfStaff";
@@ -48,8 +56,9 @@ export function WhatICanDo({ bot, engineName, teamName }: {
   const description = bot.description.trim();
   const lead = helperLead(bot, teamName);
   const asks = bot.defaultBot ? HELPER_ASK_KEYS : [];
+  const capabilities = bot.defaultBot ? DEFAULT_BOT_CAN_DO_KEYS : [];
   const engine = engineName?.trim() ? engineName.trim() : "";
-  const empty = !description && !lead && asks.length === 0 && !engine;
+  const empty = !description && !lead && asks.length === 0 && capabilities.length === 0 && !engine;
 
   return (
     <div ref={containerRef} className="relative" style={noDrag}>
@@ -74,6 +83,15 @@ export function WhatICanDo({ bot, engineName, teamName }: {
         >
           {description && <p className="text-[13px] leading-relaxed text-ink">{description}</p>}
           {lead && <p className="mt-2 text-[13px] leading-relaxed text-ink first:mt-0">{t(lead)}</p>}
+          {capabilities.length > 0 && (
+            <div className="mt-2 first:mt-0" data-what-i-can-do-capabilities="">
+              <p className="text-[13px] font-medium leading-relaxed text-ink">{t("chat.canDo.defaultIntro")}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-4 text-[13px] leading-relaxed text-ink">
+                {capabilities.map((key) => <li key={key}>{t(key)}</li>)}
+              </ul>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-ink-secondary">{t("chat.canDo.defaultConfirm")}</p>
+            </div>
+          )}
           {asks.length > 0 && (
             <div className="mt-2 first:mt-0">
               <p className="text-[12px] text-ink-secondary">{t("helperIntro.asks")}</p>
