@@ -306,8 +306,10 @@ pnpm package:linux    # Ubuntu x64: .deb + AppImage
 ```
 
 These packaging scripts have not been verified for this fork's current revision. The full `pnpm test`
-command also depends on a broker test configuration absent from this checkout; run targeted tests and
-report their results separately. The cloud-home Docker build references missing `deploy/fly` files.
+chain cannot pass in this checkout: the broker source and test configuration under
+`cloudflare/composio-broker` and `.github/workflows/ci.yml` are missing. Run targeted tests and report
+their results separately; they do not establish a full-suite pass. The cloud-home Docker build references
+missing `deploy/fly` files.
 
 ### Desktop capability status
 
@@ -349,7 +351,7 @@ its trial, and using a cloud computer may incur charges.
 
 ```sh
 pnpm typecheck     # app + server
-pnpm test          # unit, driver, API, and desktop capability tests
+pnpm exec vitest run server/verification-fixture.e2e.test.ts server/request-auth.test.ts # example subset
 pnpm build         # typecheck + production build
 pnpm check:electron # syntax-check Electron main/preload files
 pnpm package:win   # Windows installer + zip → release/

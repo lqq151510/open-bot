@@ -11,9 +11,9 @@ makes a PR easy to merge. Read it once before opening anything; it's short on pu
 - **Match the altitude.** This codebase is deliberately small and direct — plain Node, no frameworks
   on the server, one store, one event bus. Don't introduce a dependency where thirty lines of code
   will do. New runtime dependencies need a reason in the PR description.
-- **Validate changes.** Run `pnpm typecheck` and the tests relevant to your change. The current fork's
-  `pnpm test` also invokes a broker test whose `cloudflare/composio-broker` configuration is absent;
-  report that limitation rather than presenting a partial run as a full pass.
+- **Validate changes.** Run `pnpm typecheck` and the tests relevant to your change. The full `pnpm test`
+  chain cannot pass in this checkout: `cloudflare/composio-broker` and `.github/workflows/ci.yml` are
+  missing. Report this limitation and the exact targeted tests run; a partial run is not a full pass.
 - **UI changes need screenshots.** Before/after images in the PR body; video for anything animated.
   Match the existing palette and tone in [`src/styles.css`](src/styles.css).
 
@@ -22,7 +22,8 @@ makes a PR easy to merge. Read it once before opening anything; it's short on pu
 Requirements: **Node 24+**, **pnpm**, and for actually chatting with a bot, at least one agent CLI
 ([`claude`](https://claude.com/claude-code) or [`codex`](https://github.com/openai/codex)) installed
 and logged in. macOS is the primary release platform and Ubuntu 24.04 x64 is the Linux desktop beta;
-the harness server itself is portable Node and the test suite runs on macOS, Linux, and Windows.
+the harness server itself is portable Node. Tests relevant to a change should be run on the platforms
+affected by it, subject to the checkout limitations below.
 
 ```sh
 git clone https://github.com/lqq151510/open-bot.git && cd open-bot
@@ -34,7 +35,7 @@ pnpm dev:desktop   # Electron shell (macOS/Ubuntu; keep server + Vite running)
 
 pnpm typecheck     # app + server
 pnpm exec vitest run server/verification-fixture.e2e.test.ts # isolated fixture self-check
-pnpm test:watch    # same, in watch mode
+pnpm test:watch    # Vitest in watch mode; subject to the missing files noted below
 pnpm check:electron # syntax-check the plain JS Electron entrypoints
 
 pnpm package:mac   # DMG + ZIP; requires Swift/Xcode tools
@@ -68,7 +69,17 @@ Data lives in `~/.openbot/` (bots, transcripts, per-thread NDJSON event logs, co
 
 ## Tests
 
-The suite is colocated (`server/**/*.test.ts`) and runs with `pnpm test`. Three layers:
+Tests are colocated (for example, `server/**/*.test.ts`). The intended full command is `pnpm test`,
+but this fork lacks the broker source and configuration required by broker-dependent tests and
+`broker:test`, as well as `.github/workflows/ci.yml` required by the CI workflow test. Until those
+files are restored, run relevant subsets and report failures and omissions. For example:
+
+```sh
+pnpm exec vitest run server/verification-fixture.e2e.test.ts server/request-auth.test.ts
+```
+
+This example checks fixture isolation and request authentication; it does not cover broker security,
+the full server, desktop capabilities, or every change. Tests include three layers:
 
 - **Unit** — registry, bus, store. Pure in-process, use the fake driver in
   [`server/testing/fake-driver.ts`](server/testing/fake-driver.ts).
@@ -267,7 +278,7 @@ Provider fakes under `server/testing/fake-*.ts` must stay dependency-free: they 
 
 ## Before you open the PR
 
-- [ ] `pnpm typecheck` and `pnpm test` pass
+- [ ] `pnpm typecheck` and relevant targeted tests pass; report commands, results, and the missing full-suite dependencies
 - [ ] `pnpm lint` passes
 - [ ] Locale changes pass `pnpm i18n:check` and have been reviewed by a speaker
 - [ ] `pnpm check:electron` passes for desktop-shell changes
