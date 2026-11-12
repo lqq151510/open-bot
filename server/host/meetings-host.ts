@@ -42,6 +42,22 @@ export interface MeetingsHostDeps {
 
 export type MeetingsHostRoutes = Omit<MeetingRouteDeps, "meetings" | "computerOwner" | "createRoutine" | "postNotes" | "dateLine">;
 
+export async function uploadMeetingPrivate(
+  cfg: AppConfig, boxId: string, path: string, contents: string,
+  transfer: typeof copyToComputer = copyToComputer,
+): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), "openbot-meeting-upload-"));
+  try {
+    writeFileSync(join(dir, "payload"), contents, { mode: 0o600, flag: "wx" });
+    const result = await transfer(cfg, boxId, dir, { from: "payload", path }, AbortSignal.timeout(60_000));
+    if ("error" in result || result.path !== path || result.bytes !== Buffer.byteLength(contents)) throw new Error("Secure meeting upload failed.");
+  } catch {
+    throw new Error("Secure meeting upload failed.");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 export function createMeetingsHost(deps: MeetingsHostDeps, routeDeps: () => MeetingsHostRoutes) {
   const { cfg, store } = deps;
   const engine = createBotEngine();
@@ -59,18 +75,7 @@ export function createMeetingsHost(deps: MeetingsHostDeps, routeDeps: () => Meet
       const started = await startInBackground(cfg, boxId, command, AbortSignal.timeout(60_000));
       return started.isError ? { ok: false, error: started.content.map((part) => ("text" in part ? part.text : "")).join(" ") } : { ok: true };
     },
-    async upload(path, contents) {
-      const dir = mkdtempSync(join(tmpdir(), "openbot-meeting-upload-"));
-      try {
-        writeFileSync(join(dir, "payload"), contents, { mode: 0o600, flag: "wx" });
-        const result = await copyToComputer(cfg, boxId, dir, { from: "payload", path }, AbortSignal.timeout(60_000));
-        if ("error" in result || result.path !== path || result.bytes !== Buffer.byteLength(contents)) throw new Error("Secure meeting upload failed.");
-      } catch {
-        throw new Error("Secure meeting upload failed.");
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
-    },
+    upload: (path, contents) => uploadMeetingPrivate(cfg, boxId, path, contents),
   });
 
   async function followUp(record: MeetingRecord, prompt: string): Promise<void> {
