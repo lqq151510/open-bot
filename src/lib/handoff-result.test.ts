@@ -25,6 +25,11 @@ describe("handoffResult", () => {
     expect(reply.more).toBe(`${long}\nsecond`);
   });
 
+  it("does not cut a combined emoji when clipping a preview", () => {
+    const body = `${"a".repeat(138)}👩🏽‍💻 trailing`;
+    expect(handoffResult(result(body))).toEqual({ preview: `${"a".repeat(138)}…`, more: body });
+  });
+
   it("ignores rows without a reply", () => {
     expect(handoffResult(result(undefined))).toBeNull();
     expect(handoffResult(result("   \n "))).toBeNull();

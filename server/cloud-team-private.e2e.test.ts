@@ -313,6 +313,15 @@ it("holds shared team learning until an admin reviews it", async () => {
   expect((await team.as(admin, "DELETE", `/api/team-memory/${rejected.id}?section=&revision=${rejected.revision}`)).status).toBe(200);
   const afterReject = await messages(owner, bot.mainThreadId);
   expect(afterReject.body.messages.find((line: { card?: { requestId?: string } }) => line.card?.requestId === rejected.id)?.card.answered).toBe("deny");
+  const audit = await team.as(admin, "GET", "/api/decisions?limit=200");
+  expect(audit.status).toBe(200);
+  for (const [id, decision] of [[entry.id, "user-approved"], [rejected.id, "user-denied"]]) {
+    const rows = audit.body.decisions.filter((row: { requestId?: string; decision?: string }) => row.requestId === id && row.decision === decision);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].actor).toMatchObject({ kind: "session" });
+    expect(rows[0].actor.email).toBeUndefined();
+    expect(rows[0].summary).toBeUndefined();
+  }
 });
 
 it("when Bob leaves the team, his private chats and everything only his are deleted, never handed to an admin", async () => {

@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, readFileSync, mkdirSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path"; import { isDeepStrictEqual } from "node:util";
+import { sliceGraphemesByUnits } from "../shared/grapheme.ts";
 
 import { OwnedFile, writeFileAtomic } from "./atomic.ts"; import { saveSoon } from "./save-batch.ts"; import { discardNativeLog } from "./drivers/native.ts";
 import { commitRegistryChange, keptRevocation, saveRegistryFor, touchesPermissions } from "./registry-save.ts";
@@ -142,12 +143,12 @@ export const UNTITLED_THREAD = "New thread";
 /** Every title (a bot's or a person's) passes through here, so equality tells a machine-made title from a rename. */
 const TASK_TITLE_MAX = 80;
 export function threadTitleFrom(title?: string): string {
-  return title?.trim().slice(0, TASK_TITLE_MAX) || UNTITLED_THREAD;
+  return sliceGraphemesByUnits(title?.trim() ?? "", TASK_TITLE_MAX) || UNTITLED_THREAD;
 }
 
 export function titleFromMessage(text: string): string {
   const line = text.trim().split("\n")[0]!.trim();
-  return line.length > 48 ? `${line.slice(0, 47)}…` : line || UNTITLED_TASK;
+  return line.length > 48 ? `${sliceGraphemesByUnits(line, 47)}…` : line || UNTITLED_TASK;
 }
 
 export function titleFromLlm(raw: string): string | null {
@@ -1007,7 +1008,7 @@ export class Store {
     const createdAt = Date.now();
     const task: GroupTaskRecord = {
       threadId: newId(),
-      title: title?.trim().slice(0, 80) || UNTITLED_TASK,
+      title: sliceGraphemesByUnits(title?.trim() ?? "", 80) || UNTITLED_TASK,
       createdAt,
       updatedAt: createdAt,
     };
@@ -1033,7 +1034,7 @@ export class Store {
     const task = this.groupTaskByThread(groupId, threadId);
     if (!group || !task) return null;
     this.commitGroupChange(group, "the thread change", () => {
-      if (patch.title !== undefined) task.title = patch.title.trim().slice(0, 80) || UNTITLED_TASK;
+      if (patch.title !== undefined) task.title = sliceGraphemesByUnits(patch.title.trim(), 80) || UNTITLED_TASK;
       if (patch.pinned) task.pinned = true; else if (patch.pinned === false) delete task.pinned;
       if (patch.activity) task.activity = patch.activity; else if (patch.activity === null) delete task.activity;
       for (const key of ["turnTimeoutMinutes", "archivedAt"] as const) if (patch[key] === null) delete task[key]; else if (patch[key] !== undefined) task[key] = patch[key];
@@ -1951,9 +1952,10 @@ export class Store {
 
   createProject(botId: string, name: string, emoji?: string | null): BotProjectRecord | null {
     const bot = this.bot(botId);
-    if (!bot || !name.trim() || (emoji != null && !isProjectEmoji(emoji))) return null;
+    const projectName = sliceGraphemesByUnits(name.trim(), 80).trim();
+    if (!bot || !projectName || (emoji != null && !isProjectEmoji(emoji))) return null;
     const project: BotProjectRecord = {
-      id: newId(), name: name.trim().slice(0, 80),
+      id: newId(), name: projectName,
       ...(emoji == null ? {} : { emoji }),
     };
     bot.projects = [...(bot.projects ?? []), project];
@@ -1964,8 +1966,9 @@ export class Store {
 
   patchProject(botId: string, projectId: string, patch: { name?: string; emoji?: string | null }): BotProjectRecord | null {
     const project = this.project(botId, projectId);
-    if (!project || (patch.name !== undefined && !patch.name.trim()) || (patch.emoji != null && !isProjectEmoji(patch.emoji))) return null;
-    if (patch.name !== undefined) project.name = patch.name.trim().slice(0, 80);
+    const projectName = patch.name === undefined ? undefined : sliceGraphemesByUnits(patch.name.trim(), 80).trim();
+    if (!project || projectName === "" || (patch.emoji != null && !isProjectEmoji(patch.emoji))) return null;
+    if (projectName !== undefined) project.name = projectName;
     if (patch.emoji === null) delete project.emoji;
     else if (patch.emoji !== undefined) project.emoji = patch.emoji;
     this.saveBots();
@@ -2066,7 +2069,7 @@ export class Store {
         }
       }
       if (task.snoozedUntil === 0 && patch.unread === true) task.snoozedUntil = undefined;
-      if (typeof patch.title === "string") task.title = patch.title.trim().slice(0, 80) || UNTITLED_THREAD;
+      if (typeof patch.title === "string") task.title = sliceGraphemesByUnits(patch.title.trim(), 80) || UNTITLED_THREAD;
       if (Object.prototype.hasOwnProperty.call(patch, "pinned") && task.pinned !== true) delete task.pinned;
       if (task.routineRunId) task.unread = false;
       if (bot.threadId === threadId) this.mirrorActiveTask(bot, task);
@@ -2106,7 +2109,7 @@ export class Store {
     const approval = resetApprovalToAsk ? structuredClone(ASK_NOW) : {};
     const own = sameModelSelection(selection, updateBotDefault ? selection : bot.modelSelection) ? undefined : structuredClone(selection);
     const nextTask = persistedPin({ ...task, ...taskPatch, modelSelection: own, ...approval,
-      ...(typeof taskPatch.title === "string" ? { title: taskPatch.title.trim().slice(0, 80) || UNTITLED_THREAD } : {}) });
+      ...(typeof taskPatch.title === "string" ? { title: sliceGraphemesByUnits(taskPatch.title.trim(), 80) || UNTITLED_THREAD } : {}) });
     const others = updateBotDefault ? this.withDefaultModel(bot, selection)! : bot.tasks!;
     const nextTasks = bot.tasks!.map((candidate, index) => candidate === task ? nextTask : others[index]!);
     const botPatch = updateBotDefault ? { modelSelection: structuredClone(selection), ...approval } : {};

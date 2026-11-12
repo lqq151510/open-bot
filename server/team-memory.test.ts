@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TeamMemory, TeamMemoryConflict, TEAM_MEMORY_PROMPT_MAX_BYTES } from "./team-memory.ts";
 import { createTeamMemoryRequests } from "./team-memory-requests.ts";
+import { appendTeamMemoryReview, readDecisions, withDecisionActor } from "./decision-log.ts";
+import { teamMemoryAuditActor } from "./team-memory-audit-actor.ts";
 import { ensureSections, changeEmptySection, sectionMemoryKey, SECTION_CONTEXTS_FILE } from "./section-context.ts";
 import { removeTempDir } from "./testing/cleanup.ts";
 
@@ -36,7 +38,7 @@ it.each([
       appendMessage: (_threadId, message) => { cards.push(message); return { id: "message" }; },
       patchMessage: () => {},
       bot: () => null,
-      botByThread: () => null,
+      botByThread: () => ({ id: "b", name: "Bot" }),
     },
   });
   const result = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
@@ -55,6 +57,261 @@ it.each([
     memory.resolve("", rejected.id, "reject", rejected.revision);
     expect(memory.systemPrompt("")).not.toContain("Use violet");
   }
+});
+
+it("recovers reviewed cards from durable receipts after a failed patch and restart", () => {
+  let message: any;
+  let failPatch = true;
+  const store = {
+    messagesFor: () => message ? [message] : [],
+    appendMessage: (_thread: string, value: any) => (message = { id: "m", ...value }),
+    patchMessage: (_thread: string, _id: string, patch: any) => {
+      if (failPatch) throw new Error("storage unavailable");
+      Object.assign(message, patch);
+    },
+    bot: () => null,
+    botByThread: () => ({ id: "b", name: "Bot" }),
+  };
+  const create = (teamMemory: TeamMemory) => createTeamMemoryRequests({
+    teamMemory, store, requireReview: true, sectionKey: (section) => section ?? "", decide: () => {}, threadExists: () => true,
+  });
+  const requests = create(memory);
+  const submitted = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+    { kind: "decision", name: "Colour", detail: "Use amber" }, "full-access");
+  const proposal = memory.list("").find(entry => entry.id === submitted.body.requestId)!;
+  memory.update("", proposal.id, { detail: "Use blue" }, proposal.revision);
+  expect(requests.reconcile()).toBe(1);
+  expect(message.card.answered).toBeUndefined();
+  failPatch = false;
+  const restarted = create(new TeamMemory(join(dir, "team-memory.json")));
+  expect(restarted.reconcile()).toBe(0);
+  expect(message.card).toMatchObject({ answered: "allow", subtitle: "Decision: Colour — Use blue" });
+  expect(restarted.reconcile()).toBe(0);
+});
+
+it("rejects imported ids already held by another department", () => {
+  ensureSections(["Import target"]);
+  const existing = memory.propose("", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "thread", at: 1 }).entry;
+  expect(memory.adopt("Import target", [existing])).toBe(0);
+  expect(memory.list("Import target")).toEqual([]);
+});
+
+it("recognizes a native entry on return while rejecting changed content or source", () => {
+  const original = memory.propose("", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "native-thread", at: 1 }).entry;
+  const conflicts: string[] = [];
+  expect(memory.adopt("", [original], id => conflicts.push(id))).toBe(0);
+  expect(conflicts).toEqual([]);
+  expect(memory.adopt("", [{ ...original, detail: "Blue" },
+    { ...original, source: { ...original.source, threadId: "another-thread" } }], id => conflicts.push(id))).toBe(0);
+  expect(conflicts).toEqual([original.id, original.id]);
+  memory.resolve("", original.id, "accept", original.revision);
+  expect(memory.adopt("", [original], id => conflicts.push(id))).toBe(0);
+  expect(conflicts).toEqual([original.id, original.id, original.id]);
+  expect(memory.adopt("", [memory.list("")[0]!], id => conflicts.push(id))).toBe(0);
+  expect(conflicts).toEqual([original.id, original.id, original.id]);
+  expect(memory.list("")[0]!.detail).toBe("Amber");
+});
+
+it("retains a pending proposal's untrusted thread hint through chained migrations", () => {
+  const source = memory.propose("", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "remote-thread", at: 1 }).entry;
+  const middle = new TeamMemory(join(dir, "middle.json"));
+  const destination = new TeamMemory(join(dir, "destination.json"));
+  expect(middle.adopt("", [source])).toBe(1);
+  expect(destination.adopt("", middle.list(""))).toBe(1);
+  const incoming = destination.list("")[0]!;
+  expect(incoming.source.threadId).toBe("");
+  expect(destination.untrustedProposal(incoming.id)).toEqual({ threadId: "remote-thread", botId: "b" });
+  const message: any = { id: "m", card: { requestId: incoming.id, teamMemoryRequest: { entryId: incoming.id, section: "" } } };
+  const requests = createTeamMemoryRequests({
+    teamMemory: destination, requireReview: true, sectionKey: (section) => section ?? "", decide: () => {}, threadExists: () => true,
+    store: { messagesFor: () => [message], appendMessage: () => ({ id: "m" }),
+      patchMessage: (_thread, _id, patch) => Object.assign(message, patch),
+      bot: () => null, botByThread: () => ({ id: "b", name: "Bot" }) },
+  });
+  expect(requests.resolve("remote-thread", incoming.id, "allow")).toMatchObject({ outcome: "allowed-once" });
+  expect(message.card.answered).toBe("allow");
+});
+
+it("does not import another workspace's review projection or thread target", () => {
+  const entry = memory.propose("", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "remote-thread", at: 1 }).entry;
+  memory.resolve("", entry.id, "accept", entry.revision);
+  const source = memory.list("", true)[0]!;
+  const other = new TeamMemory(join(dir, "other-team-memory.json"));
+  expect(other.adopt("", [source])).toBe(1);
+  expect(other.reviewReceipts()).toEqual([]);
+  expect(other.list("")[0]!.source.threadId).toBe("");
+
+  const pending = memory.propose("", { kind: "decision", name: "Shape", detail: "Round" },
+    { botId: "b", botName: "Bot", threadId: "remote-thread", at: 2 }).entry;
+  expect(other.adopt("", [pending])).toBe(1);
+  const imported = other.list("").find(candidate => candidate.id === pending.id)!;
+  other.resolve("", imported.id, "accept", imported.revision);
+  expect(other.reviewReceipts()).toMatchObject([{ entryId: imported.id, threadId: "remote-thread", untrusted: true }]);
+});
+
+it.each(["list", "card"] as const)("reconciles a migrated proposal through a locally verified %s review", (method) => {
+  const source = memory.propose("", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "remote-thread", at: 1 }).entry;
+  const other = new TeamMemory(join(dir, "imported-team-memory.json"));
+  other.adopt("", [source]);
+  const imported = other.list("")[0]!;
+  const message: any = { id: "m", card: { requestId: imported.id, teamMemoryRequest: { entryId: imported.id, section: "" } } };
+  let localBot = "other-bot";
+  const requests = createTeamMemoryRequests({
+    teamMemory: other, requireReview: true, sectionKey: (section) => section ?? "", decide: () => {}, threadExists: () => true,
+    store: { messagesFor: () => [message], appendMessage: () => ({ id: "m" }),
+      patchMessage: (_thread, _id, patch) => Object.assign(message, patch),
+      bot: () => null, botByThread: () => ({ id: localBot, name: "Bot" }) },
+  });
+  if (method === "card") {
+    expect(requests.resolve("remote-thread", imported.id, "allow")).toBeNull();
+    expect(other.list("")[0]!.status).toBe("proposed");
+    localBot = "b";
+    expect(requests.resolve("remote-thread", imported.id, "allow")).toMatchObject({ outcome: "allowed-once" });
+  } else {
+    other.resolve("", imported.id, "accept", imported.revision);
+    requests.reconcile();
+    expect(message.card.answered).toBeUndefined();
+    localBot = "b";
+    requests.reconcile();
+  }
+  expect(message.card).toMatchObject({ answered: "allow", subtitle: "Decision: Colour — Amber" });
+});
+
+it("does not attribute a replayed review to the person handling another proposal", () => {
+  const messages: any[] = [];
+  let failFirst = true;
+  let failAudit = true;
+  const requests = createTeamMemoryRequests({
+    teamMemory: memory, requireReview: true, sectionKey: (section) => section ?? "", threadExists: () => true,
+    decide: () => {},
+    audit: (id, row) => { if (failAudit) throw new Error("audit unavailable"); appendTeamMemoryReview(dir, id, row); },
+    store: {
+      messagesFor: () => messages,
+      appendMessage: (_thread, value) => { const message = { id: String(messages.length), ...value }; messages.push(message); return message; },
+      patchMessage: (_thread, id, patch) => {
+        if (id === "0" && failFirst) throw new Error("card unavailable");
+        Object.assign(messages[Number(id)], patch);
+      },
+      bot: () => null, botByThread: () => ({ id: "b", name: "Bot" }),
+    },
+  });
+  const first = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+    { kind: "decision", name: "First", detail: "Amber" }, null);
+  const second = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+    { kind: "decision", name: "Second", detail: "Blue" }, null);
+  const firstActor = { kind: "session" as const, sessionId: "first", label: "First", email: "first@example.test" };
+  const secondActor = { kind: "session" as const, sessionId: "second", label: "Second" };
+  expect(withDecisionActor(firstActor, () => requests.resolve("thread", first.body.requestId!, "allow"))?.outcome).toBe("allowed-once");
+  failFirst = false;
+  failAudit = false;
+  expect(withDecisionActor(secondActor, () => requests.resolve("thread", second.body.requestId!, "deny"))?.outcome).toBe("rejected");
+  requests.reconcile();
+  expect(messages.map(message => message.card.answered)).toEqual(["allow", "deny"]);
+  const decisions = readDecisions(dir, 20).filter(row => row.decision === "user-approved" || row.decision === "user-denied");
+  expect(decisions).toHaveLength(2);
+  expect(decisions.find(row => row.requestId === first.body.requestId)?.actor).toEqual(teamMemoryAuditActor(firstActor));
+  expect(decisions.find(row => row.requestId === second.body.requestId)?.actor).toEqual(teamMemoryAuditActor(secondActor));
+});
+
+it("rejects forged cards, wrong sections and another private chat of the same bot", () => {
+  const messages = new Map<string, any[]>();
+  const requests = createTeamMemoryRequests({
+    teamMemory: memory, requireReview: true, sectionKey: (section) => section ?? "", threadExists: () => true, decide: () => {},
+    store: {
+      messagesFor: (thread) => messages.get(thread) ?? [],
+      appendMessage: (thread, value) => {
+        const message = { id: "m", ...value };
+        messages.set(thread, [message]);
+        return message;
+      },
+      patchMessage: (thread, _id, patch) => Object.assign(messages.get(thread)![0], patch),
+      bot: () => null, botByThread: () => ({ id: "b", name: "Bot" }),
+    },
+  });
+  const author = { id: "b", name: "Bot", color: "blue" };
+  const a = requests.submit(author, "first", false, { kind: "decision", name: "First", detail: "Amber" }, null);
+  const b = requests.submit(author, "second", false, { kind: "decision", name: "Second", detail: "Blue" }, null);
+  const first = messages.get("first")![0];
+  first.card.teamMemoryRequest.entryId = b.body.requestId;
+  expect(requests.resolve("first", a.body.requestId!, "allow")).toBeNull();
+  first.card.requestId = b.body.requestId;
+  expect(requests.resolve("first", b.body.requestId!, "allow")).toBeNull();
+  const second = messages.get("second")![0];
+  second.card.teamMemoryRequest.section = "wrong";
+  expect(requests.resolve("second", b.body.requestId!, "allow")).toBeNull();
+  expect(memory.list("").map(entry => entry.status)).toEqual(["proposed", "proposed"]);
+  second.card.teamMemoryRequest.section = "";
+  expect(requests.resolve("second", b.body.requestId!, "allow")).toMatchObject({ outcome: "allowed-once" });
+});
+
+it("keeps a legitimate card bound after its department is renamed", () => {
+  ensureSections(["Review original"]);
+  const proposal = memory.propose("Review original", { kind: "decision", name: "Colour", detail: "Amber" },
+    { botId: "b", botName: "Bot", threadId: "thread", cardSection: "Review original", at: 1 }).entry;
+  changeEmptySection("Review original", "Review renamed");
+  expect(memory.matchesCard(proposal.id, "Review original", "thread", "b")).toBe(true);
+  expect(memory.matchesCard(proposal.id, "Review renamed", "thread", "b")).toBe(false);
+  expect(memory.resolveProposal(proposal.id, "accept")).toMatchObject({ state: "accepted" });
+});
+
+it("accepts the original bot's card in a shared room", () => {
+  let message: any;
+  const requests = createTeamMemoryRequests({
+    teamMemory: memory, requireReview: true, sectionKey: (section) => section ?? "", decide: () => {},
+    store: {
+      messagesFor: () => message ? [message] : [],
+      appendMessage: (_thread, value) => (message = { id: "m", ...value }),
+      patchMessage: (_thread, _id, patch) => Object.assign(message, patch),
+      bot: () => null, botByThread: () => null,
+    },
+  });
+  const submitted = requests.submit({ id: "b", name: "Bot", color: "blue" }, "room", true,
+    { kind: "decision", name: "Colour", detail: "Amber" }, null);
+  expect(requests.resolve("room", submitted.body.requestId!, "allow")).toMatchObject({ outcome: "allowed-once" });
+  expect(message.card.answered).toBe("allow");
+});
+
+it("keeps a rejected review when card and decision writes fail", () => {
+  let message: any;
+  let failPatch = true;
+  let decisions = 0;
+  const requests = createTeamMemoryRequests({
+    teamMemory: memory, requireReview: true, sectionKey: (section) => section ?? "", threadExists: () => true,
+    decide: () => { if (++decisions > 1) throw new Error("audit unavailable"); },
+    store: {
+      messagesFor: () => message ? [message] : [],
+      appendMessage: (_thread, value) => (message = { id: "m", ...value }),
+      patchMessage: (_thread, _id, patch) => { if (failPatch) throw new Error("card unavailable"); Object.assign(message, patch); },
+      bot: () => null, botByThread: () => ({ id: "b", name: "Bot" }),
+    },
+  });
+  const submitted = requests.submit({ id: "b", name: "Bot", color: "blue" }, "thread", false,
+    { kind: "decision", name: "Colour", detail: "Use amber" }, null);
+  expect(requests.resolve("thread", submitted.body.requestId!, "deny")).toMatchObject({ ok: true, outcome: "rejected" });
+  expect(memory.list("")).toHaveLength(0);
+  failPatch = false;
+  expect(requests.resolve("thread", submitted.body.requestId!, "allow")).toMatchObject({ ok: true, outcome: "rejected", alreadySettled: true });
+  expect(message.card.answered).toBe("deny");
+});
+
+it("keeps a rejected receipt after deletion and does not open deleted conversations", () => {
+  const entry = memory.propose("", { kind: "decision", name: "Colour", detail: "Use amber" },
+    { botId: "b", botName: "Bot", threadId: "gone", at: 1 }).entry;
+  memory.remove("", entry.id, entry.revision);
+  const restored = new TeamMemory(join(dir, "team-memory.json"));
+  expect(restored.reviewReceipts()).toMatchObject([{ entryId: entry.id, answer: "deny" }]);
+  const requests = createTeamMemoryRequests({
+    teamMemory: restored, requireReview: true, sectionKey: (section) => section ?? "", decide: () => {},
+    threadExists: () => false,
+    store: { messagesFor: () => { throw new Error("must not reopen"); }, appendMessage: () => ({ id: "m" }),
+      patchMessage: () => {}, bot: () => null, botByThread: () => ({ id: "b", name: "Bot" }) },
+  });
+  expect(requests.reconcile()).toBe(0);
 });
 
 describe("propose", () => {

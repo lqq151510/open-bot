@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { memoryLines, mergeMemoryText } from "./cloud-send-memory.ts";
+import { memoryLines, mergeMemoryText, moveMemoryRoute, teamsHere } from "./cloud-send-memory.ts";
 import { DATA_DIR } from "./config.ts";
 import { adoptMemoryJournal, flushMemoryJournal, journalFile, readMemoryJournal, recordMemoryChange, type MemoryJournalEntry } from "./memory-journal.ts";
 import { adoptLearned, learnedState } from "./profile-learned.ts";
@@ -52,12 +52,61 @@ describe("what bots learned about the person", () => {
 });
 
 describe("a team's memory and a bot's journal", () => {
+  it("does not export a local review receipt or reviewer identity", () => {
+    const dir = mkdtempSync(join(tmpdir(), "omb-team-export-"));
+    try {
+      const memory = new TeamMemory(join(dir, "team-memory.json"));
+      const source = { botId: "b", botName: "Bot", threadId: "t", at: Date.now() };
+      const accepted = memory.propose("", { kind: "decision", name: "Approved", detail: "Use amber" }, source).entry;
+      memory.resolve("", accepted.id, "accept", undefined, { actor: { kind: "session", sessionId: "private-session", label: "Reviewer" } });
+      const pending = memory.propose("", { kind: "decision", name: "Pending", detail: "Use blue" }, source).entry;
+      const exported = teamsHere(memory).find(team => team.section === "")!.memory;
+      expect(exported.find(entry => entry.id === accepted.id)?.review).toBeUndefined();
+      expect(exported.find(entry => entry.id === pending.id)?.source.threadId).toBe("t");
+      expect(JSON.stringify(exported)).not.toContain("private-session");
+      expect(memory.list("").find(entry => entry.id === accepted.id)?.review?.audit?.actor).toBeDefined();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   it("team entries arrive once: one this team has by id or by key stays as it is", () => {
     const memory = new TeamMemory(join(mkdtempSync(join(tmpdir(), "omb-team-")), "team-memory.json"));
     const entry = (id: string, name: string) => ({ id, kind: "person", name, detail: `${name} at Acme.`, aliases: [], status: "accepted", source: { botId: "b1", botName: "Nova", threadId: "t", at: 1 }, updatedAt: 1 });
     expect(memory.adopt("", [entry("e1", "Dana"), entry("e2", "Raj"), { id: "bad" }])).toBe(2);
     expect(memory.adopt("", [entry("e1", "Dana"), entry("e3", "dana"), entry("e4", "Lee")])).toBe(1);
     expect(memory.list("").map((held) => held.name).sort()).toEqual(["Dana", "Lee", "Raj"]);
+  });
+
+  it("reports conflicting imports but treats an identical retry as successful", () => {
+    const memory = new TeamMemory(join(mkdtempSync(join(tmpdir(), "omb-team-conflicts-")), "team-memory.json"));
+    const entry = { id: "e1", kind: "person", name: "Dana", detail: "Dana at Acme.", aliases: [], status: "accepted",
+      source: { botId: "b1", botName: "Nova", threadId: "t", at: 1 }, updatedAt: 1 };
+    const conflicts: string[] = [];
+    expect(memory.adopt("", [entry], id => conflicts.push(id))).toBe(1);
+    expect(memory.adopt("", [entry], id => conflicts.push(id))).toBe(0);
+    expect(conflicts).toEqual([]);
+    expect(memory.adopt("", [{ ...entry, detail: "Changed" }], id => conflicts.push(id))).toBe(0);
+    expect(memory.adopt("Other team", [entry], id => conflicts.push(id))).toBe(0);
+    expect(memory.adopt("", [{ ...entry, id: "e2" }], id => conflicts.push(id))).toBe(0);
+    expect(conflicts).toEqual(["e1", "e1", "e2"]);
+    expect(memory.list("")[0]!.detail).toBe("Dana at Acme.");
+    expect(memory.list("Other team")).toEqual([]);
+  });
+
+  it("reports team memory conflicts in the migration response", async () => {
+    const memory = new TeamMemory(join(mkdtempSync(join(tmpdir(), "omb-team-route-")), "team-memory.json"));
+    const entry = { id: "e1", kind: "person", name: "Dana", detail: "Original", aliases: [], status: "accepted",
+      source: { botId: "b1", botName: "Nova", threadId: "t", at: 1 }, updatedAt: 1 };
+    memory.adopt("", [entry]);
+    let result: any;
+    const deps = { teamMemory: memory, bot: () => undefined, aboutMe: () => "", saveAboutMe: () => {}, owner: () => ({ person: "owner", name: "Owner" }) };
+    const context = {
+      req: {}, res: { setHeader: () => {} }, path: "/api/cloud-send/memory", method: "POST", url: new URL("http://127.0.0.1/"),
+      auth: {}, readBody: async () => ({ v: 1, teams: [{ section: "", context: null, memory: [{ ...entry, detail: "Changed" }] }] }),
+      json: (_res: unknown, status: number, body: unknown) => { result = { status, body }; },
+    };
+    expect(await moveMemoryRoute(deps as never, context as never)).toBe(true);
+    expect(result).toMatchObject({ status: 200, body: { failed: ["team-memory-conflict:shared:e1"], teams: 0 } });
+    expect(memory.list("")[0]!.detail).toBe("Original");
   });
 
   it("journal rows arrive by id, in time order among this server's own, and none of them can be reverted here", async () => {

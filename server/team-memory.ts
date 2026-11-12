@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import type { DecisionActor } from "./decision-log.ts";
+import { teamMemoryAuditActor } from "./team-memory-audit-actor.ts";
 import { redactSecretsInText } from "./redact.ts";
 import { USER_ERROR, type UserErrorKey } from "./user-errors.ts";
 import { recallTerms } from "./message-db.ts";
@@ -23,6 +25,7 @@ export interface TeamMemorySource {
   botId: string;
   botName: string;
   threadId: string;
+  cardSection?: string;
   at: number;
   messageId?: string;
   turnId?: string;
@@ -32,6 +35,8 @@ export interface TeamMemorySource {
 export interface TeamMemoryEntry {
   revision?: string;
   pinned?: boolean;
+  review?: { answer: "allow" | "deny"; summary: string; at: number; audit?: { actor?: DecisionActor } };
+  migrationThreadId?: string;
   key?: string;
   supersededBy?: string;
   replaces?: Array<{ id: string; revision: string }>;
@@ -55,8 +60,16 @@ export interface TeamMemoryInput {
   aliases?: string[];
 }
 
+const auditActorSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("session"), sessionId: z.string().max(512), label: z.string().max(512), userId: z.string().max(512).optional() }),
+  z.object({ kind: z.literal("loopback") }),
+  z.object({ kind: z.literal("worker") }),
+]);
+
 const entrySchema = z.object({
   pinned: z.boolean().optional(),
+  review: z.object({ answer: z.enum(["allow", "deny"]), summary: z.string(), at: z.number().finite(), audit: z.object({ actor: auditActorSchema.optional() }).optional() }).optional(),
+  migrationThreadId: z.string().optional(),
   key: z.string().max(240).optional(),
   supersededBy: z.string().optional(),
   replaces: z.array(z.object({ id: z.string(), revision: z.string() })).optional(),
@@ -67,7 +80,7 @@ const entrySchema = z.object({
   detail: z.string().max(TEAM_MEMORY_DETAIL_MAX),
   aliases: z.array(z.string().min(1).max(TEAM_MEMORY_NAME_MAX)).max(TEAM_MEMORY_ALIASES_MAX),
   status: z.enum(["accepted", "proposed", "superseded", "deleted"]),
-  source: z.object({ botId: z.string(), botName: z.string(), threadId: z.string(), at: z.number().finite(), messageId: z.string().optional(), turnId: z.string().optional(), quote: z.string().max(600).optional() }),
+  source: z.object({ botId: z.string(), botName: z.string(), threadId: z.string(), cardSection: z.string().optional(), at: z.number().finite(), messageId: z.string().optional(), turnId: z.string().optional(), quote: z.string().max(600).optional() }),
   updatedAt: z.number().finite(),
 });
 const fileSchema = z.object({ version: z.union([z.literal(1), z.literal(2)]), sections: z.record(z.string(), z.array(entrySchema)) });
@@ -88,6 +101,18 @@ export function teamMemoryRevision(entry: TeamMemoryEntry): string {
   return createHash("sha256").update(canonicalJson(stored)).digest("hex");
 }
 const active = (entry: TeamMemoryEntry) => entry.status === "accepted" || entry.status === "proposed";
+const adoptComparable = (entry: TeamMemoryEntry) => {
+  const { review: _review, migrationThreadId, revision: _revision, ...stored } = entry;
+  return { ...stored, key: stored.key ?? `${stored.kind}:${stored.name.toLowerCase()}`,
+    source: { ...stored.source, threadId: stored.source.threadId || migrationThreadId || "" } };
+};
+
+const recordReview = (entry: TeamMemoryEntry, answer: "allow" | "deny", audit?: { actor?: DecisionActor }) => {
+  if ((!entry.source.threadId && !entry.migrationThreadId || !entry.source.botId) && !audit) return;
+  const safeActor = teamMemoryAuditActor(audit?.actor);
+  entry.review = { answer, at: Date.now(), summary: `${entry.kind[0].toUpperCase()}${entry.kind.slice(1)}: ${entry.name}${entry.aliases.length ? ` (also ${entry.aliases.join(", ")})` : ""} — ${entry.detail}`, ...(audit ? { audit: safeActor ? { actor: safeActor } : {} } : {}) };
+};
+
 const rememberVersion = (entry: TeamMemoryEntry) => {
   entry.history = [...(entry.history ?? []), { name: entry.name, detail: entry.detail, at: entry.updatedAt }].slice(-50);
 };
@@ -155,23 +180,70 @@ export class TeamMemory {
 
   /** Another server's entries for this team, as they are there: one this team already has, by id or by its key, stays
    * as it is here. How many were added. */
-  adopt(section: string | null | undefined, entries: readonly unknown[]): number {
+  adopt(section: string | null | undefined, entries: readonly unknown[], onConflict?: (id: string) => void): number {
     const held = this.entries(section, true);
-    const ids = new Set(held.map((entry) => entry.id));
+    const byId = new Map<string, { entry: TeamMemoryEntry; entries: TeamMemoryEntry[] }>();
+    const duplicatedIds = new Set<string>();
+    for (const entries of Object.values(this.data.sections)) for (const entry of entries) {
+      if (byId.has(entry.id)) duplicatedIds.add(entry.id);
+      else byId.set(entry.id, { entry, entries });
+    }
     const keys = new Set(held.filter(active).map((entry) => entry.key));
     let added = 0;
     for (const raw of entries) {
       const parsed = entrySchema.safeParse(raw);
-      if (!parsed.success || !active(parsed.data)) continue;
-      const entry = { ...parsed.data, key: parsed.data.key ?? `${parsed.data.kind}:${parsed.data.name.toLowerCase()}` };
-      if (ids.has(entry.id) || keys.has(entry.key)) continue;
+      if (!parsed.success || !active(parsed.data)) { onConflict?.("invalid"); continue; }
+      const { review: _review, migrationThreadId: hint, ...imported } = parsed.data;
+      const originThreadId = imported.source.threadId || hint;
+      const entry = { ...imported, ...(originThreadId ? { migrationThreadId: originThreadId } : {}), source: { ...imported.source, threadId: "" }, key: imported.key ?? `${imported.kind}:${imported.name.toLowerCase()}` };
+      const existing = byId.get(entry.id);
+      if (existing) {
+        if (duplicatedIds.has(entry.id) || existing.entries !== held || canonicalJson(adoptComparable(existing.entry)) !== canonicalJson(adoptComparable(entry))) onConflict?.(entry.id);
+        continue;
+      }
+      if (keys.has(entry.key)) { onConflict?.(entry.id); continue; }
       held.push(entry);
-      ids.add(entry.id);
+      byId.set(entry.id, { entry, entries: held });
       keys.add(entry.key);
       added++;
     }
     if (added) this.save();
     return added;
+  }
+
+  matchesCard(entryId: string, section: string, threadId: string, botId: string): boolean {
+    const matches = Object.values(this.data.sections).flatMap(entries => entries).filter(candidate => candidate.id === entryId);
+    const entry = matches.length === 1 ? matches[0] : undefined;
+    if (!entry || !entry.source.botId || entry.source.botId !== botId || (entry.source.threadId || entry.migrationThreadId) !== threadId) return false;
+    return entry.source.cardSection !== undefined ? entry.source.cardSection === section : this.entries(section).some(candidate => candidate.id === entryId);
+  }
+
+  untrustedProposal(entryId: string): { threadId: string; botId: string } | null {
+    for (const entries of Object.values(this.data.sections)) {
+      const entry = entries.find(candidate => candidate.id === entryId && candidate.status === "proposed" && candidate.migrationThreadId);
+      if (entry?.migrationThreadId) return { threadId: entry.migrationThreadId, botId: entry.source.botId };
+    }
+    return null;
+  }
+
+  expireReviewAudit(cutoff: number): number {
+    let expired = 0;
+    for (const entries of Object.values(this.data.sections)) for (const entry of entries) {
+      if (entry.review?.audit && entry.review.at < cutoff) {
+        delete entry.review.audit;
+        expired++;
+      }
+    }
+    if (expired) this.save();
+    return expired;
+  }
+
+  reviewReceipts(): Array<{ entryId: string; threadId: string; botId: string; untrusted: boolean; answer: "allow" | "deny"; summary: string; at: number; audit?: { actor?: DecisionActor } }> {
+    return Object.values(this.data.sections).flatMap(entries => entries.flatMap(entry => {
+      const threadId = entry.source.threadId || entry.migrationThreadId;
+      return entry.review && (threadId || entry.review.audit)
+        ? [{ entryId: entry.id, threadId: threadId ?? "", botId: entry.source.botId, untrusted: !entry.source.threadId, ...entry.review }] : [];
+    }));
   }
 
   list(section: string | null | undefined, includeHistory = false): TeamMemoryEntry[] {
@@ -214,7 +286,7 @@ export class TeamMemory {
     return { entry: { ...entry, revision: teamMemoryRevision(entry) }, status };
   }
 
-  resolve(section: string | null | undefined, id: string, answer: "accept" | "reject", expectedRevision?: string): TeamMemoryResolution {
+  resolve(section: string | null | undefined, id: string, answer: "accept" | "reject", expectedRevision?: string, audit?: { actor?: DecisionActor }): TeamMemoryResolution {
     const entries = this.entries(section, true);
     const index = entries.findIndex((entry) => entry.id === id);
     if (index === -1 || !active(entries[index])) return { claimed: false };
@@ -222,10 +294,12 @@ export class TeamMemory {
     if (entries[index].status === "accepted") return { claimed: true, state: "already_settled" };
     if (answer === "accept") {
       this.acceptEntry(entries, entries[index]);
+      recordReview(entries[index], "allow", audit);
       this.save();
       return { claimed: true, state: "accepted" };
     }
     entries[index].status = "deleted";
+    recordReview(entries[index], "deny", audit);
     this.save();
     return { claimed: true, state: "rejected" };
   }
@@ -255,6 +329,7 @@ export class TeamMemory {
     id: string,
     patch: Partial<Pick<TeamMemoryEntry, "name" | "detail" | "aliases" | "kind" | "pinned" | "key">>,
     expectedRevision?: string,
+    audit?: { actor?: DecisionActor },
   ): TeamMemoryEntry | null {
     const entries = this.entries(section, true);
     const index = entries.findIndex(candidate => candidate.id === id);
@@ -266,7 +341,10 @@ export class TeamMemory {
     const next = structuredClone(entry);
     rememberVersion(next);
     Object.assign(next, normalized, { pinned: patch.pinned ?? entry.pinned, updatedAt: Date.now() });
-    if (entry.status === "proposed") this.acceptEntry(entries, next);
+    if (entry.status === "proposed") {
+      this.acceptEntry(entries, next);
+      recordReview(next, "allow", audit);
+    }
     else if (entries.some(candidate => candidate.id !== id && candidate.status === "accepted" && (candidate.key === next.key || (candidate.kind === next.kind && sameName(candidate.name, next.name))))) {
       throw new Error("an entry with this kind and name already exists");
     }
@@ -275,12 +353,13 @@ export class TeamMemory {
     return { ...structuredClone(next), revision: teamMemoryRevision(next) };
   }
 
-  remove(section: string | null | undefined, id: string, expectedRevision?: string): boolean {
+  remove(section: string | null | undefined, id: string, expectedRevision?: string, audit?: { actor?: DecisionActor }): boolean {
     const entries = this.entries(section, true);
     const index = entries.findIndex((entry) => entry.id === id);
     if (index === -1 || !active(entries[index])) return false;
     this.checkRevision(entries[index], expectedRevision);
     rememberVersion(entries[index]);
+    if (entries[index].status === "proposed") recordReview(entries[index], "deny", audit);
     entries[index].status = "deleted";
     entries[index].updatedAt = Date.now();
     this.save();
@@ -304,9 +383,9 @@ export class TeamMemory {
   private checkRevision(entry: TeamMemoryEntry, expected?: string): void {
     if (expected !== undefined && expected !== teamMemoryRevision(entry)) throw new TeamMemoryConflict();
   }
-  resolveProposal(id: string, answer: "accept" | "reject"): TeamMemoryResolution {
+  resolveProposal(id: string, answer: "accept" | "reject", audit?: { actor?: DecisionActor }): TeamMemoryResolution {
     for (const section of ["", ...readSections()]) {
-      if (this.entries(section).some(entry => entry.id === id)) return this.resolve(section, id, answer);
+      if (this.entries(section).some(entry => entry.id === id)) return this.resolve(section, id, answer, undefined, audit);
     }
     return { claimed: false };
   }

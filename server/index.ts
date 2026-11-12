@@ -64,7 +64,7 @@ import {
 import * as checkpoints from "./checkpoints.ts";
 import { commandReceipt } from "./commands.ts";
 import { buildTurnDigest, coverageForDriver, digestPromptLine, renderDigest, toolEvidence } from "./digest.ts";
-import { appendDecision, bindDecisionRetention, decisionRetentionDays, flushDecisionLog, pruneDecisions, withDecisionActor, type DecisionActor, type DecisionVia } from "./decision-log.ts";
+import { appendDecision, prepareTeamMemoryReviewWriter, bindDecisionRetention, bindTeamMemoryAuditPruner, decisionRetentionDays, flushDecisionLog, pruneDecisions, withDecisionActor, type DecisionActor, type DecisionVia } from "./decision-log.ts";
 import { folderToFollow, inMyFolderCwd, validateBotCwd } from "./bot-cwd.ts";
 import { ATTACHMENTS_DIR, attachmentExists, deleteAttachment, keptAttachmentNames, offerAttachmentClear, saveAudio, saveImage } from "./attachments.ts";
 import {
@@ -9368,7 +9368,9 @@ const validateModelProposal = (selection: ModelSelection, current?: BotRecord): 
   return null;
 };
 const teamMemory = new TeamMemory(join(DATA_DIR, "team-memory.json"));
-const teamMemoryRequests = createTeamMemoryRequests({ teamMemory, store, requireReview: Boolean(CLOUD_TEAM), sectionKey: sectionContextKey, decide: (row) => appendDecision(DATA_DIR, row) });
+bindTeamMemoryAuditPruner(DATA_DIR, (cutoff) => { teamMemory.expireReviewAudit(cutoff); });
+const teamMemoryRequests = createTeamMemoryRequests({ teamMemory, store, requireReview: Boolean(CLOUD_TEAM), threadExists: (id) => Boolean(store.botByThread(id) || store.groupByThread(id)), sectionKey: sectionContextKey, decide: (row) => appendDecision(DATA_DIR, row), prepareAudit: () => prepareTeamMemoryReviewWriter(DATA_DIR) });
+teamMemoryRequests.reconcile();
 const outsideWrites = createOutsideWrites({ store, notify, language: (threadId) => threadLanguage(threadId), decide: (row) => appendDecision(DATA_DIR, row),
   writeMemory: (botId, threadId, change) => { const written = botMemoryUpdate(teamHost.layer(botId, threadId), change, { source: memorySourceLabel({ room: store.groupByThread(threadId), task: store.taskByThread(teamHost.baseBotId(botId), threadId), threadId }), aboutMe: null, prefer: null }); return written.ok ? null : written.error; } });
 const outboundRequests = new OutboundRequestService();
@@ -12363,7 +12365,7 @@ ROUTES.push(createEmailRoutes({ service: emailService }));
 ROUTES.push(phones.routes);
 ROUTES.push(createSkillShareRoutes({ enabled: () => skillsHost.mode() !== "off", botExists: (id) => Boolean(store.bot(id)),
   cardRefusal: (auth, threadId, requestId) => cardAnswerRefusal(auth, threadId, requestId, "allow"), shareFromReceipt: skillsHost.shareFromReceipt, shareFromBot: skillsHost.shareFromBot }));
-ROUTES.push(createTeamContextRoutes({ store, teamMemory, syncReview: teamMemoryRequests.syncReview }));
+ROUTES.push(createTeamContextRoutes({ store, teamMemory, reconcileReviews: teamMemoryRequests.reconcile, actorFor: decisionActorFor }));
 ROUTES.push(createBotMemoryRoutes({
   bot: (id) => store.bot(id),
   ...(CLOUD_TEAM ? { ownLayer: (auth: RequestAuth, botId: string) => auth.kind === "session" && visibleTo(viewerFor(auth)).bot(botId)
@@ -15607,7 +15609,7 @@ if (LOOPBACK.warning) console.warn(`local requests: ${LOOPBACK.warning}`);
 // Every room's floor once, before any request: a room already mixed at start keeps its narrowest audience.
 for (const group of store.groups) settleRoomFloor(group);
 const pruneDecisionLog = () => {
-  void pruneDecisions(DATA_DIR, decisionRetentionDays(cfg.decisions?.retentionDays));
+  void pruneDecisions(DATA_DIR, decisionRetentionDays(cfg.decisions?.retentionDays)).catch((error) => { console.warn("Could not prune decision logs", error); });
   void pruneAdminActivity(DATA_DIR, decisionRetentionDays(cfg.decisions?.retentionDays));
 };
 pruneDecisionLog();

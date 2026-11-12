@@ -1,5 +1,7 @@
 // Both routes take the section as a query parameter, required even for General ("").
 import { z } from "zod";
+import type { DecisionActor } from "../decision-log.ts";
+import type { RequestAuth } from "../request-auth.ts";
 
 import { SECTION_CONTEXT_MAX_BYTES, readSectionContext, sectionContextKey, sectionContextLabel, writeSectionContext } from "../section-context.ts";
 import { sectionKey, type Store } from "../store.ts";
@@ -10,12 +12,13 @@ import { PASS, type RouteHandler } from "./table.ts";
 export interface TeamContextRouteDeps {
   store: Pick<Store, "sections" | "bots" | "groups">;
   teamMemory: Pick<TeamMemory, "list" | "propose" | "resolve" | "update" | "remove" | "promptSelection">;
-  syncReview(threadId: string, requestId: string, answer: "allow" | "deny"): void;
+  reconcileReviews?(newDecisionId?: string): number;
+  actorFor?(auth: RequestAuth): DecisionActor;
 }
 
 export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandler {
   const { store, teamMemory } = deps;
-  return async ({ req, res, url, path, method, json, readBody }) => {
+  return async ({ req, res, url, path, method, auth, json, readBody }) => {
     let m: RegExpMatchArray | null = null;
     // Bots receive the brief in their system context, but no agent tool can write it: one bot cannot change every teammate's turns.
     if (path === "/api/team-memory" && (method === "GET" || method === "POST")) {
@@ -24,7 +27,8 @@ export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandle
       if (section && !store.sections.includes(section)) return json(res, 404, userError("serverError.department.notFound"));
       if (section.length > 60) return json(res, 400, { error: "section must be at most 60 characters" });
       if (method === "GET") {
-        return json(res, 200, { section, label: sectionContextLabel(section), entries: teamMemory.list(section), loadedIds: teamMemory.promptSelection(section).loadedIds });
+        const cardSyncPending = deps.reconcileReviews?.() ?? 0;
+        return json(res, 200, { section, label: sectionContextLabel(section), entries: teamMemory.list(section), loadedIds: teamMemory.promptSelection(section).loadedIds, ...(cardSyncPending ? { cardSyncPending } : {}) });
       }
       const body = await readBody(req);
       if (!body || typeof body !== "object" || !(TEAM_MEMORY_KINDS as readonly string[]).includes(String(body.kind))) {
@@ -53,20 +57,16 @@ export function createTeamContextRoutes(deps: TeamContextRouteDeps): RouteHandle
       try {
         const proposal = teamMemory.list(section).find((entry) => entry.id === m![1] && entry.status === "proposed");
         if (method === "DELETE") {
-          if (!teamMemory.remove(section, m[1], body.expectedRevision)) return json(res, 404, { error: "no such entry" });
+          if (!teamMemory.remove(section, m[1], body.expectedRevision, { actor: deps.actorFor?.(auth) })) return json(res, 404, { error: "no such entry" });
         } else if (body.accept === true) {
-          if (!teamMemory.resolve(section, m[1], "accept", body.expectedRevision).claimed) return json(res, 404, { error: "no such entry" });
+          if (!teamMemory.resolve(section, m[1], "accept", body.expectedRevision, { actor: deps.actorFor?.(auth) }).claimed) return json(res, 404, { error: "no such entry" });
         } else {
           const parsed = z.object({ name: z.string().optional(), detail: z.string().optional(), aliases: z.array(z.string()).optional(),
             kind: z.enum(TEAM_MEMORY_KINDS).optional(), pinned: z.boolean().optional(), key: z.string().optional() }).safeParse(body);
           if (!parsed.success) return json(res, 400, { error: "Invalid memory edit" });
-          if (!teamMemory.update(section, m[1], parsed.data, body.expectedRevision)) return json(res, 404, { error: "no such entry" });
+          if (!teamMemory.update(section, m[1], parsed.data, body.expectedRevision, { actor: deps.actorFor?.(auth) })) return json(res, 404, { error: "no such entry" });
         }
-        let cardSyncPending = false;
-        if (proposal) {
-          try { deps.syncReview(proposal.source.threadId, proposal.id, method === "DELETE" ? "deny" : "allow"); }
-          catch { cardSyncPending = true; }
-        }
+        const cardSyncPending = deps.reconcileReviews?.(proposal?.id) ?? 0;
         return json(res, 200, { entries: teamMemory.list(section), loadedIds: teamMemory.promptSelection(section).loadedIds, ...(cardSyncPending ? { cardSyncPending } : {}) });
       } catch (error) {
         return json(res, error instanceof TeamMemoryConflict ? 409 : 400, { error: error instanceof Error ? error.message : String(error), ...userErrorFields(error) });

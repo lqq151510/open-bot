@@ -112,7 +112,7 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
       if (!root || (event.target instanceof Node && !root.contains(event.target))) return;
       const nested = root.querySelector<HTMLElement>('[role="dialog"], [role="alertdialog"]');
       if (nested && nested.getClientRects().length) return;
-      if (event.key === "Escape") { event.preventDefault(); closeRef.current(); }
+      if (event.key === "Escape" && !event.defaultPrevented && !event.isComposing) { event.preventDefault(); closeRef.current(); }
       if (event.key !== "Tab") return;
       const controls = [...root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex="0"]')]
         .filter(control => control.getClientRects().length && !control.closest("[hidden],fieldset:disabled"));

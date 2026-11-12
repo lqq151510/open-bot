@@ -433,6 +433,19 @@ describe("independent bot task state", () => {
     expect(approvalModeFor(reloaded.projectBotForTask(bot.id, task.threadId)!)).toBe("ask");
   });
 
+  it("preserves complete graphemes and nonempty project names at the length limit", () => {
+    const store = new Store(selection);
+    const bot = store.createBot();
+    const longName = `${"a".repeat(79)}👩🏽‍💻`;
+    const project = store.createProject(bot.id, longName)!;
+    expect(project.name).toBe("a".repeat(79));
+    expect(store.patchProject(bot.id, project.id, { name: longName })?.name).toBe("a".repeat(79));
+    const oversizedGrapheme = `a${"\u0301".repeat(90)}`;
+    expect(store.createProject(bot.id, oversizedGrapheme)).toBeNull();
+    expect(store.patchProject(bot.id, project.id, { name: oversizedGrapheme })).toBeNull();
+    expect(store.project(bot.id, project.id)?.name).toBe("a".repeat(79));
+  });
+
   it("groups threads in folders without changing models or running state", () => {
     const store = new Store(selection);
     const bot = store.createBot();

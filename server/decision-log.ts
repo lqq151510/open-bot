@@ -10,6 +10,7 @@ import { basename, join } from "node:path";
 import type { AutoVerdictSource } from "./auto-approve.ts";
 import { redactSecrets } from "./redact.ts";
 import { csvCell, monthKey } from "./usage-ledger.ts";
+import { pruneTeamMemoryReviews, readTeamMemoryReviews, recordTeamMemoryReview } from "./team-memory-audit.ts";
 
 /** auto-* rows came from a policy with no card in front of a person; user-* rows record what a person answered. */
 export type DecisionKind =
@@ -82,6 +83,12 @@ export const MAX_DECISION_RETENTION_DAYS = 3650;
 const writeQueues = new Map<string, Promise<void>>();
 const lastPrune = new Map<string, number>();
 let retentionDays: () => number = () => DEFAULT_DECISION_RETENTION_DAYS;
+const teamMemoryAuditPruners = new Map<string, (cutoff: number) => void>();
+
+export function bindTeamMemoryAuditPruner(dataDir: string, prune: (cutoff: number) => void): () => void {
+  teamMemoryAuditPruners.set(dataDir, prune);
+  return () => { if (teamMemoryAuditPruners.get(dataDir) === prune) teamMemoryAuditPruners.delete(dataDir); };
+}
 
 export function bindDecisionRetention(provider: () => number): void {
   retentionDays = provider;
@@ -102,6 +109,21 @@ export function decisionRetentionDays(configured: number | undefined, env: NodeJ
 export type DecisionVia = "call" | "reaction";
 const actorScope = new AsyncLocalStorage<{ actor: DecisionActor; via?: DecisionVia }>();
 
+export function currentDecisionActor(): DecisionActor | undefined {
+  return actorScope.getStore()?.actor;
+}
+
+export function prepareTeamMemoryReviewWriter(dataDir: string): (id: string, row: DecisionRow) => void {
+  const cutoff = Date.now() - retentionDays() * DAY_MS;
+  const watermark = pruneTeamMemoryReviews(dataDir, cutoff);
+  teamMemoryAuditPruners.get(dataDir)?.(watermark);
+  return (id, row) => recordTeamMemoryReview(dataDir, id, row, Math.max(cutoff, Date.now() - retentionDays() * DAY_MS));
+}
+
+export function appendTeamMemoryReview(dataDir: string, id: string, row: DecisionRow): void {
+  prepareTeamMemoryReviewWriter(dataDir)(id, row);
+}
+
 export function withDecisionActor<T>(actor: DecisionActor, work: () => T, via?: DecisionVia): T {
   return actorScope.run(via ? { actor, via } : { actor }, work);
 }
@@ -115,8 +137,8 @@ async function writeDecision(dataDir: string, record: DecisionRow): Promise<void
   await mkdir(join(dataDir, DIR), { recursive: true, mode: 0o700 });
   await appendFile(decisionFileFor(dataDir, at), JSON.stringify(record) + "\n", { mode: 0o600 });
   if (at.getTime() - (lastPrune.get(dataDir) ?? 0) >= PRUNE_EVERY_MS) {
-    lastPrune.set(dataDir, at.getTime());
     await pruneDecisions(dataDir, retentionDays(), at);
+    lastPrune.set(dataDir, at.getTime());
   }
 }
 
@@ -147,6 +169,8 @@ export async function flushDecisionLog(dataDir: string): Promise<void> {
 export async function pruneDecisions(dataDir: string, days: number, now = new Date()): Promise<string[]> {
   const cutoff = now.getTime() - days * DAY_MS;
   const removed = await pruneMonthFiles(join(dataDir, DIR), days, now);
+  const watermark = pruneTeamMemoryReviews(dataDir, cutoff);
+  teamMemoryAuditPruners.get(dataDir)?.(watermark);
   for (const name of [`${LEGACY_FILE}.1`, LEGACY_FILE]) {
     try {
       if ((await stat(join(dataDir, name))).mtimeMs > cutoff) continue;
@@ -223,7 +247,8 @@ export function readDecisions(dataDir: string, limit: number): DecisionRow[] {
     chunks.unshift(rows);
     count += rows.length;
   }
-  return chunks.flat().slice(-limit);
+  const audit = readTeamMemoryReviews(dataDir, Date.now() - retentionDays() * DAY_MS, Date.now());
+  return [...chunks.flat(), ...audit].sort((a, b) => a.at.localeCompare(b.at)).slice(-limit);
 }
 
 export function readDecisionRange(dataDir: string, range: { from: Date; to: Date }): DecisionRow[] {
@@ -240,7 +265,7 @@ export function readDecisionRange(dataDir: string, range: { from: Date; to: Date
       if (at >= from && at <= to) rows.push(row);
     }
   }
-  return rows;
+  return [...rows, ...readTeamMemoryReviews(dataDir, from, to)].sort((a, b) => a.at.localeCompare(b.at));
 }
 
 export function actorLabel(actor: DecisionActor | undefined): string {

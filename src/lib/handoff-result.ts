@@ -1,4 +1,5 @@
 import type { Message } from "@/state/store";
+import { sliceGraphemesByUnits } from "../../shared/grapheme";
 
 const PREVIEW_MAX = 140;
 
@@ -14,7 +15,7 @@ export function handoffResult(message: Pick<Message, "roomRequest" | "tool">): H
   if (!body) return null;
   const [first = "", ...rest] = body.split("\n");
   const line = first.trim();
-  if (line.length > PREVIEW_MAX) return { preview: `${line.slice(0, PREVIEW_MAX - 1).trimEnd()}…`, more: body };
+  if (line.length > PREVIEW_MAX) return { preview: `${sliceGraphemesByUnits(line, PREVIEW_MAX - 1).trimEnd()}…`, more: body };
   const remainder = rest.join("\n").trim();
   return { preview: line, more: remainder || null };
 }

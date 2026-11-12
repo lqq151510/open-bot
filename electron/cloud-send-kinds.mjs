@@ -142,7 +142,7 @@ export function createMoveKinds({ localJson, localBytes, localSend, entry, persi
       const answer = await ctx.session.call("POST", "/api/cloud-send/memory", { v: 1, about: shared?.about ?? { learned: [], removed: [] }, teams: list(shared?.teams) });
       if (!answer.ok) throw new Error(refusal(answer, "My Cloud could not keep what your bots learned and your teams' notes."));
       merged += (answer.body?.about ?? 0) + (answer.body?.teams ?? 0);
-      if (list(answer.body?.failed).length) failed(ctx, "memory:shared", "memory", "About me and teams", "My Cloud has no room for some of what your bots learned about you.", true);
+      if (list(answer.body?.failed).length) failed(ctx, "memory:shared", "memory", "About me and teams", "Some shared notes could not be merged. Check for conflicting notes or storage limits; existing notes were kept.", true);
     } catch (error) { failed(ctx, "memory:shared", "memory", "About me and teams", error?.message); }
     ctx.result.memory = merged;
   }

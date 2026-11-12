@@ -86,7 +86,7 @@ export function memoryFiles(botId: string): Array<{ path: string; text: string }
 /** Each team's shared context and memory entries; General's too. */
 export function teamsHere(teamMemory: Pick<TeamMemory, "list">): Array<{ section: string; context: string | null; memory: TeamMemoryEntry[] }> {
   return ["", ...readSections()].map((section) => ({ section, context: readSectionContext(section)?.text ?? null,
-    memory: teamMemory.list(section).map(({ revision: _revision, ...entry }) => entry) }))
+    memory: teamMemory.list(section).map(({ revision: _revision, review: _review, ...entry }) => entry) }))
     .filter((team) => team.context !== null || team.memory.length);
 }
 
@@ -136,7 +136,7 @@ async function merge(deps: MoveMemoryDeps, body: z.infer<typeof mergeSchema>) {
         try { writeSectionContext(section, next); out.teams++; } catch { out.failed.push(`team:${section}`); }
       }
     }
-    out.teams += deps.teamMemory.adopt(section, team.memory);
+    out.teams += deps.teamMemory.adopt(section, team.memory, (id) => out.failed.push(`team-memory-conflict:${section || "shared"}:${/^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : "invalid"}`));
   }
   return out;
 }
