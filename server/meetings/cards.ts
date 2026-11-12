@@ -14,7 +14,7 @@ export const END_LINE = {
   left: "server.meetings.end.left", stop_requested: "server.meetings.end.stop_requested", meeting_ended: "server.meetings.end.meeting_ended",
   removed: "server.meetings.end.removed", denied: "server.meetings.end.denied", lobby_timeout: "server.meetings.end.lobby_timeout",
   guests_blocked: "server.meetings.end.guests_blocked", meet_refused: "server.meetings.end.meet_refused", not_found: "server.meetings.end.not_found", join_failed: "server.meetings.end.join_failed",
-  consent_failed: "server.meetings.end.consent_failed", alone: "server.meetings.end.alone", max_length: "server.meetings.end.max_length",
+  consent_failed: "server.meetings.end.consent_failed", notice_verification_unavailable: "server.meetings.end.notice_verification_unavailable", alone: "server.meetings.end.alone", max_length: "server.meetings.end.max_length",
   crashed: "server.meetings.end.crashed", lost: "server.meetings.end.lost", speech_unavailable: "server.meetings.end.speech_unavailable",
 } as const satisfies Record<MeetingEndReason, ServerLineKey>;
 

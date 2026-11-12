@@ -20,6 +20,11 @@ function show(html: string) {
 }
 
 describe("Zoom meeting page", () => {
+  it("reports that own-notice proof is unavailable", () => {
+    show('<div class="meeting-app"><button aria-label="Leave"></button></div>');
+    expect(pageOp({ op: "noticeProofCapability", platform: "zoom" })).toBe(false);
+  });
+
   it("does not mistake Teams controls for Zoom admission or speaker activity", () => {
     show('<button id="hangup-button">Leave</button><div data-tid="voice-level-stream-outline" data-is-speaking="true"></div>');
     expect(pageOp({ op: "probe", platform: "zoom", self: "OpenBot" }).inMeeting).toBe(false);

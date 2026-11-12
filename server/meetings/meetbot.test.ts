@@ -121,14 +121,31 @@ describe("the meeting bot's session", () => {
 
 
 describe("Zoom notice confirmation", () => {
+  it.each(["unsupported", "unavailable"])("does not join or send when proof is %s", async (state) => {
+    const { page, sent } = fakePage();
+    vi.mocked(page.op).mockImplementation(async (request) => {
+      if (request.op === "noticeProofCapability") {
+        if (state === "unavailable") throw new Error("page unavailable");
+        return false;
+      }
+      return true;
+    });
+    const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
+    expect(await runSession(run.session)).toBe("consent_failed");
+    expect(page.goto).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+    expect(run.order).not.toContain("capture");
+  });
+
   it("does not capture when the notice is absent from the chat", async () => {
     vi.useFakeTimers();
     try {
-      const { page } = fakePage();
+      const { page, sent } = fakePage();
       const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
       const result = runSession(run.session);
       await vi.runAllTimersAsync();
       expect(await result).toBe("consent_failed");
+      expect(sent).toEqual([config.consent]);
       expect(run.order).not.toContain("capture");
     } finally { vi.useRealTimers(); }
   });

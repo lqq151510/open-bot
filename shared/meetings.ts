@@ -11,7 +11,7 @@ export const MEETING_PLATFORM_NAMES: Record<MeetingPlatform, string> = {
 
 /** Why a meeting ended, as the bot on the cloud computer reports it. */
 export type MeetingEndReason = "left" | "stop_requested" | "meeting_ended" | "removed" | "denied" | "lobby_timeout" | "guests_blocked" | "meet_refused"
-  | "not_found" | "join_failed" | "consent_failed" | "alone" | "max_length" | "crashed" | "lost" | "speech_unavailable";
+  | "not_found" | "join_failed" | "consent_failed" | "notice_verification_unavailable" | "alone" | "max_length" | "crashed" | "lost" | "speech_unavailable";
 
 export type MeetingPhase = "starting" | "joining" | "lobby" | "in_meeting" | "ended";
 

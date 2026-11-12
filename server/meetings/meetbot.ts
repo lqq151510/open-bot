@@ -39,7 +39,7 @@ export interface MeetbotConfig {
 }
 
 export type EndReason = "left" | "stop_requested" | "meeting_ended" | "removed" | "denied" | "lobby_timeout" | "guests_blocked" | "meet_refused"
-  | "not_found" | "join_failed" | "consent_failed" | "alone" | "max_length" | "crashed";
+  | "not_found" | "join_failed" | "consent_failed" | "notice_verification_unavailable" | "alone" | "max_length" | "crashed";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -162,6 +162,7 @@ export function pageOp(a: any): any {
     ?? el.closest('[data-tid*="participant"]')?.getAttribute("aria-label") ?? "").trim();
 
   switch (a.op) {
+    case "noticeProofCapability": return false;
     case "url": return location.href;
     case "account": {
       const label = document.querySelector('a[aria-label^="Google Account:" i], [aria-label^="Google Account:" i]')?.getAttribute("aria-label") ?? "";
@@ -605,6 +606,7 @@ export async function runSession(parts: SessionParts): Promise<EndReason> {
   const { config, emit, page, adapter } = parts;
   const now = parts.now ?? Date.now;
   const pause = parts.pause ?? sleep;
+  if (config.platform === "zoom" && await page.op({ op: "noticeProofCapability" }).catch(() => false) !== true) return "consent_failed";
   emit("phase", { phase: "joining" });
   await page.goto(adapter.url(config.url, Boolean(config.profileDir)));
   const lobbyUntil = now() + config.lobbyMs;
@@ -633,7 +635,7 @@ export async function runSession(parts: SessionParts): Promise<EndReason> {
   emit("phase", { phase: "in_meeting" });
 
   let consented = false;
-  for (let attempt = 0; attempt < 4 && !consented; attempt++) {
+  for (let attempt = 0; attempt < (config.platform === "zoom" ? 1 : 4) && !consented; attempt++) {
     consented = await sendChat(page, adapter, config.consent, config.platform === "zoom").catch(() => false);
     if (!consented) await pause(3_000);
   }
