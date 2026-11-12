@@ -159,6 +159,7 @@ describe("encrypted full workspace backups", () => {
     db.close();
     try {
       json(join(source, "team-computers.json"), { version: 1, environmentId: "source-environment", computers: [{ id: "source-computer", name: "Source desktop", section: "Design" }] });
+      writeFileSync(join(source, "cloud-request-nonces.sqlite"), "source nonce state");
       const originalDb = readFileSync(join(source, "messages.db"));
       const originalRuntimeDb = readFileSync(join(source, "runtime.db"));
       const exported = await createWorkspaceBackup(source, {
@@ -177,6 +178,7 @@ describe("encrypted full workspace backups", () => {
       json(join(target, "config.json"), { ...connections, language: "en" });
       json(join(target, "bots.json"), [{ id: "old" }]);
       json(join(target, "sessions.json"), { identity: "target-session" });
+      writeFileSync(join(target, "cloud-request-nonces.sqlite"), "target nonce state");
       json(join(target, "cloud-owner.json"), { identity: "target-owner-record" });
       const targetComputers = { version: 1, environmentId: "target-environment", computers: [{ id: "target-computer", name: "Destination desktop", section: null }] };
       json(join(target, "team-computers.json"), targetComputers);
@@ -193,6 +195,7 @@ describe("encrypted full workspace backups", () => {
       expect(existsSync(join(data, "bots.json"))).toBe(true);
       expect(existsSync(join(data, "runtime.db"))).toBe(true);
       expect(existsSync(join(data, "cloud-owner.json"))).toBe(false);
+      expect(existsSync(join(data, "cloud-request-nonces.sqlite"))).toBe(false);
       expect(readJson(join(data, "config.json"))).toEqual({ language: "ja" });
       expect(readJson(join(data, "webhooks.json")).webhooks[0]).not.toHaveProperty("secretHash");
       expect(readFileSync(join(data, "webhooks.json"), "utf8")).not.toContain("sealed-");
@@ -209,6 +212,7 @@ describe("encrypted full workspace backups", () => {
       expect(readJson(join(target, "config.json"))).toEqual({ ...connections, language: "ja" });
       expect(readFileSync(join(target, "task-workspaces", "bot", "thread", "binary.bin"))).toEqual(Buffer.alloc(2 * 1024 * 1024, 0xa5));
       expect(readJson(join(target, "sessions.json"))).toEqual({ identity: "target-session" });
+      expect(readFileSync(join(target, "cloud-request-nonces.sqlite"), "utf8")).toBe("target nonce state");
       expect(readJson(join(target, "cloud-owner.json"))).toEqual({ identity: "target-owner-record" });
       expect(readJson(join(target, "team-computers.json"))).toEqual(targetComputers);
       expect(readFileSync(join(target, "environment-id"), "utf8")).toBe("target-environment");

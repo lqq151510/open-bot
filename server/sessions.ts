@@ -72,7 +72,6 @@ const sessionSchema = z.object({
   membershipAuthority: z.enum(["portal", "team"]).optional(),
   /** A Team Cloud session's role in the team, from the Admin's claim. */
   teamRole: z.enum(["owner", "admin", "member"]).optional(),
-  membershipId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/).optional(),
   /** A team session opened with a code its member made (their phone): when the Admin last vouched for that member. The
    * session ends within the hour of it; each new Admin-signed pairing of the same member, in the same role, moves it. */
   memberCheckedAt: z.number().optional(),
@@ -477,7 +476,7 @@ export class SessionRegistry {
       expiresAt: pairing.member ? teamSessionExpiresAt(checkedAt, now + SESSION_TTL_MS) : now + Math.min(pairing.tokenTtlMs ?? SESSION_TTL_MS, SESSION_MAX_AGE_MS),
       ...(pairing.tokenTtlMs !== undefined ? { token: true as const } : {}),
       ...(pairing.browser ? { cookieOnly: true as const, ...(pairing.owner ? { owner: pairing.owner } : {}) } : {}),
-      ...(pairing.member ? { email: pairing.member.email, teamRole: pairing.member.role, membershipAuthority: "team" as const, ...(pairing.member.membershipId ? { membershipId: pairing.member.membershipId } : {}) } : {}),
+      ...(pairing.member ? { email: pairing.member.email, teamRole: pairing.member.role, membershipAuthority: "team" as const } : {}),
       ...(pairing.member && pairing.memberCheckedAt !== undefined ? { memberCheckedAt: pairing.memberCheckedAt } : {}),
     };
     if (pairing.member && pairing.memberCheckedAt === undefined) this.memberChecked(pairing.member, now);
@@ -494,7 +493,7 @@ export class SessionRegistry {
    * One whose role changed since is left to end. */
   private memberChecked(member: TeamMember, now: number): void {
     for (const session of this.sessions) {
-      if (session.memberCheckedAt === undefined || session.membershipAuthority !== "team" || session.email !== member.email || session.teamRole !== member.role || session.membershipId !== member.membershipId || session.expiresAt <= now) continue;
+      if (session.memberCheckedAt === undefined || session.membershipAuthority !== "team" || session.email !== member.email || session.teamRole !== member.role || session.expiresAt <= now) continue;
       session.memberCheckedAt = now;
       session.expiresAt = Math.max(session.expiresAt, teamSessionExpiresAt(now, Math.min(now + SESSION_TTL_MS, session.createdAt + SESSION_MAX_AGE_MS)));
     }
@@ -677,12 +676,10 @@ export class SessionRegistry {
   /** A person who left a Team Cloud: every session of theirs (app windows, phones) ends now, and no open code of theirs
    * can open another. With `keepRole` (the Admin vouched for them at that role), only those at another role end. Returns
    * how many sessions ended. */
-  revokeMember(email: string, keepRole?: TeamRole, keepMembershipId?: string): number {
+  revokeMember(email: string, keepRole?: TeamRole): number {
     const address = email.trim().toLowerCase();
-    this.pairings = this.pairings.filter((pairing) => pairing.member?.email.toLowerCase() !== address ||
-      (keepRole !== undefined && pairing.member.role === keepRole && pairing.member.membershipId === keepMembershipId));
-    const ended = this.sessions.filter((session) => session.membershipAuthority === "team" && session.email?.toLowerCase() === address &&
-      (keepRole === undefined || session.teamRole !== keepRole || session.membershipId !== keepMembershipId));
+    this.pairings = this.pairings.filter((pairing) => pairing.member?.email.toLowerCase() !== address || pairing.member.role === keepRole);
+    const ended = this.sessions.filter((session) => session.membershipAuthority === "team" && session.email?.toLowerCase() === address && (keepRole === undefined || session.teamRole !== keepRole));
     for (const session of ended) this.revoke(session.id);
     return ended.length;
   }

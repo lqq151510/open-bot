@@ -72,7 +72,6 @@ and a decision guide in five questions: [Which AI agent should I use?](https://w
 A model picker with a provider rail — Claude and Codex models side by side, defaults marked, unavailable
 providers dimmed with the reason. Switch a bot's model mid-conversation.
 
-<img src="docs/screenshots/model-picker.png" alt="Model picker with provider rail" width="100%">
 
 </td>
 <td width="50%" valign="top">
@@ -82,7 +81,6 @@ providers dimmed with the reason. Switch a bot's model mid-conversation.
 Open the Computer panel and the bot's cloud desktop spins up on its own — live screen preview while it
 works, "Open desktop" to take over in your browser, or point the bot at *this Mac* instead.
 
-<img src="docs/screenshots/computer-panel.png" alt="Computer panel with live screen preview" width="100%">
 
 </td>
 </tr>
@@ -94,7 +92,6 @@ works, "Open desktop" to take over in your browser, or point the bot at *this Ma
 Shell commands, file edits, and questions surface as inline cards — Allow / Deny / answer in chat. A
 permission broker turns every risky action into a decision you make, for cloud and local computers alike.
 
-<img src="docs/screenshots/approval-card.png" alt="Approval and question cards in chat" width="100%">
 
 </td>
 <td width="50%" valign="top">
@@ -104,7 +101,6 @@ permission broker turns every risky action into a decision you make, for cloud a
 A one-click marketplace over Composio Sessions: Gmail, Slack, GitHub, Notion, Linear and hundreds more.
 OAuth once, and every bot can use them as tools.
 
-<img src="docs/screenshots/marketplace.png" alt="Connected apps marketplace" width="100%">
 
 </td>
 </tr>
@@ -116,7 +112,6 @@ OAuth once, and every bot can use them as tools.
 Right-click any bot: pin, mark unread, edit profile, duplicate, copy conversation ID, hide, delete. It's a
 messaging app — your agents behave like contacts.
 
-<img src="docs/screenshots/context-menu.png" alt="Bot context menu" width="100%">
 
 </td>
 <td width="50%" valign="top">
@@ -126,7 +121,6 @@ messaging app — your agents behave like contacts.
 Paste credentials in App Settings — they persist locally and the provider fleet hot-reloads instantly.
 Secrets are write-only: the UI only ever sees "configured" flags.
 
-<img src="docs/screenshots/app-settings.png" alt="App-level settings with API keys" width="100%">
 
 </td>
 </tr>
@@ -284,23 +278,11 @@ See [Run OpenBot from scripts and CI](docs/headless-cli.md).
 
 ## Quick start
 
-**Released builds ([latest release](https://github.com/milind-soni/OpenBot/releases/latest)):** the harness server is embedded, so no separate server setup is required.
-
-| | Download | Install |
-|---|---|---|
-| **macOS** (Apple silicon) | [OpenBot.dmg](https://github.com/milind-soni/OpenBot/releases/latest/download/OpenBot.dmg) | Drag it to Applications, open it. Signed & notarized. |
-| **macOS** (Intel) | [OpenBot-intel.dmg](https://github.com/milind-soni/OpenBot/releases/latest/download/OpenBot-intel.dmg) | Same app, built for Intel Macs. Signed & notarized. |
-| **Windows** (x64) | [OpenBot-setup.exe](https://github.com/milind-soni/OpenBot/releases/latest/download/OpenBot-setup.exe) | Run it — one-click, per-user, no admin rights. The installer isn't code-signed yet, so SmartScreen shows "unknown publisher": **More info → Run anyway**. |
-| **Ubuntu 24.04** (x64) | [OpenBot-amd64.deb](https://github.com/milind-soni/OpenBot/releases/latest/download/OpenBot-amd64.deb) · [OpenBot.AppImage](https://github.com/milind-soni/OpenBot/releases/latest/download/OpenBot.AppImage) | Install the `.deb` with APT (recommended), or make the AppImage executable and run it. Beta; GNOME is the supported desktop. |
-
-See the [Ubuntu Desktop guide](docs/linux-desktop.md) for installation, capabilities, and troubleshooting.
-Any desktop build can also pair as a client to another Windows, macOS, or Ubuntu host over Tailscale; see [desktop-to-desktop companion mode](docs/desktop-companion.md).
-
-
-**From source:**
+This fork has no published releases as of 2026-11-12. Build and run it from source;
+the upstream project's installers are not builds of this repository.
 
 ```sh
-git clone https://github.com/milind-soni/OpenBot && cd OpenBot
+git clone https://github.com/lqq151510/open-bot.git && cd open-bot
 pnpm install
 
 pnpm dev:server    # harness server → 127.0.0.1:8799
@@ -317,8 +299,12 @@ Package the desktop application:
 ```sh
 pnpm package:mac      # macOS: DMG + ZIP; requires Swift/Xcode tools
 pnpm package:win      # Windows: installer + ZIP
-pnpm package:linux    # Ubuntu x64: .deb + AppImage + verified CUA runtime
+pnpm package:linux    # Ubuntu x64: .deb + AppImage
 ```
+
+These packaging scripts have not been verified for this fork's current revision. The full `pnpm test`
+command also depends on a broker test configuration absent from this checkout; run targeted tests and
+report their results separately. The cloud-home Docker build references missing `deploy/fly` files.
 
 ### Desktop capability status
 
@@ -423,23 +409,15 @@ Usage analytics are optional and anonymous: product events and a once-a-day coun
 names, addresses or conversations. Turn them off in Settings → General → Usage analytics;
 [`docs/analytics.md`](docs/analytics.md) lists every event and property.
 
-## Support the project
-
-OpenBot is free and open source. If it does real work for you, you can
-[support its development through GitHub Sponsors](https://github.com/sponsors/milind-soni)
-with a one-time contribution or a monthly sponsorship. Your support helps fund ongoing development
-and maintenance; OpenBot remains free and open source.
-
 ## Run from a terminal or on a server
 
-With Node 24 or newer, install once and run:
+With Node 24 or newer, run the CLI from this repository after `pnpm install`:
 
 ```sh
-npm install -g openbot
-openbot
+pnpm omb
 ```
 
-Or use `npx openbot` without a global install. First launch guides you with
+First launch guides you with
 arrow-key choices: choose AI access, sign in or paste a hidden API key, choose
 a model, and optionally connect a phone. Next time, the same command reuses your
 saved setup and opens OpenBot on this computer. Keep the terminal open; Ctrl-C stops
@@ -465,23 +443,16 @@ saved as plaintext, not encrypted, in private `config.json` (`0600` on Unix).
 See the [short setup guide](docs/cli-onboarding.md) for account differences,
 phone choices, credential storage, and cancellation.
 
-For a server on a VPS or an always-on computer, run `npx openbot serve`
-with one way in: `--public-url` behind your own cloudflared, Caddy or nginx,
-`--domain` for a certificate on your own domain, `--tailscale` for your
-tailnet, `--lan` for this network only, or `--tunnel` (after
-`npx openbot login`) for a free OpenBot web address. It prints one
-pairing link; paste it into the desktop app under **＋ → Connect to a
-server**. The short path for each install method (npx, Docker, a service) is
-at the top of [docs/self-hosting.md](docs/self-hosting.md); a server from
-scratch is [docs/deploy-vps.md](docs/deploy-vps.md).
+Hosted deployment for this fork needs separate verification. The cloud-home Docker stage currently
+references `deploy/fly` configuration that is not present in this checkout; do not treat the upstream
+deployment instructions as a verified deployment for this fork.
 
 ## License
 
-[Apache License 2.0](LICENSE) © 2026 Milind Soni and OpenBot contributors,
-except `enterprise/`, which is source-available under its
-[own license](enterprise/LICENSE); delete that folder and what remains is the
-open-source edition. Details, including how contributions are signed off, are
-in [LICENSING.md](LICENSING.md).
+The repository includes the [Apache License 2.0](LICENSE) and retains upstream attribution in
+[NOTICE](NOTICE). Bundled third-party components retain their respective licenses. The inherited
+[LICENSING.md](LICENSING.md) also describes an upstream `enterprise/` directory that is not present
+in this checkout.
 
 Packaged Cua Driver components retain their upstream MIT, SIL OFL 1.1, MPL-2.0, and other dependency terms;
 the corresponding notices, license texts, source locations, and SBOM are in

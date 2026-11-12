@@ -139,7 +139,7 @@ export type CloudRequestRefusal = "invalid_signature" | "stale_request" | "repla
 export type CloudRequestVerdict = { ok: true } | { ok: false; status: 401 | 503; error: CloudRequestRefusal };
 
 /** One route's verifier, with its own used nonces. Signature first (constant time), then clock and nonce. Nothing is logged. */
-export function createCloudRequestVerifier(options: { secret: string; now?: () => number }) {
+export function createCloudRequestVerifier(options: { secret: string; now?: () => number; nonceStore?: import("./cloud-nonces.ts").CloudNonceStore; nonceScope?: string }) {
   const now = options.now ?? Date.now;
   const nonces = new Map<string, number>();
   return {
@@ -151,6 +151,10 @@ export function createCloudRequestVerifier(options: { secret: string; now?: () =
       const matches = given.length === expected.length && timingSafeEqual(given, expected);
       if (!presented || !matches || !/^\d{1,12}$/.test(timestamp) || !/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) return { ok: false, status: 401, error: "invalid_signature" };
       const at = now();
+      if (options.nonceStore) {
+        const result = options.nonceStore.claim(options.nonceScope ?? "pairing", nonce, at, Number(timestamp) * 1000, CLOUD_PAIRING_SKEW_S * 1000, MAX_NONCES);
+        return result === "accepted" ? { ok: true } : { ok: false, status: result === "busy" ? 503 : 401, error: result };
+      }
       if (Math.abs(at / 1000 - Number(timestamp)) > CLOUD_PAIRING_SKEW_S) return { ok: false, status: 401, error: "stale_request" };
       for (const [seen, until] of nonces) if (until <= at) nonces.delete(seen);
       if (nonces.has(nonce)) return { ok: false, status: 401, error: "replayed_request" };
@@ -174,9 +178,10 @@ export function createCloudPairing(options: {
   /** The team this machine serves: then every pairing body must carry the Admin's `member` claim. */
   team?: CloudTeam | null;
   now?: () => number;
+  nonceStore?: import("./cloud-nonces.ts").CloudNonceStore;
 }) {
   const { sessions } = options;
-  const verifier = createCloudRequestVerifier(options);
+  const verifier = createCloudRequestVerifier({ ...options, nonceScope: "pairing" });
   return {
     /** A bad signature counts toward the pairing lockout; clock, nonce and body are checked before anything opens. Nothing is logged. */
     handle(input: { timestamp: string | undefined; nonce: string | undefined; signature: string | undefined; body: Buffer; source: string }): CloudPairingResult {
@@ -205,7 +210,7 @@ export function createCloudPairing(options: {
         return { status: 400, body: { error: "invalid_owner" } };
       }
       const ttl = Math.min((ttlSeconds as number | undefined) ?? CLOUD_PAIRING_DEFAULT_TTL_S, browser ? CLOUD_BROWSER_SIGN_IN_MAX_TTL_S : CLOUD_PAIRING_MAX_TTL_S);
-      if (member) sessions.revokeMember(member.email, member.role, member.membershipId);
+      if (member) sessions.revokeMember(member.email, member.role);
       const opened = sessions.openPairing({
         scopes: member ? teamRoleScopes(member.role) : ["admin", "client"],
         label: typeof label === "string" && label.trim() ? label.trim() : "OpenBot Cloud",

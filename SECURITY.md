@@ -4,12 +4,11 @@
 
 Please **do not open a public issue** for security problems.
 
-- **Email** **soni.mil2001@gmail.com** with the details.
-- **Or, if it is enabled on this repository,** use GitHub's private vulnerability reporting:
-  <https://github.com/milind-soni/OpenBot/security/advisories/new>. The report stays visible
-  only to you and the maintainers until a fix is published.
-
-You'll get a response as soon as possible, normally within a few days.
+- If private vulnerability reporting is enabled on this repository, use
+  [GitHub private vulnerability reporting](https://github.com/lqq151510/open-bot/security/advisories/new).
+  The report stays visible only to you and the repository maintainers until a fix is published.
+- If that option is unavailable, contact a repository maintainer privately before sharing sensitive
+  details. Do not include credentials, tokens, or private data in a public issue.
 
 ## Scope notes for researchers
 

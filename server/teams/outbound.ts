@@ -35,7 +35,8 @@ export interface TeamsOutboundDependencies<Caller> {
 }
 
 function pathId(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 512 && value !== "." && value !== ".." && [...value].every((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127);
+  if (typeof value !== "string" || value.length === 0 || value.length > 512 || value === "." || value === ".." || [...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
+  try { encodeURIComponent(value); return true; } catch { return false; }
 }
 
 function sameActor(a: TeamsReplyActor, b: TeamsReplyActor): boolean {

@@ -50,16 +50,17 @@ export function createCloudSignedRoutes(deps: {
   /** Which plan this Cloud is on now; absent on a server that is not a Cloud home. */
   planTier?: ((tier: string) => void) | null;
   now?: () => number;
+  nonceStore?: import("../cloud-nonces.ts").CloudNonceStore;
 }) {
-  const pairing = createCloudPairing({ secret: deps.secret, sessions: deps.sessions, team: deps.team ?? null, now: deps.now });
-  const healthRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const powerReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const sleepRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const boxReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const teamAdminReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const memberLeftRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const planRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
-  const policyNudges = createCloudRequestVerifier({ secret: deps.secret, now: deps.now });
+  const pairing = createCloudPairing({ secret: deps.secret, sessions: deps.sessions, team: deps.team ?? null, now: deps.now, nonceStore: deps.nonceStore });
+  const healthRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "health" });
+  const powerReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "power" });
+  const sleepRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "sleep" });
+  const boxReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "box" });
+  const teamAdminReads = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "team-admin" });
+  const memberLeftRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "member-left" });
+  const planRequests = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "plan" });
+  const policyNudges = createCloudRequestVerifier({ secret: deps.secret, now: deps.now, nonceStore: deps.nonceStore, nonceScope: "policy" });
   /** True when the request was one of these and has been answered. */
   return async ({ req, res, url, path, method }: CloudSignedRequest): Promise<boolean> => {
     const power = path === CLOUD_POWER_PATH || path === CLOUD_POWER_SLEEP_PATH ? deps.power?.() ?? null : null;

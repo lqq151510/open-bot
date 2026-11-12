@@ -32,6 +32,7 @@ const EXCLUDED = new Set([
   ".backups", "tools", "browser", "agent-browser-profiles", "cache", ".cache", "tmp", ".tmp", "dist-native", "tunnel-runtime", "evidence",
   ".openbot-server-child", "environment-id", "sessions.json", "tunnel-account.json",
   "team-computers.json",
+  "cloud-request-nonces.sqlite", "cloud-request-nonces.sqlite-journal", "cloud-request-nonces.sqlite-wal", "cloud-request-nonces.sqlite-shm",
   "openbot-server.lease", "box-create-requests.lock", "messages.db-wal", "messages.db-shm",
   "runtime.db-wal", "runtime.db-shm",
   "decider-log",

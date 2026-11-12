@@ -11,7 +11,9 @@ makes a PR easy to merge. Read it once before opening anything; it's short on pu
 - **Match the altitude.** This codebase is deliberately small and direct — plain Node, no frameworks
   on the server, one store, one event bus. Don't introduce a dependency where thirty lines of code
   will do. New runtime dependencies need a reason in the PR description.
-- **Keep it green.** `pnpm typecheck && pnpm test` must pass. Server changes need tests (see below).
+- **Validate changes.** Run `pnpm typecheck` and the tests relevant to your change. The current fork's
+  `pnpm test` also invokes a broker test whose `cloudflare/composio-broker` configuration is absent;
+  report that limitation rather than presenting a partial run as a full pass.
 - **UI changes need screenshots.** Before/after images in the PR body; video for anything animated.
   Match the existing palette and tone in [`src/styles.css`](src/styles.css).
 
@@ -23,7 +25,7 @@ and logged in. macOS is the primary release platform and Ubuntu 24.04 x64 is the
 the harness server itself is portable Node and the test suite runs on macOS, Linux, and Windows.
 
 ```sh
-git clone https://github.com/milind-soni/OpenBot && cd OpenBot
+git clone https://github.com/lqq151510/open-bot.git && cd open-bot
 pnpm install
 
 pnpm dev:server    # harness server → 127.0.0.1:8799
@@ -31,7 +33,7 @@ pnpm dev           # app → http://127.0.0.1:5199
 pnpm dev:desktop   # Electron shell (macOS/Ubuntu; keep server + Vite running)
 
 pnpm typecheck     # app + server
-pnpm test          # vitest suite (server unit + driver contract + API smoke)
+pnpm exec vitest run server/verification-fixture.e2e.test.ts # isolated fixture self-check
 pnpm test:watch    # same, in watch mode
 pnpm check:electron # syntax-check the plain JS Electron entrypoints
 
@@ -39,35 +41,14 @@ pnpm package:mac   # DMG + ZIP; requires Swift/Xcode tools
 pnpm package:linux # Ubuntu x64 .deb + AppImage; no Swift required
 ```
 
-To reproduce a failing CI test job, follow [Vitest shards](docs/ci.md#vitest-shards).
-Use the job's checkout revision, OS, file filters, shard fraction, and
-`OMB_VITEST_E2E` value; the same shard number alone does not select the same files.
-
 `pnpm dev:desktop` downloads and verifies the pinned Cloudflare Tunnel connector for the current
 platform and architecture before Electron starts. Later launches re-verify and reuse the staged
 binary. Packaging continues to use `pnpm build:cloudflared`, which stages every architecture the
 host's desktop package build requires. To stage only the current development target without
 launching Electron, run `node scripts/prepare-cloudflared.mjs --current`.
 
-For Ubuntu installation and real desktop checks, see [`docs/linux-desktop.md`](docs/linux-desktop.md).
-
-## Ubuntu release checklist
-
-Ubuntu release packages must come from the manual **Package Ubuntu** workflow on an exact release commit or tag,
-not from a developer workstation. The Ubuntu 24.04 runner builds and verifies both formats, launches the unpacked
-app and AppImage, routes `click` and `type_text` through the overlay-free bundled Cua runtime on Xorg, runs the
-fail-closed Wayland CUA smoke,
-and produces one release artifact containing:
-
-- the versioned `.deb` and AppImage;
-- stable `OpenBot-amd64.deb` and `OpenBot.AppImage` copies used by the latest-download links;
-- `SHA256SUMS-ubuntu-x64.txt` covering both versioned and stable names.
-
-Before publishing, confirm that `package.json` has the release version and dispatch the workflow against the same
-commit used for the other platforms. Attach all five Ubuntu files to the matching release in the separate
-[OpenBot releases](https://github.com/milind-soni/OpenBot/releases). Then verify the checksum
-file and install the `.deb` plus launch the AppImage in a clean Ubuntu 24.04 x86_64 GNOME environment. Never combine
-packages built from different commits under one version.
+This fork currently has no release workflow or published installer. Packaging scripts are present,
+but release artifacts and platform support must be verified before they are advertised or published.
 
 ## Repo map
 

@@ -92,6 +92,23 @@ describe("Teams replies", () => {
     expect(calls.fetch).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["conversationId", "activityId"] as const)("rejects an unpaired surrogate in %s without sending", async (field) => {
+    const { target, calls, send } = setup();
+    for (const malformed of ["\uD800", "\uDC00"]) {
+      target[field] = malformed;
+      await expect(send("session", "ref", "Hello")).resolves.toEqual({ state: "unauthorized" });
+    }
+    expect(calls.accessToken).not.toHaveBeenCalled();
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid surrogate pair in the activity ID", async () => {
+    const { target, calls, send } = setup();
+    target.activityId = "activity-😀";
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "sent" });
+    expect(String(calls.fetch.mock.calls[0]![0])).toContain("activity-%F0%9F%98%80");
+  });
+
   it("rejects malformed targets and oversized messages without sending", async () => {
     const { target, calls, send } = setup();
     expect(await send("session", "ref", "中".repeat(10_000))).toEqual({ state: "invalid" });
