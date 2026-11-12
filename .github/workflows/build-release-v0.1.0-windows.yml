@@ -9,16 +9,50 @@ permissions:
   contents: read
 
 jobs:
+  windows-browser-vendor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.3
+      - uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: x86_64-pc-windows-gnu
+      - name: Install Windows cross-linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Build verified Windows browser engine candidate
+        run: node scripts/build-windows-browser-vendor.mjs --output "$RUNNER_TEMP/windows-browser-vendor"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-browser-vendor
+          path: ${{ runner.temp }}/windows-browser-vendor
+          if-no-files-found: error
+          retention-days: 2
+
   windows:
+    needs: windows-browser-vendor
     runs-on: windows-latest
     timeout-minutes: 120
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: v0.1.0
+          path: app
           fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-browser-vendor
+          path: vendor
       - uses: pnpm/action-setup@v4
         with:
           version: 12.9.1
@@ -26,18 +60,40 @@ jobs:
         with:
           node-version: 24.22.0
           cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - name: Pin verified Windows browser engine in the release build
+        shell: pwsh
+        run: |
+          $source = (Resolve-Path vendor).Path
+          $app = (Resolve-Path app).Path
+          node scripts/stage-windows-browser-vendor.mjs --source "$source" --app "$app" --release-version 0.1.0
       - name: Deny unused dependency build scripts
+        working-directory: app
         run: pnpm approve-builds '!core-js' '!workerd'
       - name: Install dependencies
+        working-directory: app
         run: pnpm install --frozen-lockfile
       - name: Build Windows x64 packages
+        working-directory: app
         run: pnpm package:win
+      - name: Verify packaged browser and server in isolated fixtures
+        shell: pwsh
+        working-directory: app
+        run: |
+          $resources = (Resolve-Path 'release/win-unpacked/resources').Path
+          $candidate = (Resolve-Path '../vendor/agent-browser-win32-x64.exe').Path
+          node scripts/smoke-browser-bundle.mjs --resources "$resources" --target win32-x64 --engine-candidate "$candidate"
+          $env:OMB_SMOKE_DIST = Join-Path $resources 'server'
+          $browser = Join-Path $resources 'browser-engine'
+          node scripts/smoke-packaged-server.mjs --browser-bundle "$browser"
       - name: Stage release assets
         shell: pwsh
+        working-directory: app
         run: |
           $ErrorActionPreference = 'Stop'
           $source = Join-Path $PWD 'release'
           $destination = Join-Path $PWD 'release-upload'
+          $vendor = Join-Path $PWD '..\vendor'
           $installer = Join-Path $source 'OpenBot-0.1.0-setup.exe'
           $feed = Join-Path $source 'latest.yml'
           if (!(Test-Path $installer) -or !(Test-Path $feed)) {
@@ -50,11 +106,19 @@ jobs:
           Get-ChildItem -File $source | Where-Object {
             $_.Name -like 'OpenBot-0.1.0-*.blockmap' -or $_.Name -eq 'OpenBot-0.1.0-x64.zip'
           } | Copy-Item -Destination $destination
+          Copy-Item (Join-Path $PWD 'dist-native/browser-archives/agent-browser-win32-x64-0.36.0-omb.2.exe') $destination
+          Copy-Item (Join-Path $PWD 'OpenBot-v0.1.0-windows-browser-engine-pin.patch') $destination
+          Copy-Item (Join-Path $vendor 'provenance.json') (Join-Path $destination 'agent-browser-windows-0.36.0-omb.2-provenance.json')
+          Copy-Item (Join-Path $vendor 'agent-browser-windows-stdio.patch') (Join-Path $destination 'agent-browser-windows-stdio-0.36.0-omb.2.patch')
+          Copy-Item (Join-Path $vendor 'agent-browser-LICENSE.txt') (Join-Path $destination 'agent-browser-LICENSE.txt')
+          Copy-Item (Join-Path $vendor 'LICENSE-axe-core.txt') $destination
+          Copy-Item (Join-Path $vendor 'LICENSE-axe-core-THIRD-PARTY.txt') $destination
           Get-ChildItem -File $destination | Get-FileHash -Algorithm SHA256 | Format-Table Path, Hash -AutoSize
       - name: Upload Windows assets to v0.1.0
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
+        working-directory: app
         run: |
           $assets = Get-ChildItem -File release-upload | Select-Object -ExpandProperty FullName
           gh release upload v0.1.0 @assets --repo lqq151510/open-bot --clobber
