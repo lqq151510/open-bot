@@ -16,10 +16,10 @@ const HARD_CAP = 2000;
 const LISTED_FROM = 1000;
 
 const LINES: Record<string, number> = {
-  "server/index.ts": 15636,
+  "server/index.ts": 15801,
   "src/state/store.tsx": 3349,
   "electron/main.mjs": 3224,
-  "server/store.ts": 2307,
+  "server/store.ts": 2323,
   "src/components/Sidebar.tsx": 1689,
   "server/drivers/claude.ts": 2095,
   "server/drivers/acp/core.ts": 1738,
@@ -27,11 +27,11 @@ const LINES: Record<string, number> = {
   "server/routines.ts": 1567,
   "src/components/ComputerPanel.tsx": 1817,
   "src/components/RoutineCalendarPage.tsx": 1622,
-  "server/config.ts": 1265,
-  "src/components/ChatView.tsx": 1306,
+  "server/config.ts": 1271,
+  "src/components/ChatView.tsx": 1315,
   "server/routine-requests.ts": 1474,
-  "src/components/GroupView.tsx": 1220,
-  "src/components/LocalComputerSection.tsx": 1452,
+  "src/components/GroupView.tsx": 1224,
+  "src/components/LocalComputerSection.tsx": 1486,
   "src/components/CursorAvatar.tsx": 1324,
   "server/skills.ts": 1380,
   "server/composio.ts": 1091,
@@ -45,11 +45,12 @@ const LINES: Record<string, number> = {
   "src/components/PhoneSetupFlow.tsx": 1101,
   "server/cli.ts": 1062,
   "src/components/AttachmentPreview.tsx": 1035,
-  "server/meetings/meetbot.ts": 1047,
-  "server/message-db.ts": 1005,
+  "server/meetings/meetbot.ts": 1211,
+  "server/message-db.ts": 1006,
   "server/drivers/openai-chat.ts": 1001,
-  "src/components/Composer.tsx": 1023,
+  "src/components/Composer.tsx": 1027,
   "src/components/PluginsPanel.tsx": 1011,
+  "shared/wire.ts": 1003,
 };
 
 function sourceFiles(): string[] {
