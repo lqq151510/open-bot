@@ -19,6 +19,7 @@ export function createBotLearningsRoutes(deps: { enabled: boolean; learnings: Re
     const bot = match[1]!; const id = match[2]; const session = auth.session.id;
     try {
       if (method === "GET" && !id) return json(res, 200, { entries: deps.learnings.list(bot, session) });
+      if (method === "GET" && id) return json(res, 200, { history: deps.learnings.history(bot, session, id) });
       if (method === "POST" && !id) {
         const body = proposal.safeParse(await readBody(req));
         if (!body.success) return json(res, 400, { error: "Explicit sharing and a valid learning are required." });

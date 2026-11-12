@@ -47,7 +47,7 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
   );`);
 
   const recordEvent = (id: string, botId: string, generation: string, revision: number, action: "proposed" | "accepted" | "rejected", sessionId: string, at: number) => {
-    const actor = createHash("sha256").update(sessionId).digest("hex");
+    const actor = createHash("sha256").update("bot-learning-event\0").update(generation).update("\0").update(sessionId).digest("hex");
     db.prepare("INSERT INTO bot_learning_events (entry_id, bot_id, generation, revision, action, actor_hash, at) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .run(id, botId, generation, revision, action, actor, at);
   };
@@ -78,6 +78,7 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
         const id = randomUUID(); const at = now();
         db.prepare("INSERT INTO bot_learnings VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed', 1, ?)")
           .run(id, botId, generation, item.kind, item.name, item.detail, JSON.stringify(item.aliases), item.key, at);
+        recordEvent(id, botId, generation, 1, "proposed", sessionId, at);
         return publicEntry(entries(botId, generation).find((row) => row.id === id)!);
       });
     },
@@ -98,10 +99,21 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
         if (action === "accept" && entries(botId, generation, "accepted").some((entry) => entry.fact_key === item.key)) {
           throw new BotLearningError("An accepted learning already has this key.", 409);
         }
+        const state = action === "accept" ? "accepted" : "rejected";
+        const at = now();
         db.prepare("UPDATE bot_learnings SET kind=?, name=?, detail=?, aliases=?, fact_key=?, state=?, revision=revision+1, updated_at=? WHERE id=?")
-          .run(item.kind, item.name, item.detail, JSON.stringify(item.aliases), item.key, action === "accept" ? "accepted" : "rejected", now(), id);
+          .run(item.kind, item.name, item.detail, JSON.stringify(item.aliases), item.key, state, at, id);
+        recordEvent(id, botId, generation, row.revision + 1, state, sessionId, at);
         return publicEntry(db.prepare("SELECT * FROM bot_learnings WHERE id=?").get(id) as unknown as LearningRow);
       });
+    },
+    history(botId: string, sessionId: string, id: string) {
+      const generation = owner(botId, sessionId, "review");
+      const row = db.prepare("SELECT revision FROM bot_learnings WHERE id = ? AND bot_id = ? AND generation = ?").get(id, botId, generation) as { revision: number } | undefined;
+      if (!row) throw new BotLearningError("No such learning.", 404);
+      const events = db.prepare("SELECT revision, action, actor_hash AS actor, at FROM bot_learning_events WHERE entry_id = ? AND bot_id = ? AND generation = ? ORDER BY revision")
+        .all(id, botId, generation) as Array<{ revision: number; action: string; actor: string; at: number }>;
+      return { events, complete: events.length === row.revision && events.every((event, index) => event.revision === index + 1) };
     },
     prompt(botId: string): string {
       const generation = access.botGeneration(botId);

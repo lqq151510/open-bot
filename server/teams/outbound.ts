@@ -2,7 +2,9 @@ export interface TeamsReplyTarget {
   appId: string;
   tenantId: string;
   botId: string;
+  botGeneration: string;
   memberId: string;
+  memberGeneration: string;
   conversationId: string;
   activityId: string;
   serviceUrl: string;
@@ -16,7 +18,9 @@ export interface TeamsReplyActor {
   appId: string;
   tenantId: string;
   botId: string;
+  botGeneration: string;
   memberId: string;
+  memberGeneration: string;
 }
 
 export interface TeamsOutboundDependencies<Caller> {
@@ -30,12 +34,12 @@ export interface TeamsOutboundDependencies<Caller> {
   timeoutMs?: number;
 }
 
-function pathId(value: string): boolean {
-  return value.length > 0 && value.length <= 512 && value !== "." && value !== ".." && [...value].every((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127);
+function pathId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 512 && value !== "." && value !== ".." && [...value].every((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127);
 }
 
 function sameActor(a: TeamsReplyActor, b: TeamsReplyActor): boolean {
-  return a.appId === b.appId && a.tenantId === b.tenantId && a.botId === b.botId && a.memberId === b.memberId;
+  return a.appId === b.appId && a.tenantId === b.tenantId && a.botId === b.botId && a.botGeneration === b.botGeneration && a.memberId === b.memberId && a.memberGeneration === b.memberGeneration;
 }
 
 function sameTarget(a: TeamsReplyTarget, b: TeamsReplyTarget): boolean {
@@ -59,7 +63,7 @@ export function createTeamsOutbound<Caller>(deps: TeamsOutboundDependencies<Call
     if (Buffer.byteLength(body, "utf8") > 28 * 1024) return { state: "invalid" };
     let actor: TeamsReplyActor | null;
     try { actor = await deps.authenticateCaller(caller); } catch { return { state: "unavailable" }; }
-    if (!actor || actor.appId !== deps.appId || !actor.tenantId || !actor.botId || !actor.memberId) return { state: "unauthorized" };
+    if (!actor || actor.appId !== deps.appId || !actor.tenantId || !actor.botId || !actor.memberId || !pathId(actor.botGeneration) || !pathId(actor.memberGeneration)) return { state: "unauthorized" };
     actor = { ...actor };
     let target: TeamsReplyTarget | null;
     try { target = await deps.resolveTarget(referenceId); } catch { return { state: "unavailable" }; }

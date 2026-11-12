@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it } from "vitest";
 import { createBotLearnings } from "./bot-learnings.ts";
 import type { TeamMemoryInput } from "./team-memory.ts";
@@ -90,6 +91,48 @@ it("refuses a rejected privacy check both on proposal and on an edited approval"
   expect(() => s.store.resolve("a", "manager", item.id, 1, "accept", { ...sample, detail: "private data" })).toThrow("cannot be shared");
   expect(s.store.prompt("a")).toBe("");
   expect(s.store.list("a", "manager")).toMatchObject([{ state: "proposed", revision: 1 }]);
+  s.store.close();
+});
+
+it("keeps private audit events with the decision, scoped to the bot and authorized reviewer", () => {
+  const s = setup();
+  const item = s.store.propose("a", "member", sample);
+  s.store.resolve("a", "manager", item.id, item.revision, "accept");
+  const history = s.store.history("a", "manager", item.id);
+  expect(history).toMatchObject({ complete: true, events: [{ revision: 1, action: "proposed" }, { revision: 2, action: "accepted" }] });
+  const output = JSON.stringify(history);
+  expect(output).not.toContain("member");
+  expect(output).not.toContain("manager");
+  expect(output).not.toContain(sample.detail);
+  expect(() => s.store.history("a", "member", item.id)).toThrow("No such bot or access");
+  expect(() => s.store.history("b", "manager", item.id)).toThrow("No such learning");
+  expect(() => s.store.resolve("a", "manager", item.id, 1, "accept")).toThrow("changed");
+  s.store.close();
+  const reopened = createBotLearnings(s.file, s.access);
+  expect(reopened.history("a", "manager", item.id)).toEqual(history);
+  reopened.close();
+});
+
+it("marks a legacy learning with missing audit events as incomplete", () => {
+  const s = setup();
+  const item = s.store.propose("a", "member", sample);
+  const db = new DatabaseSync(s.file);
+  db.prepare("DELETE FROM bot_learning_events WHERE entry_id = ?").run(item.id);
+  expect(s.store.history("a", "manager", item.id)).toEqual({ complete: false, events: [] });
+  db.close();
+  s.store.close();
+});
+
+it("rolls back a review if its audit event cannot be persisted", () => {
+  const s = setup();
+  const item = s.store.propose("a", "member", sample);
+  const db = new DatabaseSync(s.file);
+  db.exec("CREATE TRIGGER fail_learning_audit BEFORE INSERT ON bot_learning_events BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+  expect(() => s.store.resolve("a", "manager", item.id, item.revision, "accept")).toThrow();
+  expect(s.store.prompt("a")).toBe("");
+  expect(s.store.list("a", "manager")).toMatchObject([{ id: item.id, state: "proposed", revision: 1 }]);
+  expect(s.store.history("a", "manager", item.id)).toMatchObject({ complete: true, events: [{ action: "proposed" }] });
+  db.close();
   s.store.close();
 });
 

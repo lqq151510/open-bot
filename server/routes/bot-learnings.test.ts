@@ -41,6 +41,10 @@ it("requires explicit sharing and manager review before the bot can read a propo
   const id = proposed.body.entry.id;
   expect((await f.call("manager", "PATCH", `/${id}`, { revision: 1, action: "accept" })).status).toBe(200);
   expect(f.learnings.prompt("a")).toContain("Review Fridays");
+  expect((await f.call("member", "GET", `/${id}`)).status).toBe(404);
+  const history = await f.call("manager", "GET", `/${id}`);
+  expect(history.body.history).toMatchObject({ complete: true, events: [{ action: "proposed", revision: 1 }, { action: "accepted", revision: 2 }] });
+  expect(JSON.stringify(history.body)).not.toContain(item.detail);
   f.learnings.close();
 });
 

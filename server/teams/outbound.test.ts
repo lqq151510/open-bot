@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTeamsOutbound, type TeamsOutboundDependencies, type TeamsReplyTarget } from "./outbound.ts";
+import { createTeamsOutbound, type TeamsOutboundDependencies, type TeamsReplyActor, type TeamsReplyTarget } from "./outbound.ts";
 
 function setup() {
   const target: TeamsReplyTarget = {
-    appId: "app", tenantId: "tenant", botId: "bot", memberId: "member",
+    appId: "app", tenantId: "tenant", botId: "bot", botGeneration: "bot-gen-1", memberId: "member", memberGeneration: "member-gen-1",
     conversationId: "19:team/room@thread", activityId: "activity:123", serviceUrl: "https://teams.example/region/",
   };
   const calls = {
-    authenticateCaller: vi.fn(async (_caller: string) => ({ appId: "app", tenantId: "tenant", botId: "bot", memberId: "member" })),
+    authenticateCaller: vi.fn(async (_caller: string) => ({ appId: "app", tenantId: "tenant", botId: "bot", botGeneration: "bot-gen-1", memberId: "member", memberGeneration: "member-gen-1" }) as TeamsReplyActor | null),
     resolveTarget: vi.fn(async () => target as TeamsReplyTarget | null),
     authorize: vi.fn(async () => true),
     accessToken: vi.fn(async () => "fixture-token"),
@@ -34,6 +34,51 @@ describe("Teams replies", () => {
     target.serviceUrl = "https://attacker.example/";
     expect(await send("session", "ref", "Hello")).toEqual({ state: "invalid" });
     expect(calls.accessToken).not.toHaveBeenCalled();
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects guessed references belonging to another member or tenant", async () => {
+    const { target, calls, send } = setup();
+    target.memberId = "other";
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    target.memberId = "member";
+    target.tenantId = "other-tenant";
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    expect(calls.accessToken).not.toHaveBeenCalled();
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["botGeneration", "memberGeneration"] as const)("rejects an old reference after %s changes", async (generation) => {
+    const { calls, send } = setup();
+    calls.authenticateCaller.mockResolvedValueOnce({ appId: "app", tenantId: "tenant", botId: "bot", botGeneration: "bot-gen-1", memberId: "member", memberGeneration: "member-gen-1", [generation]: "new-generation" });
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    expect(calls.accessToken).not.toHaveBeenCalled();
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a missing generation instead of accepting a legacy reference", async () => {
+    const { calls, send } = setup();
+    calls.authenticateCaller.mockResolvedValueOnce({ appId: "app", tenantId: "tenant", botId: "bot", memberId: "member" } as TeamsReplyActor);
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it("checks the session, target and permission again after obtaining a token", async () => {
+    const { target, calls, send } = setup();
+    calls.accessToken.mockImplementationOnce(async () => { target.memberId = "other"; return "fixture-token"; });
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    target.memberId = "member";
+    calls.authenticateCaller.mockResolvedValueOnce({ appId: "app", tenantId: "tenant", botId: "bot", botGeneration: "bot-gen-1", memberId: "member", memberGeneration: "member-gen-1" }).mockResolvedValueOnce(null);
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    calls.authorize.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
+    expect(calls.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Bot replacement between authorization and delivery", async () => {
+    const { target, calls, send } = setup();
+    calls.accessToken.mockImplementationOnce(async () => { target.botGeneration = "bot-gen-2"; return "fixture-token"; });
+    expect(await send("session", "ref", "Hello")).toEqual({ state: "unauthorized" });
     expect(calls.fetch).not.toHaveBeenCalled();
   });
 
