@@ -6,7 +6,7 @@ import { LEAVE_ACTION, liveCard, notesCard } from "./cards.ts";
 import type { MeetingRecord } from "./manager.ts";
 
 const record = (over: Partial<MeetingRecord> = {}): MeetingRecord => ({
-  id: "m-1", botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", platform: "meet", url: "https://meet.google.com/abc-defg-hij", createdAt: 0,
+  id: "m-1", botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", platform: "meet", linkDigest: "fixture-digest", createdAt: 0,
   phase: "lobby", others: 0, attendees: [], lines: 0, seq: 0, speech: "eleven", questions: 0, ...over,
 });
 

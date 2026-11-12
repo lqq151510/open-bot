@@ -1,6 +1,6 @@
 // Meetings a bot is in: their records, a reader per meeting that follows its events on the cloud computer, and what the
 // events do here (the live card, @notes questions, speech tokens, the notes turn at the end).
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -21,7 +21,7 @@ export interface MeetingRecord {
   owner: string;
   boxId?: string;
   platform: MeetingPlatform;
-  url: string;
+  linkDigest: string;
   note?: string;
   createdAt: number;
   phase: MeetingPhase;
@@ -79,13 +79,14 @@ const INLINE_CHARS = 60_000;
 export const LOCAL_OFFER = "To transcribe on the cloud computer itself instead (slower, set up once, about a minute), ask me to join again with local transcription.";
 /** Read through a function: a handled event changes the phase under a narrowed check. */
 const isEnded = (record: MeetingRecord) => record.phase === "ended";
+const meetingLinkDigest = (url: string) => createHash("sha256").update(url).digest("hex");
 
 export class MeetingError extends Error {}
 
 export function createMeetings(deps: MeetingDeps) {
   const now = deps.now ?? Date.now;
   const folder = join(deps.dataDir, "meetings");
-  mkdirSync(folder, { recursive: true });
+  mkdirSync(folder, { recursive: true, mode: 0o700 });
   const records = new Map<string, MeetingRecord>();
   const readers = new Map<string, Promise<void>>();
   const sends = new Map<string, (result: { ok: boolean; error?: string }) => void>();
@@ -93,9 +94,17 @@ export function createMeetings(deps: MeetingDeps) {
   const chains = new Map<string, Promise<void>>();
   let closed = false;
 
+  let migratedLinks = false;
   try {
-    const saved = JSON.parse(readFileSync(join(folder, FILE), "utf8")) as { meetings?: MeetingRecord[] };
-    for (const record of saved.meetings ?? []) records.set(record.id, record);
+    const saved = JSON.parse(readFileSync(join(folder, FILE), "utf8")) as { meetings?: Array<MeetingRecord & { url?: string }> };
+    for (const savedRecord of saved.meetings ?? []) {
+      const { url, ...record } = savedRecord;
+      if (typeof url === "string") {
+        record.linkDigest = meetingLinkDigest(url);
+        migratedLinks = true;
+      }
+      records.set(record.id, record);
+    }
   } catch { /* first start */ }
   const before = new Set(records.keys());
 
@@ -103,8 +112,10 @@ export function createMeetings(deps: MeetingDeps) {
     const all = [...records.values()].sort((a, b) => a.createdAt - b.createdAt);
     const ended = all.filter((record) => record.phase === "ended");
     for (const old of ended.slice(0, Math.max(0, ended.length - KEEP_ENDED))) records.delete(old.id);
-    writeFileAtomic(join(folder, FILE), JSON.stringify({ meetings: [...records.values()] }));
+    writeFileAtomic(join(folder, FILE), JSON.stringify({ meetings: [...records.values()] }), { mode: 0o600 });
   }
+
+  if (migratedLinks) save();
 
   const transcriptFile = (id: string) => join(folder, `${id}.jsonl`);
 
@@ -211,11 +222,11 @@ export function createMeetings(deps: MeetingDeps) {
         deps.card.update(record);
         break;
       case "segment":
-        appendFileSync(transcriptFile(record.id), JSON.stringify({ speaker: event.speaker, text: event.text, start: event.start, end: event.end }) + "\n");
+        appendFileSync(transcriptFile(record.id), JSON.stringify({ speaker: event.speaker, text: event.text, start: event.start, end: event.end }) + "\n", { mode: 0o600 });
         record.lines += 1;
         break;
       case "chat":
-        appendFileSync(transcriptFile(record.id), JSON.stringify({ speaker: event.from, text: event.text, start: event.at, end: event.at, chat: true }) + "\n");
+        appendFileSync(transcriptFile(record.id), JSON.stringify({ speaker: event.from, text: event.text, start: event.at, end: event.at, chat: true }) + "\n", { mode: 0o600 });
         break;
       case "question":
         record.questions += 1;
@@ -283,7 +294,7 @@ export function createMeetings(deps: MeetingDeps) {
     readers.set(record.id, reading);
   }
 
-  async function begin(record: MeetingRecord, person: string | undefined): Promise<void> {
+  async function begin(record: MeetingRecord, person: string | undefined, link: string): Promise<void> {
     try {
       const speech = deps.speech(record);
       record.speech = speech.kind;
@@ -299,15 +310,15 @@ export function createMeetings(deps: MeetingDeps) {
       record.boxId = computer.boxId;
       save();
       await deps.engine.join(deps.computer(computer.boxId), {
-        id: record.id, url: record.url, platform: record.platform, name: meetingDisplayName(record.botName), consent: consentLine(record.botName, person),
+        id: record.id, url: link, platform: record.platform, name: meetingDisplayName(record.botName), consent: consentLine(record.botName, person),
         speech: grant, maxMs: MEETING_MAX_MS, lobbyMs: MEETING_LOBBY_MS, aloneMs: MEETING_ALONE_MS,
       });
       record.phase = "joining";
       save();
       deps.card.update(record);
       follow(record);
-    } catch (error) {
-      end(record, "join_failed", error instanceof Error ? error.message : String(error));
+    } catch {
+      end(record, "join_failed", "The meeting bot could not start. Try joining again.");
     }
   }
 
@@ -322,17 +333,18 @@ export function createMeetings(deps: MeetingDeps) {
     join(input: { botId: string; botName: string; threadId: string; owner: string; link: string; note?: string; person?: string; local?: boolean }): { record: MeetingRecord; already: boolean } {
       const link = parseMeetingLink(input.link);
       if (!link.ok) throw new MeetingError(link.error);
-      const running = [...records.values()].find((record) => record.botId === input.botId && record.phase !== "ended" && record.url === link.url);
+      const digest = meetingLinkDigest(link.url);
+      const running = [...records.values()].find((record) => record.botId === input.botId && record.phase !== "ended" && record.linkDigest === digest);
       if (running) return { record: running, already: true };
       const record: MeetingRecord = {
         id: `m-${randomUUID()}`, botId: input.botId, botName: input.botName, threadId: input.threadId, owner: input.owner,
-        platform: link.platform, url: link.url, ...(input.note?.trim() ? { note: input.note.trim().slice(0, 200) } : {}),
+        platform: link.platform, linkDigest: digest, ...(input.note?.trim() ? { note: input.note.trim().slice(0, 200) } : {}),
         createdAt: now(), phase: "starting", others: 0, attendees: [], lines: 0, seq: 0, speech: "whisper", questions: 0, ...(input.local ? { local: true } : {}),
       };
       records.set(record.id, record);
       record.cardMessageId = deps.card.show(record) ?? undefined;
       save();
-      void begin(record, input.person);
+      void begin(record, input.person, link.url);
       return { record, already: false };
     },
 

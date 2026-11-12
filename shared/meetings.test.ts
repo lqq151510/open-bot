@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { consentLine, findMeetingLink, parseMeetingLink, ZOOM_NOT_SUPPORTED } from "./meetings.ts";
+import { consentLine, findMeetingLink, parseMeetingLink } from "./meetings.ts";
 
 describe("meeting links", () => {
-  it("knows Google Meet, Microsoft Teams and Jitsi links", () => {
+  it("knows Google Meet, Microsoft Teams, Zoom and Jitsi links", () => {
     expect(parseMeetingLink("https://meet.google.com/abc-defg-hij")).toMatchObject({ ok: true, platform: "meet" });
     expect(parseMeetingLink("https://meet.google.com/meet/abc-defg-hij")).toMatchObject({ ok: true, platform: "meet" });
     expect(parseMeetingLink("https://teams.microsoft.com/l/meetup-join/19%3ameeting_x%40thread.v2/0?context=%7b%7d")).toMatchObject({ ok: true, platform: "teams" });
     expect(parseMeetingLink("https://teams.live.com/meet/9381234567890?p=abcdef")).toMatchObject({ ok: true, platform: "teams" });
+    expect(parseMeetingLink("https://us02web.zoom.us/j/123456789?pwd=x")).toMatchObject({ ok: true, platform: "zoom" });
+    expect(parseMeetingLink("https://zoom.us/j/987654321")).toMatchObject({ ok: true, platform: "zoom" });
     expect(parseMeetingLink("https://meet.systemli.org/weeklysync")).toMatchObject({ ok: true, platform: "jitsi" });
     expect(parseMeetingLink("https://meet.jit.si/OurStandup")).toMatchObject({ ok: true, platform: "jitsi" });
   });
 
-  it("answers a Zoom link plainly and refuses anything else", () => {
-    expect(parseMeetingLink("https://us02web.zoom.us/j/123456789?pwd=x")).toEqual({ ok: false, error: ZOOM_NOT_SUPPORTED });
-    for (const link of ["http://meet.google.com/abc-defg-hij", "https://meet.google.com/", "https://evil.example/abc-defg-hij", "https://user:pw@meet.jit.si/x", "not a link"]) {
+  it("refuses invalid or non-meeting links", () => {
+    for (const link of ["http://meet.google.com/abc-defg-hij", "https://meet.google.com/", "https://evil.example/abc-defg-hij", "https://user:pw@meet.jit.si/x", "https://zoom.us/about", "not a link"]) {
       expect(parseMeetingLink(link).ok).toBe(false);
     }
   });

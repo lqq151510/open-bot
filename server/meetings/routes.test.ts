@@ -12,7 +12,7 @@ const bot = { id: "b1", name: "Ada", color: "blue" } as unknown as OutboundHoldB
 
 function record(over: Partial<MeetingRecord> = {}): MeetingRecord {
   return {
-    id: "m-1", botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", boxId: "bx", platform: "jitsi", url: "https://meet.jit.si/x", createdAt: 0,
+    id: "m-1", botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", boxId: "bx", platform: "jitsi", linkDigest: "fixture-digest", createdAt: 0,
     phase: "in_meeting", joinedAt: 60_000, others: 2, attendees: ["Alice", "Bob"], lines: 1, seq: 4, speech: "eleven", questions: 0, ...over,
   };
 }
@@ -94,6 +94,17 @@ describe("meeting routes", () => {
     expect(card.children.map((node) => node.value)).toEqual(expect.arrayContaining(["We agreed.", "• Launch on the 20th.", "• Bob: Fix the bugs (by Wednesday)", "Alice, Bob"]));
     expect(name).toMatch(/Sync transcript\.md$/);
     expect(ended.meetings.notesPosted).toHaveBeenCalledWith("m-1", "b1", "notes-1");
+  });
+
+  it("does not echo the supplied meeting link or its digest in tool responses", async () => {
+    const { call, meetings } = setup(record({ phase: "starting" }));
+    const link = "https://meet.jit.si/x?pwd=fixture-secret";
+    const joined = await call("join", { link });
+    expect(meetings.join).toHaveBeenCalledWith(expect.objectContaining({ link }));
+    expect(JSON.stringify(joined)).not.toContain("fixture-secret");
+    const status = await call("status", { meeting_id: "m-1" });
+    expect(JSON.stringify(status)).not.toContain("fixture-secret");
+    expect(JSON.stringify(status)).not.toContain("fixture-digest");
   });
 
   it("joins, or sets up the calendar routine, and leaves other paths alone", async () => {

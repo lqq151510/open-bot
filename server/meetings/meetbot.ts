@@ -18,7 +18,7 @@ import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type MeetbotPlatform = "meet" | "teams" | "jitsi";
+export type MeetbotPlatform = "meet" | "teams" | "jitsi" | "zoom";
 /** `chunks`: the server transcribes (Groq, OpenAI): utterances go out as `audio` events and their words come back with `put`. */
 export type MeetbotStt = { kind: "eleven"; token: string; language?: string; rotateMs?: number } | { kind: "chunks" } | { kind: "whisper" };
 
@@ -492,6 +492,40 @@ export const ADAPTERS: Record<MeetbotPlatform, Adapter> = {
     composer: { css: '[data-tid="ckeditor"] [contenteditable="true"], [data-tid="ckeditor"][contenteditable="true"], div[contenteditable="true"][role="textbox"]' },
     leave: { css: '#hangup-button, button[data-tid="hangup-main-btn"], button[data-tid="call-hangup"]' },
   },
+  zoom: {
+    url: (link) => {
+      const url = new URL(link);
+      const m = /\/j\/(\d+)/.exec(url.pathname);
+      if (m) url.pathname = `/wc/${m[1]}/join`;
+      return url.toString();
+    },
+    async prejoin(page, name, until) {
+      const nameField: Spec = { css: '#input-for-name, input#inputname, input[placeholder*="name" i], input[aria-label*="name" i]' };
+      const joinBtn: Spec = { css: 'button.preview-join-button, button', text: "^(join|join meeting)\\b" };
+      while (Date.now() < until) {
+        const probe = await page.probe();
+        if (probe.notFound) return "not_found";
+        if (probe.blocked) return "guests_blocked";
+        await page.click({ css: "a, button", text: "join from your browser" });
+        if (await page.exists(nameField)) break;
+        await sleep(1_000);
+      }
+      if (!(await page.type(nameField, name))) return "join_failed";
+      await sleep(300);
+      for (const toggle of KEEP_MUTED) await page.click(toggle);
+      await sleep(500);
+      if (!(await page.click(joinBtn))) await page.enter();
+    },
+    async settle(page) {
+      await page.click({ css: "button", text: "^join audio by computer\\b" });
+      for (let i = 0; i < 3; i++) {
+        if (!(await page.click({ within: '[role="dialog"],[role="alertdialog"]', css: "button", text: "^(got it|dismiss|close|ok)\\b" }))) break;
+      }
+    },
+    chatToggle: { css: 'button[aria-label*="chat" i], button.footer-button-base__chat-btn' },
+    composer: { css: 'textarea.chat-box__chat-textarea, textarea[placeholder*="message" i], div[role="textbox"]' },
+    leave: { css: 'button[aria-label*="End" i], button[aria-label*="Leave" i], button.footer__leave-btn' },
+  },
 };
 
 export async function sendChat(page: CallPage, adapter: Adapter, text: string): Promise<boolean> {
@@ -964,8 +998,14 @@ function inbox(dir: string) {
   };
 }
 
+export function takeMeetingConfig(dir: string): MeetbotConfig {
+  const file = join(dir, "config.json");
+  try { return JSON.parse(readFileSync(file, "utf8")) as MeetbotConfig; }
+  finally { rmSync(file, { force: true }); }
+}
+
 async function run(dir: string): Promise<void> {
-  const config: MeetbotConfig = JSON.parse(readFileSync(join(dir, "config.json"), "utf8"));
+  const config = takeMeetingConfig(dir);
   const emit = eventLog(dir);
   const log = (line: string) => appendFileSync(join(dir, "bot.log"), `[${new Date().toISOString()}] ${line}\n`);
   writeFileSync(join(dir, "state.json"), JSON.stringify({ pid: process.pid, startedAt: Date.now() }));

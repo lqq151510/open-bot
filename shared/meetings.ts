@@ -1,8 +1,13 @@
 // Meeting notes: a bot joins an online meeting as a guest on its cloud computer, transcribes it and writes notes.
 
-export type MeetingPlatform = "meet" | "teams" | "jitsi";
+export type MeetingPlatform = "meet" | "teams" | "jitsi" | "zoom";
 
-export const MEETING_PLATFORM_NAMES: Record<MeetingPlatform, string> = { meet: "Google Meet", teams: "Microsoft Teams", jitsi: "Jitsi Meet" };
+export const MEETING_PLATFORM_NAMES: Record<MeetingPlatform, string> = {
+  meet: "Google Meet",
+  teams: "Microsoft Teams",
+  jitsi: "Jitsi Meet",
+  zoom: "Zoom",
+};
 
 /** Why a meeting ended, as the bot on the cloud computer reports it. */
 export type MeetingEndReason = "left" | "stop_requested" | "meeting_ended" | "removed" | "denied" | "lobby_timeout" | "guests_blocked" | "meet_refused"
@@ -32,9 +37,11 @@ export const END_REASON_TEXT: Record<MeetingEndReason, string> = {
 export type MeetingLink = { ok: true; platform: MeetingPlatform; url: string } | { ok: false; error: string };
 
 export const ZOOM_NOT_SUPPORTED = "Zoom meetings aren't supported yet. I can join Google Meet, Microsoft Teams and Jitsi links.";
-const NOT_A_MEETING = "That doesn't look like a Google Meet, Microsoft Teams or Jitsi meeting link.";
+const NOT_A_MEETING = "That doesn't look like a Google Meet, Microsoft Teams, Zoom or Jitsi meeting link.";
 const MEET_CODE = /^\/(?:meet\/)?[a-z]{3}-[a-z]{4}-[a-z]{3}\/?$/i;
 const JITSI_HOSTS = /(^|\.)jit\.si$|^8x8\.vc$|^meet\.systemli\.org$|(^|\.)jitsi\./i;
+const ZOOM_HOSTS = /(^|\.)zoom\.(us|com)$|(^|\.)zoomgov\.com$/i;
+const ZOOM_PATH = /^\/(?:j|my|wc(?:\/join)?)\/(\d+)/i;
 
 export function parseMeetingLink(raw: string): MeetingLink {
   let url: URL;
@@ -45,7 +52,9 @@ export function parseMeetingLink(raw: string): MeetingLink {
   }
   if (url.protocol !== "https:" || url.username || url.password) return { ok: false, error: NOT_A_MEETING };
   const host = url.hostname.toLowerCase();
-  if (/(^|\.)zoom\.(us|com)$|(^|\.)zoomgov\.com$/.test(host)) return { ok: false, error: ZOOM_NOT_SUPPORTED };
+  if (ZOOM_HOSTS.test(host)) {
+    return ZOOM_PATH.test(url.pathname) ? { ok: true, platform: "zoom", url: url.toString() } : { ok: false, error: NOT_A_MEETING };
+  }
   if (host === "meet.google.com") {
     return MEET_CODE.test(url.pathname) || url.pathname.startsWith("/lookup/") ? { ok: true, platform: "meet", url: url.toString() } : { ok: false, error: NOT_A_MEETING };
   }
@@ -88,7 +97,7 @@ export const MEETING_ROUTINE = {
   prompt: [
     "Check my Google Calendar for meetings that start in the next 12 minutes or started less than 5 minutes ago.",
     "Skip all-day events, cancelled ones and ones I declined.",
-    "For each one with a Google Meet or Microsoft Teams link (look at the conference link, the location and the description), call join_meeting with that link and the event title as the note.",
+    "For each one with a Google Meet, Microsoft Teams or Zoom link (look at the conference link, the location and the description), call join_meeting with that link and the event title as the note.",
     "join_meeting answers that you are already there for a meeting you joined, so calling it again is safe.",
     "If there is nothing to join, finish without a message.",
   ].join(" "),

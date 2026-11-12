@@ -13,6 +13,7 @@ export interface BotManagersRouteDeps {
   bot(id: string): BotRecord | null | undefined;
   canSee(auth: RequestAuth, id: string): boolean;
   isCurrentSession(email: string, id: string): boolean;
+  currentTeamRole(email: string, id: string): "owner" | "admin" | "member" | null;
   candidates(): Array<{ email: string; membershipId: string }>;
   managers: ReturnType<typeof createBotManagers>;
 }
@@ -24,8 +25,11 @@ export function createBotManagersRoutes(deps: BotManagersRouteDeps): RouteHandle
     if (!deps.isCurrentSession(email, auth.session.id) || !deps.canSee(auth, id)) return false;
     const bot = deps.bot(id);
     if (!bot || bot.defaultBot?.person) return false;
-    const admin = auth.scopes.includes("admin") && (auth.session.teamRole === "owner" || auth.session.teamRole === "admin");
-    return admin;
+    if (!auth.scopes.includes("admin") || (auth.session.teamRole !== "owner" && auth.session.teamRole !== "admin")) return false;
+    try {
+      const role = deps.currentTeamRole(email, auth.session.id);
+      return role === "owner" || role === "admin";
+    } catch { return false; }
   };
   return async ({ path, method, auth, res, json, readBody, req }) => {
     const match = PATH.exec(path);

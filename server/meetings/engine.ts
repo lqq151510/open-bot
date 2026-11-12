@@ -103,9 +103,14 @@ export function createBotEngine(source: () => { text: string; file: string } = b
         url: start.url, platform: start.platform, name: start.name, consent: start.consent, stt: speech(start.speech),
         maxMs: start.maxMs, lobbyMs: start.lobbyMs, aloneMs: start.aloneMs,
       };
-      await must(computer, `mkdir -p ${dir} && printf %s ${Buffer.from(JSON.stringify(config)).toString("base64")} | base64 -d > ${dir}/config.json && chmod 600 ${dir}/config.json`, "Setting up the meeting");
-      const started = await computer.start(`cd "$HOME" && exec node ${file} run ${dir} >> ${dir}/stdout.log 2>&1`);
-      if (!started.ok) throw new MeetingEngineError(started.error);
+      try {
+        await must(computer, `umask 077 && mkdir -p ${dir} && printf %s ${Buffer.from(JSON.stringify(config)).toString("base64")} | base64 -d > ${dir}/config.json && chmod 600 ${dir}/config.json`, "Setting up the meeting");
+        const started = await computer.start(`cd "$HOME" && exec node ${file} run ${dir} >> ${dir}/stdout.log 2>&1`);
+        if (!started.ok) throw new MeetingEngineError(started.error);
+      } catch (error) {
+        await computer.run(`rm -f ${dir}/config.json`, 30_000).catch(() => {});
+        throw error;
+      }
     },
     async events(computer, id, after, waitSeconds) {
       const bot = source();

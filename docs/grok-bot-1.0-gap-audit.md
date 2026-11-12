@@ -7,7 +7,7 @@
 | 团队 Bot、成员权限及私聊 | `shared/bot-access.ts`、`server/cloud-team-bot-access.e2e.test.ts`、`server/cloud-team-private.e2e.test.ts` | 隔离团队中验证共享范围、成员权限和私聊隔离。 |
 | 团队共享连接器 | `server/host/team-connections-host.ts`、`shared/connector-scopes.ts` | 确认是否支持管理员启用后的个人账号共享、授权撤销及调用归属；不能将现有权限代码直接视为完整实现。 |
 | 团队学习审核 | Team Cloud 共享记忆提案已改为等待审核；隔离测试覆盖管理员批准、成员访问限制，以及批准和拒绝后的上下文。个人模式仍允许原有直接应用 | 补齐 Bot Manager 审核、私聊中的安全提案和团队技能审核；进一步核验冲突和撤销。技能审核不等同于团队记忆审核。 |
-| 会议：Google Meet、Teams、Zoom | `shared/meetings.ts` 支持 Meet、Teams、Jitsi 链接，明确拒绝 Zoom；`server/drivers/agents-meeting-tools.ts` 定义会议工具 | 在隔离会议中核验入会、告知、聊天、离会与摘要；Zoom 需实现并验证完整流程。 |
+| 会议：Google Meet、Teams、Zoom | `shared/meetings.ts` 与 `server/meetings/meetbot.ts` 已支持 Meet、Teams、Zoom 与 Jitsi 链接解析与 prejoin 适配；`server/drivers/agents-meeting-tools.ts` 定义全套会议工具 | 单元测试全绿；在沙箱隔离环境中持续核验入会、告知、聊天、离会与摘要。 |
 | Microsoft Teams 消息中的团队 Bot | 团队和会议代码不能证明 Teams 消息集成 | 核对连接器、管理员授权、消息路由与回复归属，再实施。 |
 | 主动建议与跟进 | `server/host/proactive.ts` 和 `server/host/helper-suggestion.ts` | 验证建议来源、去重、授权、停用及未完成事项跟进，不把建议等同于自行执行。 |
 | 语音速度 0.5×–2× | `server/live-config.ts`、`server/routes/live.ts`、`src/lib/live-call-media.ts` 当前限制为 0.75×–1.5× | 先验证实时流在目标浏览器和 Electron 上的变速机制，再统一界面、校验、持久化和播放；不能仅放宽数字范围。 |

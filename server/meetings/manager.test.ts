@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -47,6 +47,60 @@ const at = (seq: number) => ({ seq, at: 1_000 + seq });
 const until = async (check: () => boolean) => { for (let i = 0; i < 200 && !check(); i++) await new Promise((resolve) => setTimeout(resolve, 5)); };
 
 describe("meetings", () => {
+  it("keeps the full link only for joining while retaining deduplication after restart", async () => {
+    const link = MEET + "?pwd=fixture-secret#private-fragment";
+    const engine = scriptedEngine([]);
+    engine.join = vi.fn(() => new Promise<void>(() => {}));
+    const { meetings, deps, dataDir } = setup(engine);
+    const input = { botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link };
+    const first = meetings.join(input);
+    await until(() => vi.mocked(engine.join).mock.calls.length > 0);
+    expect(engine.join).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ url: link }));
+    const path = join(dataDir, "meetings", "meetings.json");
+    const disk = readFileSync(path, "utf8");
+    expect(disk).not.toContain("fixture-secret");
+    expect(disk).not.toContain("private-fragment");
+    expect(JSON.stringify(first.record)).not.toContain(link);
+    if (process.platform !== "win32") expect(statSync(path).mode & 0o777).toBe(0o600);
+    const restarted = createMeetings(deps);
+    expect(restarted.join(input)).toMatchObject({ already: true, record: { id: first.record.id } });
+    meetings.close();
+    restarted.close();
+  });
+
+  it("removes links from older records while preserving duplicate detection", () => {
+    const engine = scriptedEngine([]);
+    engine.join = vi.fn(() => new Promise<void>(() => {}));
+    const { meetings, deps, dataDir } = setup(engine);
+    const link = MEET + "?pwd=legacy-secret";
+    const input = { botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link };
+    const first = meetings.join(input);
+    const path = join(dataDir, "meetings", "meetings.json");
+    const saved = JSON.parse(readFileSync(path, "utf8")) as { meetings: Array<Record<string, unknown>> };
+    delete saved.meetings[0]!.linkDigest;
+    saved.meetings[0]!.url = link;
+    writeFileSync(path, JSON.stringify(saved));
+    const restarted = createMeetings(deps);
+    expect(readFileSync(path, "utf8")).not.toContain("legacy-secret");
+    expect(restarted.join(input)).toMatchObject({ already: true, record: { id: first.record.id } });
+    meetings.close();
+    restarted.close();
+  });
+
+  it("does not expose an engine failure containing the link", async () => {
+    const link = MEET + "?pwd=error-secret";
+    const engine = scriptedEngine([]);
+    engine.join = vi.fn(async () => { throw new Error(`Could not open ${link}`); });
+    const { meetings, said, dataDir } = setup(engine);
+    const { record } = meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link });
+    await until(() => record.phase === "ended");
+    expect(record.endReason).toBe("join_failed");
+    expect(JSON.stringify(record)).not.toContain("error-secret");
+    expect(said.join(" ")).not.toContain("error-secret");
+    expect(readFileSync(join(dataDir, "meetings", "meetings.json"), "utf8")).not.toContain("error-secret");
+    meetings.close();
+  });
+
   it("follows a meeting: questions become fenced turns, tokens are supplied, and the end asks for notes", async () => {
     const engine = scriptedEngine([
       [{ ...at(1), type: "phase", phase: "in_meeting" }, { ...at(2), type: "participants", others: 2, names: ["Alice", "Bob"] }],
@@ -67,6 +121,7 @@ describe("meetings", () => {
     expect(record).toMatchObject({ phase: "ended", endReason: "meeting_ended", attendees: ["Alice", "Bob"], lines: 1, questions: 1 });
     expect(cards).toContain("in_meeting");
     expect(JSON.parse(readFileSync(join(dataDir, "meetings", "meetings.json"), "utf8")).meetings[0].id).toBe(record.id);
+    if (process.platform !== "win32") expect(statSync(join(dataDir, "meetings", `${record.id}.jsonl`)).mode & 0o777).toBe(0o600);
   });
 
   it("says plainly why it never got in, and asks for no notes", async () => {
@@ -90,11 +145,27 @@ describe("meetings", () => {
     expect(meetings.keepsAwake("b1")).toBe(false);
   });
 
-  it("refuses a Zoom link before it touches any computer", () => {
-    const computerFor = vi.fn();
+  it("joins a Zoom link on the computer", async () => {
+    const computerFor = vi.fn(async () => ({ boxId: "bx_test" }));
     const { meetings } = setup(scriptedEngine([]), { computerFor });
-    expect(() => meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link: "https://zoom.us/j/1" })).toThrow(/Zoom meetings aren't supported yet/);
-    expect(computerFor).not.toHaveBeenCalled();
+    const { record } = meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link: "https://zoom.us/j/123456789" });
+    expect(record.platform).toBe("zoom");
+    await until(() => computerFor.mock.calls.length > 0);
+    expect(computerFor).toHaveBeenCalled();
+  });
+
+  it("tries to remove remote config when the meeting bot cannot start", async () => {
+    const commands: string[] = [];
+    const computer: MeetingComputer = {
+      run: async (command) => { commands.push(command); return { ok: true, stdout: "", stderr: "" }; },
+      start: async () => ({ ok: false, error: "fixture start failure" }),
+    };
+    const engine = createBotEngine(() => ({ text: "console.log(1)", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
+    await expect(engine.join(computer, {
+      id: "m-12345678", url: MEET + "?pwd=fixture-secret", platform: "meet", name: "Ada (notes)", consent: "Notice",
+      speech: { kind: "whisper" }, maxMs: 10, lobbyMs: 10, aloneMs: 10,
+    })).rejects.toThrow("fixture start failure");
+    expect(commands.at(-1)).toMatch(/^rm -f .*\/config\.json$/);
   });
 
   it("never puts the speech key on the cloud computer", async () => {
@@ -113,6 +184,7 @@ describe("meetings", () => {
     const { record } = meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link: MEET });
     await until(() => record.phase === "ended");
     const config = commands.find((command) => command.includes("config.json"))!;
+    expect(config).toMatch(/^umask 077 && /);
     const written = JSON.parse(Buffer.from(/printf %s (\S+) \| base64 -d/.exec(config)![1], "base64").toString("utf8"));
     expect(written.stt).toEqual({ kind: "eleven", token: "sutkn_single_use" });
     expect(commands.join("\n")).not.toContain(key);

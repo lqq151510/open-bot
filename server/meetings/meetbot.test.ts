@@ -1,5 +1,21 @@
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { ADAPTERS, attribute, chunkStream, noteQuestion, runSession, teamsSafeName, type CallPage, type MeetbotConfig, type SessionParts } from "./meetbot.ts";
+import { ADAPTERS, attribute, chunkStream, noteQuestion, runSession, takeMeetingConfig, teamsSafeName, type CallPage, type MeetbotConfig, type SessionParts } from "./meetbot.ts";
+
+it("removes the one-use meeting config after reading it, even if it is invalid", () => {
+  const dir = mkdtempSync(join(tmpdir(), "omb-meetbot-config-"));
+  const file = join(dir, "config.json");
+  try {
+    writeFileSync(file, JSON.stringify(config));
+    expect(takeMeetingConfig(dir)).toEqual(config);
+    expect(existsSync(file)).toBe(false);
+    writeFileSync(file, "{invalid");
+    expect(() => takeMeetingConfig(dir)).toThrow();
+    expect(existsSync(file)).toBe(false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 
 const config: MeetbotConfig = {
   url: "https://meet.systemli.org/room", platform: "jitsi", name: "Ada (notes)", consent: "Hi, I'm Ada (notes). Ask me with @notes.",

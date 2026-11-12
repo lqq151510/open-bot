@@ -26,7 +26,7 @@ export const MEETING_TOOL_DEFINITIONS = [
   {
     name: "join_meeting",
     description:
-      "Join an online meeting as \"<your name> (notes)\" from your cloud computer to take notes: Google Meet, Microsoft Teams or Jitsi links (not Zoom yet). It answers at once with a meeting_id while you join in the background; the host has to let you in. You post a notice in the meeting chat first, then transcribe with speaker names; people can ask you questions with @notes, and when it ends you write the notes. Use every_calendar_meeting when the person wants all their Google Calendar meetings joined from now on.",
+      "Join an online meeting as \"<your name> (notes)\" from your cloud computer to take notes: Google Meet, Microsoft Teams, Zoom or Jitsi links. It answers at once with a meeting_id while you join in the background; the host has to let you in. You post a notice in the meeting chat first, then transcribe with speaker names; people can ask you questions with @notes, and when it ends you write the notes. Use every_calendar_meeting when the person wants all their Google Calendar meetings joined from now on.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
