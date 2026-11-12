@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: v0.1.0
-          path: app
+          path: tag-source
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
@@ -61,25 +61,25 @@ jobs:
         with:
           node-version: 24.22.0
           cache: pnpm
-          cache-dependency-path: app/pnpm-lock.yaml
+          cache-dependency-path: tag-source/pnpm-lock.yaml
       - name: Pin verified Windows browser engine in the release build
         shell: pwsh
         run: |
           $source = (Resolve-Path vendor).Path
-          $app = (Resolve-Path app).Path
+          $app = (Resolve-Path tag-source).Path
           node scripts/stage-windows-browser-vendor.mjs --source "$source" --app "$app" --release-version 0.1.0
       - name: Deny unused dependency build scripts
-        working-directory: app
+        working-directory: tag-source
         run: pnpm approve-builds '!core-js' '!workerd'
       - name: Install dependencies
-        working-directory: app
+        working-directory: tag-source
         run: pnpm install --frozen-lockfile
       - name: Build Windows x64 packages
-        working-directory: app
+        working-directory: tag-source
         run: pnpm package:win
       - name: Verify packaged browser and server in isolated fixtures
         shell: pwsh
-        working-directory: app
+        working-directory: tag-source
         run: |
           $resources = (Resolve-Path 'release/win-unpacked/resources').Path
           $candidate = (Resolve-Path '../vendor/agent-browser-win32-x64.exe').Path
@@ -89,7 +89,7 @@ jobs:
           node scripts/smoke-packaged-server.mjs --browser-bundle "$browser"
       - name: Stage release assets
         shell: pwsh
-        working-directory: app
+        working-directory: tag-source
         run: |
           $ErrorActionPreference = 'Stop'
           $source = Join-Path $PWD 'release'
@@ -119,7 +119,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        working-directory: app
+        working-directory: tag-source
         run: |
           $assets = Get-ChildItem -File release-upload | Select-Object -ExpandProperty FullName
           gh release upload v0.1.0 @assets --repo lqq151510/open-bot --clobber
