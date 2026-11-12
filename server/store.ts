@@ -1136,6 +1136,23 @@ export class Store {
     return { messages: messages.slice(start), hasMore: start > 0, activeLeafId };
   }
 
+  messagesBefore(threadId: string, before: string, limit: number): { messages: Message[]; hasMore: boolean; activeLeafId: string | null } | null {
+    let state = this.threads.get(threadId);
+    if (!state) {
+      const page = mdb.readThreadBefore(threadId, messagesFile(threadId), before, limit);
+      if (!page) return null;
+      if (page.hasMore === undefined || page.messages.some((m) => m.parentId === undefined)) {
+        state = this.threads.load(threadId, page.hasMore === undefined ? page : mdb.readThread(threadId, messagesFile(threadId)));
+      } else {
+        return { messages: page.messages, hasMore: page.hasMore, activeLeafId: page.activeLeafId };
+      }
+    }
+    const stop = state.messages.findIndex((m) => m.id === before);
+    if (stop < 0) return null;
+    const start = Math.max(0, stop - limit);
+    return { messages: state.messages.slice(start, stop), hasMore: start > 0, activeLeafId: state.activeLeafId };
+  }
+
   importTranscript(threadId: string, messages: Message[], activeLeafId: string | null, relinked?: ReadonlyArray<{ id: string; parentId: string | null }>): void {
     if (!relinked && this.messagesFor(threadId).length) throw new Error("Cannot import over an existing conversation");
     mdb.importThread(threadId, messages, activeLeafId, relinked);
