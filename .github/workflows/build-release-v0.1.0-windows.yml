@@ -5,6 +5,7 @@ on:
     branches:
       - codex/build-v0.1.0-assets
     paths:
+      - .github/workflows/build-release-v0.1.0-windows.yml
       - scripts/stage-windows-browser-vendor.mjs
 
 permissions:
@@ -73,17 +74,17 @@ jobs:
           $destination = Join-Path $PWD 'release-upload'
           $vendor = Join-Path $PWD '..\vendor'
           $installer = Join-Path $source 'OpenBot-0.1.0-setup.exe'
+          $portable = Join-Path $source 'OpenBot-0.1.0-x64.zip'
           $feed = Join-Path $source 'latest.yml'
-          if (!(Test-Path $installer) -or !(Test-Path $feed)) {
-            throw 'The Windows installer or updater feed was not produced.'
+          if (!(Test-Path $installer) -or !(Test-Path $portable) -or !(Test-Path $feed)) {
+            throw 'A Windows installer, portable archive, or updater feed was not produced.'
           }
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
           Copy-Item $installer $destination
           Copy-Item $feed $destination
           Copy-Item $installer (Join-Path $destination 'OpenBot-setup.exe')
-          Get-ChildItem -File $source | Where-Object {
-            $_.Name -like 'OpenBot-0.1.0-*.blockmap' -or $_.Name -eq 'OpenBot-0.1.0-x64.zip'
-          } | Copy-Item -Destination $destination
+          Copy-Item $portable (Join-Path $destination 'OpenBot-0.1.0-windows-x64.zip')
+          Copy-Item (Join-Path $source 'OpenBot-0.1.0-setup.exe.blockmap') $destination
           Copy-Item (Join-Path $PWD 'dist-native/browser-archives/agent-browser-win32-x64-0.36.0-omb.2.exe') $destination
           Copy-Item (Join-Path $PWD 'OpenBot-v0.1.0-windows-browser-engine-pin.patch') $destination
           Copy-Item (Join-Path $vendor 'provenance.json') (Join-Path $destination 'agent-browser-windows-0.36.0-omb.2-provenance.json')
