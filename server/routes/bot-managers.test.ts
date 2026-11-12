@@ -28,7 +28,7 @@ function fixture() {
 }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
-it("only a verified team admin can read and replace that bot's managers", async () => {
+it("only a verified team admin or bot owner can manage that bot's managers", async () => {
   const { people, managers, auth, call } = fixture();
   const owner = auth("admin", "admin");
   const listed = await call(owner, "GET", "bot-a");
@@ -38,7 +38,8 @@ it("only a verified team admin can read and replace that bot's managers", async 
   expect(saved.status).toBe(200);
   expect(managers.has("bot-a", member.email, "editor")).toBe(true);
   expect((await call(auth("editor"), "GET", "bot-a")).status).toBe(404);
-  expect((await call(auth("owner"), "GET", "bot-a")).status).toBe(404);
+  expect((await call(auth("owner"), "GET", "bot-a")).status).toBe(200);
+  expect((await call(auth("owner"), "GET", "bot-b")).status).toBe(404);
   expect((await call(auth("admin", "admin"), "GET", "bot-b")).status).toBe(200);
 });
 

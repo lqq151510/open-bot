@@ -1,0 +1,6 @@
+export const BOOT_TEAMS_SECRETS = {
+  OMB_TEAMS_GATEWAY_KEY: process.env.OMB_TEAMS_GATEWAY_KEY,
+  OMB_TEAMS_CLIENT_SECRET: process.env.OMB_TEAMS_CLIENT_SECRET,
+};
+delete process.env.OMB_TEAMS_GATEWAY_KEY;
+delete process.env.OMB_TEAMS_CLIENT_SECRET;

@@ -17,6 +17,8 @@ import { ServiceIcon } from "../ServiceIcon";
 import { RoutineEditor } from "../RoutinesPage";
 import { useWorkingFolder } from "../bot-settings/AccessSection";
 import { useBotEditor } from "../bot-settings/BotEditorContext";
+import { BotLearningsCard } from "../bot-settings/BotLearningsCard";
+import { BotManagersCard } from "../bot-settings/BotManagersCard";
 import { SkillReviewDialog, useManagedSkills, type ManagedSkill } from "../bot-settings/SkillsSection";
 import { useBotApps, type BotApp } from "../bot-settings/useBotApps";
 import type { useBotSettingsDerived } from "../bot-settings/useBotSettingsDerived";
@@ -209,6 +211,8 @@ export function MemoryPage({ bot }: PageContext) {
 
   return (
     <>
+      <BotLearningsCard key={bot.id} botId={bot.id} />
+      <BotManagersCard key={bot.id} botId={bot.id} />
       <Card>
         {!memoryOn ? (
           <NoteRow>{t("botPanel.library.memoryOff", { name: bot.name })}</NoteRow>

@@ -47,13 +47,16 @@ export class TeamsAccountLinks {
       );
       CREATE TABLE IF NOT EXISTS links (
         app_id TEXT NOT NULL, tenant_id TEXT NOT NULL, object_id TEXT NOT NULL,
-        member_id TEXT NOT NULL, linked_at INTEGER NOT NULL,
+        member_id TEXT NOT NULL, linked_at INTEGER NOT NULL, link_generation TEXT,
         PRIMARY KEY (app_id, tenant_id, object_id),
         UNIQUE (app_id, tenant_id, member_id)
       );
       CREATE TABLE IF NOT EXISTS link_clock (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), watermark INTEGER NOT NULL);
       INSERT OR IGNORE INTO link_clock VALUES (1, 0);
     `);
+    const linkColumns = this.db.prepare("PRAGMA table_info(links)").all() as Array<{ name: string }>;
+    if (!linkColumns.some((column) => column.name === "link_generation")) this.db.exec("ALTER TABLE links ADD COLUMN link_generation TEXT");
+    this.db.exec("UPDATE links SET link_generation = lower(hex(randomblob(16))) WHERE link_generation IS NULL");
     const columns = this.db.prepare("PRAGMA table_info(challenges)").all() as Array<{ name: string }>;
     for (const name of ["issue_epoch", "issued_monotonic", "expires_monotonic"]) {
       if (!columns.some(column => column.name === name)) this.db.exec(`ALTER TABLE challenges ADD COLUMN ${name} ${name === "issue_epoch" ? "TEXT" : "INTEGER"}`);
@@ -108,8 +111,8 @@ export class TeamsAccountLinks {
         this.db.exec("COMMIT");
         return false;
       }
-      this.db.prepare("INSERT OR IGNORE INTO links (app_id, tenant_id, object_id, member_id, linked_at) VALUES (?, ?, ?, ?, ?)")
-        .run(app, tenant, object, challenge.member_id, now);
+      this.db.prepare("INSERT OR IGNORE INTO links (app_id, tenant_id, object_id, member_id, linked_at, link_generation) VALUES (?, ?, ?, ?, ?, ?)")
+        .run(app, tenant, object, challenge.member_id, now, randomBytes(16).toString("hex"));
       this.db.prepare("DELETE FROM challenges WHERE hash = ?").run(hash);
       this.db.exec("COMMIT");
       return true;
@@ -120,6 +123,12 @@ export class TeamsAccountLinks {
     const row = this.db.prepare("SELECT member_id FROM links WHERE app_id = ? AND tenant_id = ? AND object_id = ?")
       .get(guid(identity.appId), guid(identity.tenantId), guid(identity.objectId)) as { member_id: string } | undefined;
     return row && isCurrentMember(row.member_id) ? row.member_id : null;
+  }
+
+  generation(identity: TeamsAccountIdentity, memberId: string, isCurrentMember: (memberId: string) => boolean): string | null {
+    const row = this.db.prepare("SELECT member_id, link_generation FROM links WHERE app_id = ? AND tenant_id = ? AND object_id = ?")
+      .get(guid(identity.appId), guid(identity.tenantId), guid(identity.objectId)) as { member_id: string; link_generation: string | null } | undefined;
+    return row?.member_id === memberId && isCurrentMember(memberId) ? row.link_generation : null;
   }
 
   revoke(appId: string, tenantId: string, memberId: string): void {

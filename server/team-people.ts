@@ -1,6 +1,7 @@
 // The members a Team Cloud has seen: each one the Admin paired, with their role, kept in team-people.json, and the ones
 // the Admin said left. The Admin holds the real roster and this machine never reads it; this list only offers who a bot
 // can report to.
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
@@ -18,6 +19,7 @@ const personSchema = z.object({
   firstSeenAt: z.number().finite().nonnegative(),
   lastSeenAt: z.number().finite().nonnegative(),
   leftAt: z.number().finite().nonnegative().optional(),
+  membershipId: z.string().uuid().optional(),
 });
 const fileSchema = z.object({ version: z.literal(1), people: z.array(personSchema).max(MAX_PEOPLE) });
 
@@ -26,6 +28,7 @@ export type TeamPerson = z.infer<typeof personSchema>;
 export function createTeamPeople(dataDir: string, now: () => number = Date.now) {
   const file = join(dataDir, TEAM_PEOPLE_FILE);
   let people: TeamPerson[] = [];
+  let durable = true;
   try {
     const parsed = fileSchema.safeParse(JSON.parse(readFileSync(file, "utf8")));
     if (parsed.success) people = parsed.data.people;
@@ -36,7 +39,9 @@ export function createTeamPeople(dataDir: string, now: () => number = Date.now) 
   const save = () => {
     try {
       writeFileAtomic(file, `${JSON.stringify({ version: 1, people })}\n`, { mode: 0o600 });
+      durable = true;
     } catch (error) {
+      durable = false;
       console.warn(`team people: could not save ${file}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
@@ -46,9 +51,9 @@ export function createTeamPeople(dataDir: string, now: () => number = Date.now) 
       const address = ownerEmail(email);
       const at = now();
       const known = people.find((person) => person.email === address);
-      if (known && known.role === role && known.leftAt === undefined && at - known.lastSeenAt < 60_000) return;
+      if (durable && known?.membershipId && known.role === role && known.leftAt === undefined && at - known.lastSeenAt < 60_000) return;
       people = [
-        { email: address, role, firstSeenAt: known?.firstSeenAt ?? at, lastSeenAt: at },
+        { email: address, role, firstSeenAt: known?.firstSeenAt ?? at, lastSeenAt: at, membershipId: known?.leftAt === undefined && known?.membershipId ? known.membershipId : randomUUID() },
         ...people.filter((person) => person.email !== address),
       ].slice(0, MAX_PEOPLE);
       save();
@@ -61,6 +66,11 @@ export function createTeamPeople(dataDir: string, now: () => number = Date.now) 
       people = [{ email: address, role: known?.role ?? "member", firstSeenAt: known?.firstSeenAt ?? at, lastSeenAt: known?.lastSeenAt ?? at, leftAt: at },
         ...people.filter((person) => person.email !== address)].slice(0, MAX_PEOPLE);
       save();
+    },
+    membershipId(email: string): string | null {
+      if (!durable) return null;
+      const address = ownerEmail(email);
+      return people.find((person) => person.email === address && person.leftAt === undefined)?.membershipId ?? null;
     },
     gone(email: string): boolean {
       const address = ownerEmail(email);

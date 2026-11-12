@@ -127,6 +127,20 @@ const placement = (html: string, needle: string): "shown" | "folded" | "missing"
 };
 const open = (section: AppSettingsSection) => { fixture.section = section; return render(); };
 
+describe("Teams account linking in remote settings", () => {
+  it.each([false, true])("shows only the team linking card in remote mode (advanced=%s)", (advanced) => {
+    fixture.advancedMode = advanced;
+    fixture.config.team = { name: "Example team" };
+    vi.stubGlobal("window", { ogb: { ...desktop.ogb, remoteClient: { active: true } } });
+    const html = open("companion");
+    expect(html).toContain('aria-label="Microsoft Teams"');
+    expect(html).not.toContain("MARKER:apiKey;");
+    expect(fixture.api).not.toHaveBeenCalled();
+    delete fixture.config.team;
+    expect(open("companion")).not.toContain('aria-label="Microsoft Teams"');
+  });
+});
+
 describe("Settings in Simple mode", () => {
   it("draws six pages on the desktop, General, Computer, Permissions, Vault, Usage & billing and Updates, and none of the Advanced-only ones", () => {
     const html = render();

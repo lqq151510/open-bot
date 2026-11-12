@@ -9,15 +9,21 @@ const learning = z.object({ kind: z.enum(TEAM_MEMORY_KINDS), name: z.string().tr
 const proposal = z.object({ explicitlyShared: z.literal(true), learning }).strict();
 const decision = z.object({ revision: z.number().int().positive(), action: z.enum(["accept", "reject"]), learning: learning.optional() }).strict();
 
-export function createBotLearningsRoutes(deps: { enabled: boolean; learnings: ReturnType<typeof createBotLearnings> }): RouteHandler {
+export function createBotLearningsRoutes(deps: { enabled: boolean; learnings: ReturnType<typeof createBotLearnings>; capabilities?: (bot: string, session: string) => { canPropose: boolean; canReview: boolean } }): RouteHandler {
   return async ({ path, method, auth, req, res, json, readBody }) => {
+    const capabilityMatch = /^\/api\/bots\/([\w-]+)\/learning-capabilities$/.exec(path);
     const match = PATH.exec(path);
-    if (!match || !["GET", "POST", "PATCH"].includes(method)) return PASS;
+    if ((!match && !(capabilityMatch && method === "GET")) || !["GET", "POST", "PATCH"].includes(method)) return PASS;
     if (!deps.enabled || auth.kind !== "session" || auth.session.membershipAuthority !== "team" || auth.session.moveIn || !auth.session.id || !auth.scopes.includes("client")) {
       return json(res, 404, { error: "No such bot or access." });
     }
-    const bot = match[1]!; const id = match[2]; const session = auth.session.id;
+    const bot = (match ?? capabilityMatch)![1]!; const id = match?.[2]; const session = auth.session.id;
     try {
+      if (capabilityMatch) {
+        const capability = deps.capabilities?.(bot, session);
+        if (!capability?.canPropose) return json(res, 404, { error: "No such bot or access." });
+        return json(res, 200, capability);
+      }
       if (method === "GET" && !id) return json(res, 200, { entries: deps.learnings.list(bot, session) });
       if (method === "GET" && id) return json(res, 200, { history: deps.learnings.history(bot, session, id) });
       if (method === "POST" && !id) {

@@ -1,6 +1,11 @@
 // Import first: it reads a Cloud home's secrets off the launcher's pipe before any module can start a process.
 import { BOOT_CLOUD_SECRETS } from "./cloud-secrets-boot.ts";
+import { BOOT_TEAMS_SECRETS } from "./teams/boot-secrets.ts";
 import { startFailureText } from "./start-failure-text.ts";
+import { teamsConfig } from "./teams/config.ts";
+import { createTeamsHost } from "./teams/host.ts";
+import { teamsViewer } from "./teams/viewer.ts";
+import { createTeamsControlRoutes, receiveTeamsRequest } from "./teams/routes.ts";
 import { reserveGmailDrafts } from "./gmail-draft-policy.ts";
 import { createGmailDrafts } from "./host/gmail-drafts.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -586,6 +591,12 @@ import { createNoAiNotice } from "./host/no-ai-notice.ts"; import { PASS, ROUTES
 import { createBotTemplateRoutes } from "./routes/bot-templates.ts"; import { createHostedSlackRoutes } from "./routes/hosted-slack.ts";
 import { createBotPresetRoutes } from "./routes/bot-presets.ts"; import { createWorkspaceBannerRoutes, workspaceBannerStore, workspaceBannerSummary } from "./routes/workspace-banner.ts";
 import { createBotMemoryRoutes } from "./routes/bot-memory.ts";
+import { createBotManagers } from "./bot-managers.ts";
+import { createBotLearnings } from "./bot-learnings.ts";
+import { createBotManagersRoutes } from "./routes/bot-managers.ts";
+import { createBotLearningsRoutes } from "./routes/bot-learnings.ts";
+import { botOwner, ownerEmail } from "../shared/bot-owner.ts";
+import { memoryBodyRefused } from "./memory-secret.ts";
 import { createBotCreateRoutes } from "./routes/bots-create.ts";
 import { createTeamOwnerRoutes } from "./routes/team-owners.ts";
 import { createBotSettingsRoutes } from "./routes/bot-settings.ts";
@@ -3040,7 +3051,7 @@ function previewSystemPrompt(bot: BotRecord) {
     { id: "routine", label: "Triggers", text: agentsMounted ? TRIGGER_PROMPT : "" },
     { id: "profile", label: "Profile changes", text: agentsMounted ? PROFILE_PROMPT : "" },
     { id: "section-context", label: "Section context", text: sectionContextSystemPrompt(bot.section) },
-    { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (agentsMounted ? TEAM_MEMORY_PROMPT : "") },
+    { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (botLearnings?.prompt(bot.id) ?? "") + (agentsMounted ? TEAM_MEMORY_PROMPT : "") },
     teamAvailabilityPart(agentsMounted && coordination ? peers : []),
     { id: "memory", label: "Memory", text: memorySystemPrompt(bot.id, { managedWrites: agentsMounted, fileTools: Boolean(privateWorkspace), enabled: bot.memoryEnabled !== false }) },
     { id: "skills", label: "Skills index", text: privateWorkspace ? skillsHost.skillsIndex(bot, undefined, instance) : "" },
@@ -8558,7 +8569,7 @@ async function beginTurn(
         { id: "profile", label: "Profile changes", text: profilePrompt },
         { id: "learn", label: "Skill authoring", text: learnPrompt },
         { id: "section-context", label: "Section context", text: sectionContextSystemPrompt(bot.section) },
-        { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (integrations.agents ? TEAM_MEMORY_PROMPT : "") },
+        { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (botLearnings?.prompt(bot.id) ?? "") + (integrations.agents ? TEAM_MEMORY_PROMPT : "") },
         // Volatile, so a teammate starting or finishing never changes the stable half.
         teamAvailabilityPart(coordinationPrompt ? sectionPeers : []),
         { id: "recent", label: "Recent work", text: recentWorkPrompt(recentWork(recentWorkSources(bot), bot, { userName: CLOUD_TEAM ? teamHost.personName(teamConversationPerson(threadId)) ?? "the team" : cfg.profile?.name?.trim() || "User", currentThreadId: threadId, ...recentWorkFilter(threadId) })) },
@@ -9367,6 +9378,36 @@ const validateModelProposal = (selection: ModelSelection, current?: BotRecord): 
   return null;
 };
 const teamMemory = new TeamMemory(join(DATA_DIR, "team-memory.json"));
+const currentTeamSession = (id: string) => {
+  const session = sessions.list().find((item) => item.id === id);
+  if (!CLOUD_TEAM || !session?.email || !session.teamRole || !session.scopes.includes("client")) return null;
+  const email = ownerEmail(session.email);
+  const person = teamOwners.people?.list().find((item) => item.email === email);
+  if (!person || person.role !== session.teamRole || !teamOwners.people?.membershipId(email)) return null;
+  return { email, role: person.role, admin: session.scopes.includes("admin") };
+};
+const isCurrentTeamSession = (email: string, id: string) => currentTeamSession(id)?.email === ownerEmail(email);
+const botManagers = CLOUD_TEAM ? createBotManagers({
+  file: join(DATA_DIR, "bot-managers"), botGeneration: (id) => store.botGeneration(id),
+  membershipId: (email) => teamOwners.people?.membershipId(email) ?? null, isCurrentSession: isCurrentTeamSession,
+}) : null;
+const learningCapabilities = (botId: string, sessionId: string) => {
+  const session = currentTeamSession(sessionId);
+  const bot = store.bot(botId);
+  if (!session || !bot || bot.defaultBot?.person || !store.botGeneration(botId) ||
+      !visibleTo(session.admin ? { kind: "all", email: session.email } : { kind: "member", email: session.email }).bot(botId)) {
+    return { canPropose: false, canReview: false };
+  }
+  return { canPropose: true, canReview: (session.admin && (session.role === "owner" || session.role === "admin")) ||
+    botOwner(bot) === session.email || Boolean(botManagers?.has(botId, session.email, sessionId)) };
+};
+const botLearnings = CLOUD_TEAM ? createBotLearnings(join(DATA_DIR, "bot-learnings.sqlite"), {
+  botGeneration: (id) => store.botGeneration(id),
+  canPropose: (botId, sessionId) => learningCapabilities(botId, sessionId).canPropose,
+  canReview: (botId, sessionId) => learningCapabilities(botId, sessionId).canReview,
+  allowContent: (input) => [input.name, input.detail, input.key ?? "", ...(input.aliases ?? [])]
+    .every((text) => !memoryBodyRefused(text) && redactSecretsInText(text) === text),
+}) : null;
 bindTeamMemoryAuditPruner(DATA_DIR, (cutoff) => { teamMemory.expireReviewAudit(cutoff); });
 const teamMemoryRequests = createTeamMemoryRequests({ teamMemory, store, requireReview: Boolean(CLOUD_TEAM), threadExists: (id) => Boolean(store.botByThread(id) || store.groupByThread(id)), sectionKey: sectionContextKey, decide: (row) => appendDecision(DATA_DIR, row), prepareAudit: () => prepareTeamMemoryReviewWriter(DATA_DIR) });
 teamMemoryRequests.reconcile();
@@ -10372,7 +10413,7 @@ async function runClaimedGroupMemberTurn(
     teamAvailabilityPart(outsideRoom),
     { id: "recent", label: "Recent work", text: recentWorkPrompt(recentLines) },
     { id: "section-context", label: "Section context", text: sectionContextSystemPrompt(bot.section) },
-    { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (integrations.agents ? TEAM_MEMORY_PROMPT : "") },
+    { id: "team-memory", label: "Team memory", text: teamMemory.systemPrompt(bot.section) + (botLearnings?.prompt(bot.id) ?? "") + (integrations.agents ? TEAM_MEMORY_PROMPT : "") },
     { id: "memory", label: "Memory", text: roomMemory ? `\n${roomMemory.trim()}` : "" },
     { id: "skills", label: "Skills index", text: workspace ? skillsHost.skillsIndex(bot, threadId, instance) : "" },
     { id: "skill-instructions", label: "Skill instructions", text: renderSkillInstructions(selectedSkills, { includeRoot: Boolean(workspace) }) },
@@ -12366,6 +12407,17 @@ ROUTES.push(phones.routes);
 ROUTES.push(createSkillShareRoutes({ enabled: () => skillsHost.mode() !== "off", botExists: (id) => Boolean(store.bot(id)),
   cardRefusal: (auth, threadId, requestId) => cardAnswerRefusal(auth, threadId, requestId, "allow"), shareFromReceipt: skillsHost.shareFromReceipt, shareFromBot: skillsHost.shareFromBot }));
 ROUTES.push(createTeamContextRoutes({ store, teamMemory, reconcileReviews: teamMemoryRequests.reconcile, actorFor: decisionActorFor }));
+if (botManagers && botLearnings) {
+  ROUTES.push(createBotManagersRoutes({
+    enabled: true, bot: (id) => store.bot(id), canSee: (auth, id) => visibleTo(viewerFor(auth)).bot(id),
+    isCurrentSession: isCurrentTeamSession,
+    currentTeamRole: (email, id) => isCurrentTeamSession(email, id) ? currentTeamSession(id)?.role ?? null : null,
+    candidates: () => (teamOwners.people?.list() ?? []).flatMap((person) => {
+      const membershipId = teamOwners.people?.membershipId(person.email);
+      return membershipId ? [{ email: person.email, membershipId }] : [];
+    }), managers: botManagers,
+  }), createBotLearningsRoutes({ enabled: true, learnings: botLearnings, capabilities: learningCapabilities }));
+}
 ROUTES.push(createBotMemoryRoutes({
   bot: (id) => store.bot(id),
   ...(CLOUD_TEAM ? { ownLayer: (auth: RequestAuth, botId: string) => auth.kind === "session" && visibleTo(viewerFor(auth)).bot(botId)
@@ -12742,6 +12794,59 @@ ROUTES.push(createLiveRoutes({
   },
 }));
 
+const teamsRuntime = (() => {
+  let config: ReturnType<typeof teamsConfig>;
+  try { config = teamsConfig({ ...process.env, ...BOOT_TEAMS_SECRETS }); } catch { console.warn("Microsoft Teams integration is unavailable: invalid configuration"); return null; }
+  if (!config) return null;
+  if (!CLOUD_TEAM || !teamOwners.people) { console.warn("Microsoft Teams integration requires a team workspace"); return null; }
+  const personFor = (memberId: string) => {
+    const person = teamOwners.people?.list().find((entry) => teamOwners.people?.membershipId(entry.email) === memberId);
+    if (!person) return null;
+    const active = sessions.list().map((session) => currentTeamSession(session.id)).find((session) => session?.email === person.email && session.role === person.role);
+    return active ? { email: person.email, role: person.role, admin: active.admin } : null;
+  };
+  const canUse = (person: { email: string; role: "owner" | "admin" | "member"; admin: boolean }, botId: string) => {
+    const level = visibleTo(teamsViewer(person)).level(botId);
+    return level === "chat" || level === "edit";
+  };
+  try {
+    const runtime = createTeamsHost({ ...config, dataDir: DATA_DIR }, {
+      personFor,
+      botGeneration: (botId) => store.botGeneration(botId),
+      canUse,
+      createPrivateThread: (botId, person) => {
+        const task = store.createTask(botId, "Microsoft Teams", false, undefined, undefined, "ask");
+        if (!task) return null;
+        threadStarters.set(task.threadId, personKey({ id: "", email: person.email }));
+        return task.threadId;
+      },
+      isPrivateThread: (threadId, botId, person) => Boolean(store.taskByThread(botId, threadId)) &&
+        teamHost.privateTo(threadId) === personKey({ id: "", email: person.email }),
+      accept: async (input) => {
+        const sender = { id: personKey({ id: "", email: input.person.email }), name: input.person.email };
+        const trigger = { kind: "user" as const, email: input.person.email };
+        await acceptDirectSend({ botId: input.botId, threadId: input.threadId, text: input.text, sendId: input.sendId,
+          sender, trigger, personPresent: true }, async (bot) => {
+          if (!input.guard() || approvalModeFor(bot) !== "ask" || bot.autoApprove === true || bot.alwaysAllow?.length ||
+              bot.busy || threadBusy(bot.id, input.threadId) || botAtThreadCapacity(bot.id) ||
+              parksBehindCoordination(bot.id, input.threadId) || activeGroupTurnForBot(bot.id)) {
+            throw new Error("Teams message cannot start");
+          }
+          const message = await startTurn(bot.id, input.text, { threadId: input.threadId, sendId: input.sendId, sender, trigger,
+            relayed: true, onSettled: input.onSettled });
+          return { ok: true as const, threadId: input.threadId, message };
+        });
+        return "accepted";
+      },
+    });
+    ROUTES.push(createTeamsControlRoutes(runtime.service, (auth) => {
+      if (auth.kind !== "session" || auth.session.membershipAuthority !== "team" || !auth.session.email ||
+          !isCurrentTeamSession(auth.session.email, auth.session.id)) return null;
+      return teamOwners.people?.membershipId(auth.session.email) ?? null;
+    }));
+    return runtime;
+  } catch { console.warn("Microsoft Teams integration is unavailable"); return null; }
+})();
 const toolResults = new ToolResults();
 const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
   if (CLOUD_TEAM) holdBodyDeadline(req, res);
@@ -12863,6 +12968,19 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
         },
         serverName: cfg.computerName || environmentDescriptor({ environmentId: ENVIRONMENT_ID, ...TEAM_LABEL, desktopManaged: DESKTOP_MANAGED }).label,
       });
+    }
+    if (path === "/api/microsoft-teams/gateway-challenge") {
+      if (method !== "GET") return json(res, 405, { error: "Method not allowed" });
+      if (!teamsRuntime) return json(res, 404, { error: "Not found" });
+      if (!teamsRuntime.authorizeGatewayKey(req.headers.authorization)) return json(res, 401, { error: "Unauthorized" });
+      res.setHeader("cache-control", "no-store");
+      return json(res, 200, { epoch: teamsRuntime.service.gatewayEpoch });
+    }
+    if (path === "/api/microsoft-teams/messages") {
+      if (method !== "POST") return json(res, 405, { error: "Method not allowed" });
+      if (!teamsRuntime) return json(res, 404, { error: "Not found" });
+      await receiveTeamsRequest(teamsRuntime.service, req, res);
+      return;
     }
     const gate = resolveRequestAuth(req, {
       sessions,
@@ -15747,6 +15865,8 @@ const gracefulShutdown = createGracefulShutdown({
       routines?.close(); void appTriggers.stop();
       calendarCalls?.stop(); botWaits.stop();
       memoryUpkeep.stop();
+      botLearnings?.close();
+      teamsRuntime?.close();
       cacheKeepWarm.dispose(); warmSummaries.dispose();
       skillReview.stop();
       webhookIngress?.server.close();

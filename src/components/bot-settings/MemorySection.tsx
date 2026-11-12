@@ -37,6 +37,8 @@ import { api, ApiError, useStore, type Bot, type ConfigStatus } from "@/state/st
 import { Switch } from "../SettingsPrimitives";
 import { useDesktopCapabilities } from "../DesktopCapabilities";
 import { inputCls } from "./field";
+import { BotLearningsCard } from "./BotLearningsCard";
+import { BotManagersCard } from "./BotManagersCard";
 
 const buttonCls = "rounded-lg bg-control px-3 py-1.5 text-[13px] text-ink hover:bg-raised-hover disabled:opacity-50";
 const quietButtonCls = "rounded-md px-2 py-1 text-[13px] text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-50";
@@ -319,6 +321,9 @@ export function MemorySection({ bot, active = true, onToggle }: { bot: Bot; acti
           </div>
         )}
       </div>
+
+      <BotLearningsCard key={bot.id} botId={bot.id} active={active} />
+      <BotManagersCard key={bot.id} botId={bot.id} active={active} />
 
       {lendingReview && (
         <LendingReviewNotice

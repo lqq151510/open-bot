@@ -48,16 +48,20 @@ function publicKeys(): KeySource {
 
 export type TeamsConnectorActivity = z.infer<typeof activitySchema>;
 
+export function parseTeamsConnectorActivity(input: unknown, tenantId: string): TeamsConnectorActivity {
+  const parsed = activitySchema.safeParse(input);
+  if (!parsed.success || parsed.data.channelData.tenant.id !== tenantId) throw new Error("Invalid Teams activity");
+  let url: URL;
+  try { url = new URL(parsed.data.serviceUrl); } catch { throw new Error("Invalid Teams service URL"); }
+  if (url.protocol !== "https:" || url.username || url.password || url.hash) throw new Error("Invalid Teams service URL");
+  return parsed.data;
+}
+
 /** Connector authentication does not cryptographically bind the activity body, tenant, or sender to the token; authorize and deduplicate separately before acting. */
 export function createTeamsConnectorVerifier(config: { appId: string; tenantId: string }, getKeys: KeySource = publicKeys()) {
   if (!config.appId.trim() || !config.tenantId.trim()) throw new Error("Teams app and tenant are required");
   return async (authorization: string | undefined, input: unknown): Promise<TeamsConnectorActivity> => {
-    const parsed = activitySchema.safeParse(input);
-    if (!parsed.success || parsed.data.channelData.tenant.id !== config.tenantId) throw new Error("Invalid Teams activity");
-    const activity = parsed.data;
-    let url: URL;
-    try { url = new URL(activity.serviceUrl); } catch { throw new Error("Invalid Teams service URL"); }
-    if (url.protocol !== "https:" || url.username || url.password || url.hash) throw new Error("Invalid Teams service URL");
+    const activity = parseTeamsConnectorActivity(input, config.tenantId);
     const bearer = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(authorization ?? "");
     if (!bearer || bearer[1]!.length > 16_384) throw new Error("Invalid Teams authorization");
 

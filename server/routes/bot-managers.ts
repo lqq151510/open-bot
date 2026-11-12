@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerEmail } from "../../shared/bot-owner.ts";
+import { botOwner, ownerEmail } from "../../shared/bot-owner.ts";
 import { BotManagersError, type createBotManagers } from "../bot-managers.ts";
 import type { RequestAuth } from "../request-auth.ts";
 import type { BotRecord } from "../store.ts";
@@ -25,10 +25,9 @@ export function createBotManagersRoutes(deps: BotManagersRouteDeps): RouteHandle
     if (!deps.isCurrentSession(email, auth.session.id) || !deps.canSee(auth, id)) return false;
     const bot = deps.bot(id);
     if (!bot || bot.defaultBot?.person) return false;
-    if (!auth.scopes.includes("admin") || (auth.session.teamRole !== "owner" && auth.session.teamRole !== "admin")) return false;
     try {
       const role = deps.currentTeamRole(email, auth.session.id);
-      return role === "owner" || role === "admin";
+      return (auth.scopes.includes("admin") && (role === "owner" || role === "admin")) || (role !== null && botOwner(bot) === email);
     } catch { return false; }
   };
   return async ({ path, method, auth, res, json, readBody, req }) => {

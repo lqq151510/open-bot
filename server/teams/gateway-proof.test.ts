@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { SignJWT } from "jose";
 import { describe, expect, it, vi } from "vitest";
@@ -23,7 +23,8 @@ const hash = (value: Uint8Array) => createHash("sha256").update(value).digest("h
 const verify = createTeamsGatewayProofVerifier({ appId, key, clock: () => seconds * 1000 });
 
 async function proof(claims: Record<string, unknown> = {}, signingKey = key): Promise<string> {
-  return new SignJWT({ gateway_epoch: verify.epoch, tenant_id: tenantId, object_id: objectId, body_sha256: hash(body), ...claims })
+  return new SignJWT({ purpose: "sender-identity", gateway_epoch: verify.epoch, tenant_id: tenantId, object_id: objectId,
+    body_sha256: hash(body), jti: randomUUID(), ...claims })
     .setProtectedHeader({ alg: "HS256" }).setIssuer("openbot-teams-gateway").setAudience(`openbot:teams:${appId}`)
     .setIssuedAt(seconds - 1).setNotBefore(seconds - 1).setExpirationTime(seconds + 30).sign(signingKey);
 }
