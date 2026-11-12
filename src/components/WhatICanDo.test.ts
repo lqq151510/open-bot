@@ -52,7 +52,8 @@ describe("What I can do", () => {
     expect(panel()?.textContent).toContain("Ask me how to do anything here. I can set up bots, apps and routines with you, and keep an eye on your day.");
     expect(panel()?.textContent).toContain("What are my bots up to?");
     expect(panel()?.textContent).toContain("Thinking with Claude.");
-    expect(panel()?.textContent).not.toContain("查资料");
+    expect(panel()?.textContent).toContain("I can do more than just chat");
+    expect(panel()?.textContent).toContain("Research topics, follow AI news, and compare tools and plans.");
 
     await act(async () => { capsule()!.click(); });
     expect(panel()).toBeNull();
@@ -83,12 +84,13 @@ describe("What I can do", () => {
     expect(panel()?.textContent).not.toContain("keep an eye on your day");
   });
 
-  it("shows a specialist's own description and engine, not the helper's asks", async () => {
+  it("shows a specialist's own description and engine, not the helper's asks or capabilities", async () => {
     await show(bot({ description: "Watch the inbox." }), "Codex");
     await act(async () => { capsule()!.click(); });
     expect(panel()?.textContent).toContain("Watch the inbox.");
     expect(panel()?.textContent).toContain("Thinking with Codex.");
     expect(panel()?.textContent).not.toContain("What are my bots up to?");
+    expect(panel()?.textContent).not.toContain("Research topics");
     expect(panel()?.textContent).not.toContain("This bot has not described what it can do yet.");
   });
 
@@ -99,9 +101,17 @@ describe("What I can do", () => {
     expect(panel()?.textContent).not.toContain("Thinking with");
   });
 
-  it("uses the Chinese label", async () => {
+  it("uses the Chinese label and capability list for default bot", async () => {
     await loadLocale("zh");
-    await show(bot());
+    await show(bot({ defaultBot: {} }));
     expect(capsule()?.textContent).toBe("你会什么");
+    await act(async () => { capsule()!.click(); });
+    expect(panel()?.textContent).toContain("我不只会聊天，也能帮你实际做事：");
+    expect(panel()?.textContent).toContain("查资料、追 AI 动态、比较工具和套餐。");
+    expect(panel()?.textContent).toContain("写文案、翻译、整理文档、表格和幻灯片。");
+    expect(panel()?.textContent).toContain("写代码、排查报错、处理文件。");
+    expect(panel()?.textContent).toContain("用我的电脑操作网页、安装软件。");
+    expect(panel()?.textContent).toContain("整理邮件、起草回复、设置定时提醒。");
+    expect(panel()?.textContent).toContain("你直接说想完成什么就行；发消息、付款这类操作会先让你确认。");
   });
 });

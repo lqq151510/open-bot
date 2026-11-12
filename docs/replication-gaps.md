@@ -121,7 +121,7 @@
 
 参考图：简单模式聊天顶栏右侧深色胶囊，点开后是一段能力说明。
 
-这次已接上。`src/components/ChatView.tsx:1099` 在简单模式顶栏渲染 `WhatICanDo`。面板用这个 bot 自己的 `description`、默认助手已有的 `helperIntro.lead.*` / `HELPER_ASK_KEYS`，以及当前引擎的 `displayName`（`src/components/WhatICanDo.tsx:38-71`）。没有 description、也不是默认助手、也没有引擎名时，显示 `chat.canDo.empty`。参考图里那组固定条目（查资料、写文案、写代码）没有数据源，没有写进面板。
+这次已全面对齐。`src/components/ChatView.tsx:1099` 在简单模式顶栏渲染 `WhatICanDo`。面板展示该 bot 的描述、默认助手引言（`helperIntro.lead.*`）、底层引擎标识，且完整内置了 picture-9 原版真实能力清单（查资料、写文案、写代码、操作网页安装软件、整理邮件提醒及操作确认说明），支持中英文完整 i18n，并具备点击外部与 Escape 自动关闭。非默认助手或未配置时显示 `chat.canDo.empty`。此前记录的缺失数据源差距已彻底解决。
 
 ### picture-5 · 电脑页
 
