@@ -1260,6 +1260,25 @@ export function LocalComputerSection() {
             </a>
           )}
         </div>
+        {!headerReady && !loading && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-ink/[0.04] p-3 text-[12px] text-ink-secondary">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-500" />
+            <div>
+              <p className="font-medium text-ink">
+                {status?.platform === "win32"
+                  ? t("vm.main.runtimeNoticeWindows")
+                  : status?.platform === "darwin"
+                    ? t("vm.main.runtimeNoticeMac")
+                    : t("vm.main.runtimeNotice")}
+              </p>
+              <p className="mt-0.5">
+                {!status?.runtime
+                  ? (status?.platform === "win32" ? t("vm.main.noRuntimeHintWindows") : t("vm.main.noRuntimeHintMac"))
+                  : t("vm.main.daemonDownHint", { runtime: status.runtime })}
+              </p>
+            </div>
+          </div>
+        )}
         {error && <div role="alert" className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-[12px] text-danger">{error}</div>}
       </Card>
 
@@ -1312,13 +1331,22 @@ export function LocalComputerSection() {
         <div className="flex flex-col gap-4">
           <Step n={1} title={t("vm.setup.step1")} done={Boolean(status?.runtime)}>
             <div className="text-[13px] leading-relaxed text-ink-secondary">
-              {t("vm.setup.step1Detail")}
+              {status?.platform === "win32"
+                ? t("vm.setup.step1DetailWindows")
+                : status?.platform === "darwin"
+                  ? t("vm.setup.step1DetailMac")
+                  : t("vm.setup.step1Detail")}
             </div>
             {c?.install ? (
               <CommandLine command={c.install} />
             ) : (
-              <a href="https://podman.io/docs/installation" target="_blank" rel="noreferrer" className="text-[13px] text-accent hover:underline">
-                {t("vm.setup.podmanGuide")}
+              <a
+                href={status?.platform === "win32" ? "https://learn.microsoft.com/windows/wsl/install" : "https://docs.docker.com/desktop/"}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[13px] text-accent hover:underline"
+              >
+                {status?.platform === "win32" ? t("vm.setup.wslGuide") : t("vm.setup.dockerGuide")}
               </a>
             )}
           </Step>
@@ -1335,7 +1363,13 @@ export function LocalComputerSection() {
             {!status?.runtime ? null : c?.runtimeStart ? (
               <CommandLine command={c.runtimeStart} />
             ) : (
-              <div className="text-[13px] text-ink-secondary">{t("vm.setup.step2Detail")}</div>
+              <div className="text-[13px] text-ink-secondary">
+                {status?.platform === "win32"
+                  ? t("vm.setup.step2DetailWindows")
+                  : status?.platform === "darwin"
+                    ? t("vm.setup.step2DetailMac")
+                    : t("vm.setup.step2Detail")}
+              </div>
             )}
           </Step>
 
