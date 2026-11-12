@@ -64,4 +64,21 @@ describe("meeting private uploads", () => {
     expect(computer.start).not.toHaveBeenCalled();
     expect(commands.at(-1)).toMatch(/^rm -f .*\.tmp .*\/config\.json$/);
   });
+
+  it("reports an uncertain delivery when publishing an inbox command fails", async () => {
+    const commands: string[] = [];
+    const computer: MeetingComputer = {
+      run: async (command) => {
+        commands.push(command);
+        return { ok: !command.includes(" && ln "), stdout: "", stderr: "" };
+      },
+      start: async () => ({ ok: true }),
+      upload: async () => {},
+    };
+    const engine = createBotEngine(() => ({ text: "fixture", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
+    await expect(engine.chatSend(computer, start.id, { id: "chat-1", text: "private chat" }))
+      .rejects.toThrow("may have been delivered. Check the meeting before retrying.");
+    expect(commands.at(-1)).toMatch(/^rm -f .*\.tmp$/);
+    expect(commands.join("\n")).not.toContain("private chat");
+  });
 });
