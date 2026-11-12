@@ -42,6 +42,7 @@ jobs:
         env:
           CI: '1'
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm package:mac
       - name: Verify isolated macOS package fixtures
         working-directory: tag-source
