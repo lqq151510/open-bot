@@ -1,0 +1,80 @@
+name: Build OpenBot v0.1.0 macOS installers
+
+on:
+  push:
+    branches:
+      - codex/build-v0.1.0-assets
+    paths:
+      - .github/workflows/build-release-v0.1.0-macos.yml
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: v0.1.0
+          path: tag-source
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+          package_json_file: tag-source/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+          cache: pnpm
+          cache-dependency-path: tag-source/pnpm-lock.yaml
+      - name: Deny unused dependency build scripts
+        working-directory: tag-source
+        run: pnpm approve-builds '!core-js' '!workerd'
+      - name: Install dependencies
+        working-directory: tag-source
+        run: pnpm install --frozen-lockfile
+      - name: Build macOS arm64 and x64 packages
+        working-directory: tag-source
+        env:
+          CI: '1'
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm package:mac
+      - name: Verify isolated macOS package fixtures
+        working-directory: tag-source
+        run: |
+          set -euo pipefail
+          for arch in arm64 x64; do
+            dmg="release/OpenBot-0.1.0-${arch}.dmg"
+            zip="release/OpenBot-0.1.0-${arch}.zip"
+            test -s "$dmg"
+            test -s "$zip"
+            hdiutil verify "$dmg"
+            unzip -tq "$zip"
+            fixture="$RUNNER_TEMP/openbot-${arch}"
+            mkdir -p "$fixture"
+            ditto -x -k "$zip" "$fixture"
+            node scripts/smoke-browser-bundle.mjs \
+              --resources "$fixture/OpenBot.app/Contents/Resources" \
+              --target "darwin-${arch}" --check-only
+          done
+          test -s release/latest-mac.yml
+      - name: Upload macOS assets to v0.1.0
+        working-directory: tag-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release upload v0.1.0
+          release/OpenBot-0.1.0-arm64.dmg
+          release/OpenBot-0.1.0-arm64.dmg.blockmap
+          release/OpenBot-0.1.0-arm64.zip
+          release/OpenBot-0.1.0-arm64.zip.blockmap
+          release/OpenBot-0.1.0-x64.dmg
+          release/OpenBot-0.1.0-x64.dmg.blockmap
+          release/OpenBot-0.1.0-x64.zip
+          release/OpenBot-0.1.0-x64.zip.blockmap
+          release/latest-mac.yml
+          --repo "$GITHUB_REPOSITORY" --clobber

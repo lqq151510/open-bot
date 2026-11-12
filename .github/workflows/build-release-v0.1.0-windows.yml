@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - codex/build-v0.1.0-assets
+    paths:
+      - scripts/stage-windows-browser-vendor.mjs
 
 permissions:
   contents: read
