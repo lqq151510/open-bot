@@ -7,42 +7,15 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  windows-browser-vendor:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.22.0
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.1.3
-          package_json_file: scripts/windows-browser-vendor-package.json
-      - uses: dtolnay/rust-toolchain@1.97.1
-        with:
-          targets: x86_64-pc-windows-gnu
-      - name: Install Windows cross-linker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64
-      - name: Build verified Windows browser engine candidate
-        run: node scripts/build-windows-browser-vendor.mjs --output "$RUNNER_TEMP/windows-browser-vendor"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-browser-vendor
-          path: ${{ runner.temp }}/windows-browser-vendor
-          if-no-files-found: error
-          retention-days: 2
-
   windows:
-    needs: windows-browser-vendor
     runs-on: windows-latest
     timeout-minutes: 120
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -53,6 +26,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: windows-browser-vendor
+          run-id: 43194465902
+          github-token: ${{ github.token }}
           path: vendor
       - uses: pnpm/action-setup@v4
         with:
