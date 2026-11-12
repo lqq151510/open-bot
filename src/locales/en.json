@@ -6687,7 +6687,7 @@
   "settings.permissions.alwaysAsk.none": "No rules yet.",
   "settings.permissions.alwaysAsk.personal": "My rules",
   "settings.permissions.alwaysAsk.team": "Team rules",
-  "settings.permissions.alwaysAsk.scopeHint": "Your rules follow actions you start, including scheduled work attributed to you. Team rules apply to everyone in this workspace.",
+  "settings.permissions.alwaysAsk.scopeHint": "Your rules follow actions you start, including scheduled work attributed to you. Team rules apply to everyone on your team.",
   "settings.permissions.alwaysAsk.edit": "Edit",
   "settings.permissions.alwaysAsk.editNumber": "Edit always-ask rule {index}",
   "settings.permissions.alwaysAsk.deleteNumber": "Delete always-ask rule {index}",

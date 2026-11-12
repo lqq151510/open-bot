@@ -6491,7 +6491,7 @@
   "settings.permissions.alwaysAsk.none": "暂无规则。",
   "settings.permissions.alwaysAsk.personal": "我的规则",
   "settings.permissions.alwaysAsk.team": "团队规则",
-  "settings.permissions.alwaysAsk.scopeHint": "个人规则适用于你发起的操作，包括能确认由你创建的后台任务。团队规则适用于工作区内的所有人。",
+  "settings.permissions.alwaysAsk.scopeHint": "个人规则适用于你发起的操作，包括能确认由你创建的后台任务。团队规则适用于团队内的所有人。",
   "settings.permissions.alwaysAsk.edit": "编辑",
   "settings.permissions.alwaysAsk.editNumber": "编辑第 {index} 条始终询问规则",
   "settings.permissions.alwaysAsk.deleteNumber": "删除第 {index} 条始终询问规则",
