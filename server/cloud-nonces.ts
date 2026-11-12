@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
-import { chmodSync, closeSync, openSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { chmodSync, closeSync, fsyncSync, linkSync, lstatSync, openSync, unlinkSync } from "node:fs";
+import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 export type NonceClaim = "accepted" | "stale_request" | "replayed_request" | "busy";
@@ -13,32 +14,52 @@ const SCHEMA = [
   ["index", "cloud_nonces_expiry", "CREATE INDEX cloud_nonces_expiry ON cloud_nonces(expires)"],
 ];
 
+function initialize(db: DatabaseSync): void {
+  db.exec(`
+    PRAGMA synchronous = FULL;
+    BEGIN IMMEDIATE;
+    CREATE TABLE cloud_nonce_clock (id INTEGER PRIMARY KEY CHECK (id = 1), at INTEGER NOT NULL);
+    INSERT INTO cloud_nonce_clock VALUES (1, 0);
+    CREATE TABLE cloud_nonces (scope TEXT NOT NULL, hash TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(scope, hash));
+    CREATE INDEX cloud_nonces_expiry ON cloud_nonces(expires);
+    COMMIT;
+  `);
+}
+
+function syncDirectory(path: string): void {
+  // Node cannot portably open and fsync directories on Windows; directory-entry durability is not guaranteed there.
+  if (process.platform === "win32") return;
+  const fd = openSync(dirname(path), "r");
+  try { fsyncSync(fd); } finally { closeSync(fd); }
+}
+
+function ensureDatabase(path: string): void {
+  try { lstatSync(path); syncDirectory(path); return; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const temp = `${path}.init-${randomUUID()}`;
+  closeSync(openSync(temp, "wx", 0o600));
+  try {
+    const db = new DatabaseSync(temp, { timeout: 100 });
+    try { initialize(db); } finally { db.close(); }
+    const fd = openSync(temp, "r");
+    try { fsyncSync(fd); } finally { closeSync(fd); }
+    try { linkSync(temp, path); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+    syncDirectory(path);
+  } finally { unlinkSync(temp); }
+}
+
 export class PersistentCloudNonces implements CloudNonceStore {
   private readonly db: DatabaseSync;
 
   constructor(path: string) {
     // Missing state is indistinguishable from first install, so initialization cannot reject preexisting valid signatures.
-    let fresh = path === ":memory:";
-    if (!fresh) {
-      try {
-        closeSync(openSync(path, "wx", 0o600));
-        fresh = true;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      }
-    }
+    if (path !== ":memory:") ensureDatabase(path);
     const db = new DatabaseSync(path, { timeout: 100 });
     try {
       if (path !== ":memory:") chmodSync(path, 0o600);
       db.exec("PRAGMA synchronous = FULL");
-      if (fresh) db.exec(`
-        BEGIN IMMEDIATE;
-        CREATE TABLE cloud_nonce_clock (id INTEGER PRIMARY KEY CHECK (id = 1), at INTEGER NOT NULL);
-        INSERT INTO cloud_nonce_clock VALUES (1, 0);
-        CREATE TABLE cloud_nonces (scope TEXT NOT NULL, hash TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(scope, hash));
-        CREATE INDEX cloud_nonces_expiry ON cloud_nonces(expires);
-        COMMIT;
-      `);
+      if (path === ":memory:") initialize(db);
       const version = db.prepare("PRAGMA user_version").get() as { user_version: number };
       const schema = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE sql IS NOT NULL ORDER BY name").all() as Array<{ type: string; name: string; sql: string }>;
       const normalized = (sql: string) => sql.replace(/\s+/g, "").toLowerCase();

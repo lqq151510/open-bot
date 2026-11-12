@@ -160,6 +160,7 @@ describe("encrypted full workspace backups", () => {
     try {
       json(join(source, "team-computers.json"), { version: 1, environmentId: "source-environment", computers: [{ id: "source-computer", name: "Source desktop", section: "Design" }] });
       writeFileSync(join(source, "cloud-request-nonces.sqlite"), "source nonce state");
+      writeFileSync(join(source, "cloud-request-nonces.sqlite.init-interrupted"), "temporary nonce state");
       const originalDb = readFileSync(join(source, "messages.db"));
       const originalRuntimeDb = readFileSync(join(source, "runtime.db"));
       const exported = await createWorkspaceBackup(source, {
@@ -196,6 +197,7 @@ describe("encrypted full workspace backups", () => {
       expect(existsSync(join(data, "runtime.db"))).toBe(true);
       expect(existsSync(join(data, "cloud-owner.json"))).toBe(false);
       expect(existsSync(join(data, "cloud-request-nonces.sqlite"))).toBe(false);
+      expect(existsSync(join(data, "cloud-request-nonces.sqlite.init-interrupted"))).toBe(false);
       expect(readJson(join(data, "config.json"))).toEqual({ language: "ja" });
       expect(readJson(join(data, "webhooks.json")).webhooks[0]).not.toHaveProperty("secretHash");
       expect(readFileSync(join(data, "webhooks.json"), "utf8")).not.toContain("sealed-");

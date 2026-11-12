@@ -1,5 +1,10 @@
 # Licensing
 
+> This file is retained as upstream historical context. Its references to an `enterprise/` directory,
+> upstream CI, contributor agreements, and upstream trademarks describe the upstream project; that
+> directory and CI configuration are not present in this checkout. For this repository's included
+> license and attribution files, see [LICENSE](LICENSE), [NOTICE](NOTICE), and [third_party/](third_party/).
+
 OpenBot is open source under the [Apache License 2.0](LICENSE), with one
 carve-out and a few notes.
 

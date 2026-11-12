@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { dirname, join } from "node:path";
+import { execFile, spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -150,6 +150,59 @@ it("allows at most one initial claim when processes create the same database", a
   expect(db.claim("pairing", "same", 1000, 1000, 500, 5)).toBe("replayed_request");
   db.close();
 }, 10_000);
+
+it("recovers when a process exits before publishing its initialized database", () => {
+  const file = path(), moduleUrl = pathToFileURL(join(process.cwd(), "server/cloud-nonces.ts")).href;
+  const code = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+    fs.linkSync = () => process.exit(72); syncBuiltinESMExports();
+    const { PersistentCloudNonces } = await import(${JSON.stringify(moduleUrl)});
+    new PersistentCloudNonces(process.argv[1]);`;
+  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, file]);
+  expect(child.status).toBe(72);
+  expect(existsSync(file)).toBe(false);
+  const db = new PersistentCloudNonces(file);
+  expect(db.claim("pairing", "same", 1000, 1000, 500, 5)).toBe("accepted");
+  db.close();
+});
+
+it("never replaces a damaged database that appears while another process initializes", () => {
+  const file = path(), moduleUrl = pathToFileURL(join(process.cwd(), "server/cloud-nonces.ts")).href;
+  const code = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+    const link = fs.linkSync; fs.linkSync = (source, target) => { fs.writeFileSync(target, 'damaged'); link(source, target); };
+    syncBuiltinESMExports(); const { PersistentCloudNonces } = await import(${JSON.stringify(moduleUrl)});
+    try { new PersistentCloudNonces(process.argv[1]); process.exit(1); } catch { process.exit(0); }`;
+  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, file]);
+  expect(child.status).toBe(0);
+  expect(readFileSync(file, "utf8")).toBe("damaged");
+});
+
+it("fails closed and removes the temporary file if publication fails", () => {
+  const file = path(), moduleUrl = pathToFileURL(join(process.cwd(), "server/cloud-nonces.ts")).href;
+  const code = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+    fs.linkSync = () => { throw Object.assign(new Error('denied'), { code: 'EACCES' }); };
+    syncBuiltinESMExports(); const { PersistentCloudNonces } = await import(${JSON.stringify(moduleUrl)});
+    try { new PersistentCloudNonces(process.argv[1]); process.exit(1); } catch { process.exit(0); }`;
+  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, file]);
+  expect(child.status).toBe(0);
+  expect(existsSync(file)).toBe(false);
+  expect(readdirSync(dirname(file))).toEqual([]);
+});
+
+it.skipIf(process.platform === "win32")("fails closed if the published directory cannot be synced", () => {
+  const file = path(), moduleUrl = pathToFileURL(join(process.cwd(), "server/cloud-nonces.ts")).href;
+  const code = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+    const sync = fs.fsyncSync; fs.fsyncSync = (fd) => { if (fs.fstatSync(fd).isDirectory()) throw Object.assign(new Error('denied'), { code: 'EIO' }); sync(fd); };
+    syncBuiltinESMExports(); const { PersistentCloudNonces } = await import(${JSON.stringify(moduleUrl)});
+    try { new PersistentCloudNonces(process.argv[1]); process.exit(1); } catch { process.exit(0); }`;
+  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, file]);
+  expect(child.status).toBe(0);
+  expect(existsSync(file)).toBe(true);
+  const retry = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, file]);
+  expect(retry.status).toBe(0);
+  const db = new PersistentCloudNonces(file);
+  expect(db.claim("pairing", "same", 1000, 1000, 500, 5)).toBe("accepted");
+  db.close();
+});
 
 it("fails closed when another process holds the write lock", () => {
   const file = path(), nonces = new PersistentCloudNonces(file), blocker = new DatabaseSync(file);

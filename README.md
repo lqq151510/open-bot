@@ -17,6 +17,9 @@
 > 品牌、包标识与图标已替换为 OpenBot，核心能力来自上游项目。
 > 原项目的版权与归属声明保留在 [NOTICE](NOTICE)。
 
+> 此仓库仍保留部分上游文档引用；部分链接指向的文件尚未包含在当前仓库中。
+> Several links below refer to upstream documentation not yet included in this fork.
+
 > [!IMPORTANT]
 > **设计核心原则**：
 > 1. **严禁任何收费/充值按钮**：全应用不包含任何收费入口、额度购买、自动扣费或商业化支付按钮，完全由用户自带 API Key / 本地 CLI 运行，保险库仅用于管理本地网站登录凭据。
@@ -270,8 +273,8 @@ asked are done, and export what they made. One JSON document with `--json`,
 and exit codes a script can branch on.
 
 ```sh
-openbot team apply team.yaml
-openbot run "Room Lead" "Rehearse the launch of https://example.com" --export ./out
+pnpm omb team apply team.yaml
+pnpm omb run "Room Lead" "Rehearse the launch of https://example.com" --export ./out
 ```
 
 See [Run OpenBot from scripts and CI](docs/headless-cli.md).
@@ -436,7 +439,7 @@ The web UI can also be installed from Safari or Chrome as a standalone phone
 app. See [Install the phone web app](docs/phone-web-app.md) for Home Screen
 installation and pairing.
 
-Run `openbot setup` to reconfigure without resetting bots or conversations;
+Run `pnpm omb setup` to reconfigure without resetting bots or conversations;
 the saved model default applies only to new bots. Native setup confirms provider
 sign-in; API setup asks before a potentially billable test message. API keys are
 saved as plaintext, not encrypted, in private `config.json` (`0600` on Unix).

@@ -4,11 +4,11 @@
 
 Please **do not open a public issue** for security problems.
 
-- If private vulnerability reporting is enabled on this repository, use
-  [GitHub private vulnerability reporting](https://github.com/lqq151510/open-bot/security/advisories/new).
-  The report stays visible only to you and the repository maintainers until a fix is published.
-- If that option is unavailable, contact a repository maintainer privately before sharing sensitive
-  details. Do not include credentials, tokens, or private data in a public issue.
+GitHub private vulnerability reporting was not enabled on this repository when checked on
+2026-11-12, and no dedicated private contact has yet been published. If it is enabled later, use
+[GitHub private vulnerability reporting](https://github.com/lqq151510/open-bot/security/advisories/new).
+Until then, do not include vulnerability details, credentials, tokens, or private data in a public issue;
+contact a maintainer through an existing private channel if you have one.
 
 ## Scope notes for researchers
 

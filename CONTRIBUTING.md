@@ -49,6 +49,7 @@ launching Electron, run `node scripts/prepare-cloudflared.mjs --current`.
 
 This fork currently has no release workflow or published installer. Packaging scripts are present,
 but release artifacts and platform support must be verified before they are advertised or published.
+Some inherited documentation links below refer to files not present in this checkout.
 
 ## Repo map
 
