@@ -28,6 +28,13 @@ describe("meeting cards", () => {
     expect(nodes(liveCard(record({ phase: "ended", endReason: "denied" }), 0)).find((node) => node.type === "Text")?.value).toBe("The host turned down my request to join.");
   });
 
+  it("explains that unsupported Zoom notice verification stopped before joining", () => {
+    const card = liveCard(record({ phase: "ended", platform: "zoom", endReason: "notice_verification_unavailable" }), 0);
+    const line = nodes(card).find((node) => node.type === "Text");
+    expect(line?.value).toBe("I can't reliably verify the note-taking notice in Zoom yet, so I didn't join or record the meeting.");
+    expect(readWidgetText(line?.i18n)?.value?.key).toBe("server.meetings.end.notice_verification_unavailable");
+  });
+
   it("are valid widgets whose words all come from the language packs", () => {
     const cards = [
       liveCard(record({ phase: "in_meeting", others: 1, joinedAt: 1, questions: 2 }), 3),

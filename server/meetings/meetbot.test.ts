@@ -131,7 +131,7 @@ describe("Zoom notice confirmation", () => {
       return true;
     });
     const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
-    expect(await runSession(run.session)).toBe("consent_failed");
+    expect(await runSession(run.session)).toBe("notice_verification_unavailable");
     expect(page.goto).not.toHaveBeenCalled();
     expect(sent).toEqual([]);
     expect(run.order).not.toContain("capture");

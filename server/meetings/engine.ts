@@ -97,10 +97,15 @@ export function createBotEngine(source: () => { text: string; file: string } = b
     await must(computer, `test "$HOME" = /home/user && test ! -L ${ROOT} && test ! -L ${dir} && test ! -L ${dir}/inbox && mkdir -p ${dir}/inbox && chmod 700 ${dir}/inbox && test ! -e ${path}.tmp && test ! -L ${path}.tmp`, "Preparing the meeting inbox", 30_000);
     try {
       await computer.upload(`/home/user/.openbot-meet/${id}/inbox/${name}.tmp`, JSON.stringify(command));
-      await must(computer, `chmod 600 ${path}.tmp && ln ${path}.tmp ${path}.json && rm -f ${path}.tmp`, "Reaching the meeting bot", 30_000);
     } catch (error) {
       await computer.run(`rm -f ${path}.tmp`, 30_000).catch(() => {});
       throw error;
+    }
+    try {
+      await must(computer, `chmod 600 ${path}.tmp && ln ${path}.tmp ${path}.json && rm -f ${path}.tmp`, "Reaching the meeting bot", 30_000);
+    } catch {
+      await computer.run(`rm -f ${path}.tmp`, 30_000).catch(() => {});
+      throw new MeetingEngineError("The meeting command may have been delivered. Check the meeting before retrying.");
     }
   }
   const speech = (grant: SpeechGrant) => (grant.kind === "eleven" ? { kind: "eleven", token: grant.token, ...(grant.rotateMs ? { rotateMs: grant.rotateMs } : {}) } : { kind: grant.kind });
@@ -119,12 +124,13 @@ export function createBotEngine(source: () => { text: string; file: string } = b
       try {
         await must(computer, `test "$HOME" = /home/user && test ! -L ${ROOT} && test ! -L ${dir} && umask 077 && mkdir -p ${dir} && chmod 700 ${ROOT} ${dir} && test ! -e ${dir}/config.json && test ! -L ${dir}/config.json && test ! -e ${temp} && test ! -L ${temp}`, "Preparing the meeting");
         await computer.upload(`/home/user/.openbot-meet/${start.id}/${name}`, JSON.stringify(config));
-        await must(computer, `chmod 600 ${temp} && ln ${temp} ${dir}/config.json && rm -f ${temp}`, "Setting up the meeting");
+        await must(computer, `chmod 600 ${temp} && ln ${temp} ${dir}/config.json`, "Setting up the meeting");
         ownsConfig = true;
+        await must(computer, `rm -f ${temp}`, "Finishing the meeting setup");
         const started = await computer.start(`cd "$HOME" && exec node ${file} run ${dir} >> ${dir}/stdout.log 2>&1`);
         if (!started.ok) throw new MeetingEngineError(started.error);
       } catch (error) {
-        await computer.run(`rm -f ${temp}${ownsConfig ? ` ${dir}/config.json` : ""}`, 30_000).catch(() => {});
+        await computer.run(ownsConfig ? `rm -f ${temp} ${dir}/config.json` : `if [ ${temp} -ef ${dir}/config.json ]; then rm -f ${dir}/config.json; fi; rm -f ${temp}`, 30_000).catch(() => {});
         throw error;
       }
     },

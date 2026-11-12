@@ -7756,6 +7756,7 @@
   "server.meetings.end.not_found": "此会议链接无效。请检查链接；会议可能已经结束。",
   "server.meetings.end.join_failed": "我没能通过会议的加入页面。",
   "server.meetings.end.consent_failed": "我无法在会议聊天中发布记录提示（访客的聊天可能已关闭），所以我在没有记录任何内容的情况下离开了。",
+  "server.meetings.end.notice_verification_unavailable": "我目前无法可靠确认 Zoom 中的记录提示，因此没有加入会议，也没有录制任何内容。",
   "server.meetings.end.alone": "其他人都离开了，所以我也离开了。",
   "server.meetings.end.max_length": "会议达到 4 小时上限，所以我离开了。",
   "server.meetings.end.crashed": "会议机器人意外停止。之前听到的内容已保留。",

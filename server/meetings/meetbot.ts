@@ -606,7 +606,7 @@ export async function runSession(parts: SessionParts): Promise<EndReason> {
   const { config, emit, page, adapter } = parts;
   const now = parts.now ?? Date.now;
   const pause = parts.pause ?? sleep;
-  if (config.platform === "zoom" && await page.op({ op: "noticeProofCapability" }).catch(() => false) !== true) return "consent_failed";
+  if (config.platform === "zoom" && await page.op({ op: "noticeProofCapability" }).catch(() => false) !== true) return "notice_verification_unavailable";
   emit("phase", { phase: "joining" });
   await page.goto(adapter.url(config.url, Boolean(config.profileDir)));
   const lobbyUntil = now() + config.lobbyMs;

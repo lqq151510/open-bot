@@ -44,7 +44,24 @@ describe("meeting private uploads", () => {
     const engine = createBotEngine(() => ({ text: "fixture", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
     await expect(engine.join(computer, start)).rejects.toThrow("Secure meeting upload failed.");
     expect(computer.start).not.toHaveBeenCalled();
-    expect(commands.at(-1)).toMatch(/^rm -f .*config-[a-f0-9-]+\.tmp$/);
+    expect(commands.at(-1)).toMatch(/^if \[ .*config-[a-f0-9-]+\.tmp -ef .*\/config\.json \]/);
     expect(commands.join("\n")).not.toContain("fixture-password");
+  });
+
+  it("cleans the published config if removing its temporary link fails", async () => {
+    const commands: string[] = [];
+    const computer: MeetingComputer = {
+      run: async (command) => {
+        commands.push(command);
+        const failing = /^rm -f .*config-[a-f0-9-]+\.tmp$/.test(command);
+        return { ok: !failing, stdout: "", stderr: failing ? "fixture failure" : "" };
+      },
+      start: vi.fn(async () => ({ ok: true as const })),
+      upload: async () => {},
+    };
+    const engine = createBotEngine(() => ({ text: "fixture", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
+    await expect(engine.join(computer, start)).rejects.toThrow("Finishing the meeting setup");
+    expect(computer.start).not.toHaveBeenCalled();
+    expect(commands.at(-1)).toMatch(/^rm -f .*\.tmp .*\/config\.json$/);
   });
 });

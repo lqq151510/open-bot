@@ -27,6 +27,7 @@ export const END_REASON_TEXT: Record<MeetingEndReason, string> = {
   not_found: "This meeting link isn't active. Check the link; the meeting may have ended.",
   join_failed: "I couldn't get through the meeting's join screen.",
   consent_failed: "I couldn't post my note-taking notice in the meeting chat (chat may be off for guests), so I left without recording anything.",
+  notice_verification_unavailable: "I can't reliably verify the note-taking notice in Zoom yet, so I didn't join or record the meeting.",
   alone: "Everyone else left, so I left too.",
   max_length: "The meeting reached the 4-hour limit, so I left.",
   crashed: "The meeting bot stopped unexpectedly. What it heard until then is kept.",
