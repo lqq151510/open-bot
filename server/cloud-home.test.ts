@@ -438,9 +438,8 @@ it("the root supervisor runs and trusts only root's code, never the volume's or 
   expect(codeTrustProblem(files, "/data", () => { throw new Error("ENOENT"); })).toBe("/usr/local/bin/node cannot be checked");
 });
 
-it("ships an edge and a Fly template that keep the server private", () => {
+it.skipIf(!existsSync(join(import.meta.dirname, "../deploy/fly")))("ships an edge and a Fly template that keep the server private", () => {
   const dir = join(import.meta.dirname, "../deploy/fly");
-  if (!existsSync(dir)) return;
   const edgeFile = (name: string) => readFileSync(join(dir, name), "utf8");
   const caddy = edgeFile("edge-routes.caddy");
   expect(edgeFile("Caddyfile")).toMatch(/^:8080 \{\n\timport edge-routes\.caddy\n\}\n/m);
