@@ -718,6 +718,7 @@ function prepareRestore(dataDir: string, id: string, manifest: Manifest): string
       paths.definitions(bot, String(bot.id));
       if (typeof bot.soul === "string") bot.soul = paths.text(bot.soul);
       delete bot.voice;
+      delete bot.botGeneration;
     }
   });
   changeJson("groups.json", (value) => {

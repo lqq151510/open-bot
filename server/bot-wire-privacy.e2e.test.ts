@@ -92,6 +92,7 @@ describe("bot wire privacy against the real server", () => {
     await start(false);
     const created = await api("POST", "/api/bots", { name: "Wire Privacy Bot" });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(JSON.stringify(created.body)).not.toContain("botGeneration");
     const botId = created.body.bot.id as string;
     await stop();
 
@@ -107,6 +108,7 @@ describe("bot wire privacy against the real server", () => {
       expect(listed.status, JSON.stringify(listed.body)).toBe(200);
       expect(listed.body.bots.some((bot: any) => bot.id === botId)).toBe(true);
       expect(JSON.stringify(listed.body)).not.toContain("assignedSkills");
+      expect(JSON.stringify(listed.body)).not.toContain("botGeneration");
       await stop();
     }
 

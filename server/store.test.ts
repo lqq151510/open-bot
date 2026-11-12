@@ -33,6 +33,46 @@ describe("Store", () => {
     rmSync(DATA_DIR, { recursive: true, force: true });
   });
 
+  it("keeps an internal bot generation across restart and rotates it on recreation", () => {
+    const store = new Store(selection);
+    const bot = store.createBot({ name: "First" }, { id: "same-id", seedMessages: false });
+    const generation = store.botGeneration(bot.id);
+    expect(generation).toMatch(/^[0-9a-f-]{36}$/);
+    expect(new Store(selection).botGeneration(bot.id)).toBe(generation);
+    expect(() => store.patchBot(bot.id, { botGeneration: "forged" })).toThrow("Bot identity cannot be changed");
+    expect(() => store.patchBotProfile(bot.id, { botGeneration: "forged" } as never)).toThrow("Bot identity cannot be changed");
+    expect(store.deleteBot(bot.id)).toBe(true);
+    const replacement = store.createBot({ name: "Second" }, { id: bot.id, seedMessages: false });
+    expect(store.botGeneration(replacement.id)).not.toBe(generation);
+    expect(new Store(selection).botGeneration(replacement.id)).toBe(store.botGeneration(replacement.id));
+  });
+
+  it("migrates old bots once and fails closed for invalid or duplicate generations", () => {
+    const store = new Store(selection);
+    const first = store.createBot({ name: "First" }, { seedMessages: false });
+    const second = store.createBot({ name: "Second" }, { seedMessages: false });
+    const file = join(DATA_DIR, "bots.json");
+    const records = JSON.parse(readFileSync(file, "utf8"));
+    for (const record of records) delete record.botGeneration;
+    writeFileSync(file, JSON.stringify(records));
+    const migrated = new Store(selection);
+    const generation = migrated.botGeneration(first.id);
+    expect(generation).not.toBeNull();
+    expect(new Store(selection).botGeneration(first.id)).toBe(generation);
+    const corrupt = JSON.parse(readFileSync(file, "utf8"));
+    corrupt.find((record: BotRecord) => record.id === second.id).botGeneration = generation;
+    writeFileSync(file, JSON.stringify(corrupt));
+    const duplicate = new Store(selection);
+    expect(duplicate.botGeneration(first.id)).toBeNull();
+    expect(duplicate.botGeneration(second.id)).toBeNull();
+    corrupt.find((record: BotRecord) => record.id === first.id).botGeneration = "invalid";
+    writeFileSync(file, JSON.stringify(corrupt));
+    expect(new Store(selection).botGeneration(first.id)).toBeNull();
+    corrupt.find((record: BotRecord) => record.id === first.id).botGeneration = generation!.toUpperCase();
+    writeFileSync(file, JSON.stringify(corrupt));
+    expect(new Store(selection).botGeneration(first.id)).toBeNull();
+  });
+
   it("retains tool selection across restarts and distinguishes clearing from no tools", () => {
     const store = new Store(selection);
     const bot = store.createBot({ name: "Scoped drafter" });
@@ -2604,6 +2644,8 @@ describe("soul", () => {
         { action: "create", botId: "created-by-chief", threadId: "created-by-chief-thread", fields: { name: "Layoff Modeler", section: "People", modelSelection: selection() } },
       ] };
     store.applyTeamSetup(request);
+    expect(store.botGeneration("created-by-chief")).not.toBeNull();
+    expect(new Store(selection).botGeneration("created-by-chief")).toBe(store.botGeneration("created-by-chief"));
     expect(new Store(selection).bot("created-by-chief")?.visibility).toEqual({ people: ["hr@example.test"] });
     expect(new Store(selection).bot("created-by-chief")).toMatchObject({ autoApprove: false, approvePeerComms: false });
     const open = new Store(selection);

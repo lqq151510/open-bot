@@ -7,6 +7,7 @@ const MEMBER = /^[A-Za-z0-9_-]{16,128}$/;
 const SECRET = /^[A-Za-z0-9_-]{43}$/;
 const DEFAULT_TTL_MS = 5 * 60_000;
 const MAX_TTL_MS = 10 * 60_000;
+const PROCESS_EPOCH = randomBytes(32).toString("base64url");
 
 function guid(value: string): string {
   if (!GUID.test(value)) throw new Error("Invalid identity");
@@ -29,22 +30,20 @@ export class TeamsAccountLinks {
   private readonly db: DatabaseSync;
   private readonly now: () => number;
   private readonly monotonic: () => number;
-  private effectiveTime: number;
-  private monotonicTime: number;
 
   constructor(path: string, now: () => number = Date.now, monotonic: () => number = () => performance.now()) {
     this.now = now;
     this.monotonic = monotonic;
-    this.effectiveTime = now();
-    this.monotonicTime = Math.floor(monotonic());
-    if (!Number.isSafeInteger(this.effectiveTime) || this.effectiveTime < 0 || !Number.isSafeInteger(this.monotonicTime)) throw new Error("Invalid clock");
+    const wall = now(), ticks = Math.floor(monotonic());
+    if (!Number.isSafeInteger(wall) || wall < 0 || !Number.isSafeInteger(ticks) || ticks < 0) throw new Error("Invalid clock");
     this.db = new DatabaseSync(path, { timeout: 5000 });
     if (path !== ":memory:") chmodSync(path, 0o600);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       CREATE TABLE IF NOT EXISTS challenges (
         hash TEXT PRIMARY KEY, app_id TEXT NOT NULL, tenant_id TEXT NOT NULL,
-        member_id TEXT NOT NULL, expires_at INTEGER NOT NULL
+        member_id TEXT NOT NULL, expires_at INTEGER NOT NULL,
+        issue_epoch TEXT, issued_monotonic INTEGER, expires_monotonic INTEGER
       );
       CREATE TABLE IF NOT EXISTS links (
         app_id TEXT NOT NULL, tenant_id TEXT NOT NULL, object_id TEXT NOT NULL,
@@ -55,8 +54,10 @@ export class TeamsAccountLinks {
       CREATE TABLE IF NOT EXISTS link_clock (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), watermark INTEGER NOT NULL);
       INSERT OR IGNORE INTO link_clock VALUES (1, 0);
     `);
-    const clock = this.db.prepare("SELECT watermark FROM link_clock WHERE singleton = 1").get() as { watermark: number };
-    this.effectiveTime = Math.max(this.effectiveTime, clock.watermark);
+    const columns = this.db.prepare("PRAGMA table_info(challenges)").all() as Array<{ name: string }>;
+    for (const name of ["issue_epoch", "issued_monotonic", "expires_monotonic"]) {
+      if (!columns.some(column => column.name === name)) this.db.exec(`ALTER TABLE challenges ADD COLUMN ${name} ${name === "issue_epoch" ? "TEXT" : "INTEGER"}`);
+    }
   }
 
   issue(input: { appId: string; tenantId: string; memberId: string; ttlMs?: number }): { secret: string; expiresAt: number } {
@@ -68,11 +69,13 @@ export class TeamsAccountLinks {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const now = this.advanceClock();
+      const issuedMonotonic = Math.floor(this.monotonic());
+      const expiresMonotonic = issuedMonotonic + ttl;
       expiresAt = now + ttl;
-      if (!Number.isSafeInteger(expiresAt)) throw new Error("Invalid clock");
+      if (!Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(issuedMonotonic) || issuedMonotonic < 0 || !Number.isSafeInteger(expiresMonotonic)) throw new Error("Invalid clock");
       this.db.prepare("DELETE FROM challenges WHERE expires_at <= ? OR (app_id = ? AND tenant_id = ? AND member_id = ?)").run(now, app, tenant, owner);
-      this.db.prepare("INSERT INTO challenges (hash, app_id, tenant_id, member_id, expires_at) VALUES (?, ?, ?, ?, ?)")
-        .run(digest(secret), app, tenant, owner, expiresAt);
+      this.db.prepare("INSERT INTO challenges (hash, app_id, tenant_id, member_id, expires_at, issue_epoch, issued_monotonic, expires_monotonic) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(digest(secret), app, tenant, owner, expiresAt, PROCESS_EPOCH, issuedMonotonic, expiresMonotonic);
       this.db.exec("COMMIT");
     } catch (error) { this.db.exec("ROLLBACK"); throw error; }
     return { secret, expiresAt };
@@ -86,9 +89,14 @@ export class TeamsAccountLinks {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const now = this.advanceClock();
-      const challenge = this.db.prepare("SELECT member_id, expires_at FROM challenges WHERE hash = ? AND app_id = ? AND tenant_id = ?")
-        .get(hash, app, tenant) as { member_id: string; expires_at: number } | undefined;
-      if (!challenge || challenge.expires_at <= now || !isCurrentMember(challenge.member_id)) {
+      const challenge = this.db.prepare("SELECT member_id, expires_at, issue_epoch, issued_monotonic, expires_monotonic FROM challenges WHERE hash = ? AND app_id = ? AND tenant_id = ?")
+        .get(hash, app, tenant) as { member_id: string; expires_at: number; issue_epoch: string | null; issued_monotonic: number | null; expires_monotonic: number | null } | undefined;
+      if (!challenge || challenge.issue_epoch !== PROCESS_EPOCH || challenge.issued_monotonic === null || challenge.expires_monotonic === null) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+      const monotonic = Math.floor(this.monotonic());
+      if (!Number.isSafeInteger(monotonic) || monotonic < 0 || monotonic < challenge.issued_monotonic || challenge.expires_monotonic <= monotonic || challenge.expires_at <= now || !isCurrentMember(challenge.member_id)) {
         if (challenge) this.db.prepare("DELETE FROM challenges WHERE hash = ?").run(hash);
         this.db.exec("COMMIT");
         return false;
@@ -125,15 +133,11 @@ export class TeamsAccountLinks {
   }
 
   private advanceClock(): number {
-    const wall = this.now(), monotonic = Math.floor(this.monotonic());
-    const elapsed = monotonic - this.monotonicTime;
-    if (!Number.isSafeInteger(wall) || wall < 0 || !Number.isSafeInteger(elapsed) || elapsed < 0) throw new Error("Invalid clock");
+    const wall = this.now();
+    if (!Number.isSafeInteger(wall) || wall < 0) throw new Error("Invalid clock");
     const row = this.db.prepare("SELECT watermark FROM link_clock WHERE singleton = 1").get() as { watermark: number };
-    const effective = Math.max(wall, Math.max(this.effectiveTime, row.watermark) + elapsed);
-    if (!Number.isSafeInteger(effective)) throw new Error("Invalid clock");
+    const effective = Math.max(wall, row.watermark);
     this.db.prepare("UPDATE link_clock SET watermark = ? WHERE singleton = 1").run(effective);
-    this.effectiveTime = effective;
-    this.monotonicTime = monotonic;
     return effective;
   }
 

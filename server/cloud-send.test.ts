@@ -35,6 +35,7 @@ describe("what a server reports for Send to My Cloud", () => {
     expect(partHash({ b: 1, a: 2 })).toBe(partHash({ a: 2, b: 1 }));
     // A working folder is this computer's: it is not part of what is compared.
     expect(botParts(bot({ cwd: "/Users/amit/work" }), () => null)).toEqual(parts);
+    expect(botParts(bot({ botGeneration: "1fbafcc1-1454-4e57-94a8-874658c59e44" }), () => null)).toEqual(parts);
   });
 
   it("lists bots, their skills, logins, 1Password and settings, without a secret or a picture's bytes", () => {

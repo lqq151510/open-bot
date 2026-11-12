@@ -31,7 +31,7 @@ function setup(engine: MeetingEngine, overrides: Partial<MeetingDeps> = {}) {
     dataDir, engine,
     speech: () => ({ kind: "eleven", grant: async () => ({ kind: "eleven", token: "sutkn_fresh" }) }),
     computerFor: async () => ({ boxId: "bx_test" }),
-    computer: () => ({ run: async () => ({ ok: true, stdout: "", stderr: "" }), start: async () => ({ ok: true }) }),
+    computer: () => ({ run: async () => ({ ok: true, stdout: "", stderr: "" }), start: async () => ({ ok: true }), upload: async () => {} }),
     touch: vi.fn(),
     card: { show: () => "card-1", update: (record) => { cards.push(record.phase); } },
     say: (_record, line) => { said.push(JSON.stringify(line)); },
@@ -159,6 +159,7 @@ describe("meetings", () => {
     const computer: MeetingComputer = {
       run: async (command) => { commands.push(command); return { ok: true, stdout: "", stderr: "" }; },
       start: async () => ({ ok: false, error: "fixture start failure" }),
+      upload: async () => {},
     };
     const engine = createBotEngine(() => ({ text: "console.log(1)", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
     await expect(engine.join(computer, {
@@ -171,9 +172,11 @@ describe("meetings", () => {
   it("never puts the speech key on the cloud computer", async () => {
     const key = "sk_eleven_secret_value_123";
     const commands: string[] = [];
+    const uploads: Array<{ path: string; contents: string }> = [];
     const computer: MeetingComputer = {
       run: async (command) => { commands.push(command); return { ok: true, stdout: JSON.stringify({ events: [], alive: false }), stderr: "" }; },
       start: async (command) => { commands.push(command); return { ok: true }; },
+      upload: async (path, contents) => { uploads.push({ path, contents }); },
     };
     const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       expect(new Headers(init?.headers).get("xi-api-key")).toBe(key);
@@ -183,12 +186,13 @@ describe("meetings", () => {
     const { meetings } = setup(engine, { computer: () => computer, speech: () => speechSource({ tts: { key } }, {}, fetchImpl, {}) });
     const { record } = meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link: MEET });
     await until(() => record.phase === "ended");
-    const config = commands.find((command) => command.includes("config.json"))!;
-    expect(config).toMatch(/^umask 077 && /);
-    const written = JSON.parse(Buffer.from(/printf %s (\S+) \| base64 -d/.exec(config)![1], "base64").toString("utf8"));
-    expect(written.stt).toEqual({ kind: "eleven", token: "sutkn_single_use" });
+    expect(uploads).toHaveLength(1);
+    expect(JSON.parse(uploads[0]!.contents).stt).toEqual({ kind: "eleven", token: "sutkn_single_use" });
+    expect(uploads[0]!.path).toMatch(/^\/home\/user\/\.openbot-meet\/[^/]+\/config-[a-f0-9-]+\.tmp$/);
     expect(commands.join("\n")).not.toContain(key);
-    expect(commands.map((command) => Buffer.from(command.split(" ").find((part) => part.length > 40) ?? "", "base64").toString("utf8")).join("\n")).not.toContain(key);
+    expect(commands.join("\n")).not.toContain("sutkn_single_use");
+    expect(commands.join("\n")).not.toContain(Buffer.from("sutkn_single_use").toString("base64"));
+    expect(commands.join("\n")).not.toContain(Buffer.from(uploads[0]!.contents).toString("base64"));
   });
 
   it("never falls through when a Cloud's included transcription refuses: it says why and offers the computer's own", async () => {
@@ -233,6 +237,7 @@ describe("meetings", () => {
   it("never hands a Groq or OpenAI key to the computer", async () => {
     const key = "gsk_groq_secret_value_456";
     const commands: string[] = [];
+    const uploads: string[] = [];
     const computer: MeetingComputer = {
       run: async (command) => {
         commands.push(command);
@@ -240,17 +245,17 @@ describe("meetings", () => {
         return { ok: true, stdout: JSON.stringify({ events: first ? [{ seq: 1, at: 1, type: "audio", n: 1, start: 1, ms: 300, b64: "T2dnUw==" }] : [], alive: first }), stderr: "" };
       },
       start: async (command) => { commands.push(command); return { ok: true }; },
+      upload: async (_path, contents) => { uploads.push(contents); },
     };
     const fetchImpl = vi.fn(async () => Response.json({ words: [{ word: "Hi", start: 0, end: 0.2 }] })) as unknown as typeof fetch;
     const engine = createBotEngine(() => ({ text: "console.log(1)", file: "$HOME/.openbot-meet/meetbot-test.mjs" }));
     const { meetings } = setup(engine, { computer: () => computer, speech: () => speechSource({ groq: { key } }, {}, fetchImpl, {}) });
     const { record } = meetings.join({ botId: "b1", botName: "Ada", threadId: "t1", owner: "b1", link: MEET });
-    await until(() => commands.some((command) => command.includes(" put ")));
+    await until(() => uploads.some((contents) => contents.includes('"kind":"words"')));
     expect(fetchImpl).toHaveBeenCalled();
-    const decoded = commands.map((command) => command.split(" ").map((part) => (/^[A-Za-z0-9+/=]{24,}$/.test(part) ? Buffer.from(part, "base64").toString("utf8") : part)).join(" "));
-    expect(decoded.find((command) => command.includes("config.json"))).toContain('"stt":{"kind":"chunks"}');
-    expect([...commands, ...decoded].join("\n")).not.toContain(key);
-    expect(decoded.some((command) => command.includes('"kind":"words"'))).toBe(true);
+    expect(uploads.some((contents) => contents.includes('"stt":{"kind":"chunks"}'))).toBe(true);
+    expect([...commands, ...uploads].join("\n")).not.toContain(key);
+    expect(uploads.some((contents) => contents.includes('"kind":"words"'))).toBe(true);
     void record;
   });
 });

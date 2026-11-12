@@ -233,6 +233,23 @@ export function pageOp(a: any): any {
           names,
         };
       }
+      // Zoom Web selectors: https://github.com/Vexa-ai/vexa/tree/6b26f7b921756d6db128d42cd70b4b7046381407/core/meetings/modules
+      if (a.platform === "zoom") {
+        const names = unique(all('.participants-item__display-name').filter(shown).map((node) => node.textContent ?? "")).filter(notSelf);
+        const roster = all('button[aria-label*="participants" i]').filter(shown).map(words).join(" ").match(/\b(\d{1,4})\b/);
+        const inMeeting = Boolean(find({ css: '.meeting-app button[aria-label="Leave" i]' }));
+        return {
+          inMeeting,
+          lobby: !inMeeting && said("waiting for the host|host will let you in|waiting room|host has joined.*let them know"),
+          denied: !inMeeting && said("(denied|declined).*(join|entry|admission)|not admitted"),
+          removed: !inMeeting && said("removed from (the|this) meeting|you have been removed"),
+          ended: !inMeeting && said("meeting (has )?ended|ended by (the )?host|you (have )?left the meeting"),
+          blocked: !inMeeting && said("sign in to join|authentication is required|only authenticated users|automated bots aren.t allowed|must use zoom rtms|detected you may be a bot"),
+          notFound: !inMeeting && said("this meeting link is invalid|invalid meeting (id|number)|meeting not found"),
+          others: roster ? Math.max(0, Number(roster[1]) - 1) : names.length || null,
+          names,
+        };
+      }
       const host = location.hostname;
       const roster = all('#roster-button, button[data-tid="roster-button"], button[aria-label^="People" i]').map(words).join(" ").match(/\b(\d{1,4})\b/);
       const streams = all("[data-stream-type][data-tid]");
@@ -267,6 +284,17 @@ export function pageOp(a: any): any {
           return { key: `id:${node.getAttribute("data-message-id")}`, from: from.trim(), text };
         });
       }
+      if (a.platform === "zoom") {
+        const root = document.querySelector('[aria-label="Chat Message List"], .chat-virtuoso-wrapper, #chat-list-content, .chat-list-content, .chat-container__chat-list');
+        if (!root) return [];
+        return all('[id^="chat-message-"], .new-chat-message__container', root).map((node, i) => {
+          const from = (node.querySelector('.chat-message-text__user-name, [class*="user-name"], [class*="sender"]')?.textContent ?? "").replace(/\s+/g, " ").trim();
+          const text = (node.querySelector('.text-wrapper, [class*="text-content"], [class*="message-content"]')?.textContent ?? "").replace(/\s+/g, " ").trim();
+          const messageId = /^chat-message-[\w-]+$/.test(node.id) ? node.id : null;
+          // No Zoom Web self-message marker has been verified; never infer it from a display name.
+          return { key: `${node.id || i}|${from}|${text}`, messageId, isSelf: false, from, text };
+        }).filter((line) => line.text);
+      }
       return all('[data-tid="chat-pane-message"], div[data-mid]').map((node, i) => {
         const text = (node.querySelector('[data-tid="messageBodyContent"], [id^="content-"]')?.textContent ?? "").replace(/\s+/g, " ").trim();
         let from = node.querySelector('[data-tid="message-author-name"]')?.textContent ?? "";
@@ -284,6 +312,11 @@ export function pageOp(a: any): any {
       if (a.platform === "meet") {
         const tile = all("[data-participant-id]").find((t) => t.matches(MEET_SPEAKING) || t.querySelector(MEET_SPEAKING));
         const name = tile ? meetName(tile) : "";
+        return notSelf(name) ? name : null;
+      }
+      if (a.platform === "zoom") {
+        const tile = all('.speaker-active-container__video-frame, .speaker-bar-container__video-frame--active').find(shown);
+        const name = (tile?.querySelector('.video-avatar__avatar-footer')?.textContent ?? "").replace(/\s+/g, " ").trim();
         return notSelf(name) ? name : null;
       }
       const outline = all('[data-tid="voice-level-stream-outline"]').find((el) =>
@@ -528,17 +561,29 @@ export const ADAPTERS: Record<MeetbotPlatform, Adapter> = {
   },
 };
 
-export async function sendChat(page: CallPage, adapter: Adapter, text: string): Promise<boolean> {
+export async function sendChat(page: CallPage, adapter: Adapter, text: string, requireOwnConfirmation = false): Promise<boolean> {
   if (!(await page.exists(adapter.composer))) {
     if (!(await page.op({ op: "click", spec: adapter.chatToggle }))) await page.click(adapter.chatToggle);
     for (let i = 0; i < 20 && !(await page.exists(adapter.composer)); i++) await sleep(250);
   }
+  const before: Array<{ messageId?: string | null }> | null = requireOwnConfirmation ? await page.op({ op: "chat" }).catch(() => null) : [];
+  if (!Array.isArray(before) || before.some((line) => !line.messageId)) return false;
   if (!(await page.type(adapter.composer, text))) return false;
   await sleep(150);
   await page.enter();
   await sleep(400);
   const left = await page.op({ op: "value", spec: adapter.composer });
-  return typeof left !== "string" || !left.includes(text.slice(0, 40));
+  if (typeof left !== "string" || left.includes(text.slice(0, 40))) return false;
+  if (!requireOwnConfirmation) return true;
+  const prior = new Set(before.map((line) => line.messageId));
+  const normalize = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  for (let i = 0; i < 8; i++) {
+    const lines: Array<{ messageId?: string | null; isSelf?: boolean; text: string }> = await page.op({ op: "chat" }).catch(() => []);
+    if (lines.some((line) => Boolean(line.messageId) && !prior.has(line.messageId) && line.isSelf === true
+      && normalize(line.text) === normalize(text))) return true;
+    await sleep(250);
+  }
+  return false;
 }
 
 /** What the session needs from the outside world, so the order of its steps can be checked without a browser. */
@@ -589,7 +634,7 @@ export async function runSession(parts: SessionParts): Promise<EndReason> {
 
   let consented = false;
   for (let attempt = 0; attempt < 4 && !consented; attempt++) {
-    consented = await sendChat(page, adapter, config.consent).catch(() => false);
+    consented = await sendChat(page, adapter, config.consent, config.platform === "zoom").catch(() => false);
     if (!consented) await pause(3_000);
   }
   if (!consented) return "consent_failed";

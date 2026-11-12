@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamsAccountLinks } from "./account-links.ts";
 
 const appId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -48,6 +48,67 @@ describe("Teams account linking", () => {
     links.close();
     links = new TeamsAccountLinks(path, () => now);
     expect(links.resolve(identity, () => true)).toBe(memberId);
+  });
+
+  it("does not extend a challenge when wall time moves backwards while running", () => {
+    let monotonic = 0;
+    links.close();
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    const secret = links.issue({ appId, tenantId, memberId, ttlMs: 100 }).secret;
+    now -= 500;
+    monotonic += 100;
+    expect(links.consume(secret, identity, true, () => true)).toBe(false);
+  });
+
+  it("persists an observed high watermark across restart and other instances", () => {
+    let monotonic = 0;
+    links.close();
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    const secret = links.issue({ appId, tenantId, memberId, ttlMs: 100 }).secret;
+    now += 101;
+    const other = new TeamsAccountLinks(path, () => now, () => monotonic);
+    try { other.issue({ appId, tenantId, memberId: otherMember }); } finally { other.close(); }
+    links.close();
+    now -= 500;
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    expect(links.consume(secret, identity, true, () => true)).toBe(false);
+  });
+
+  it("keeps monotonic time advancing when restart wall time is below the saved watermark", () => {
+    let monotonic = 0;
+    links.close();
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    const secret = links.issue({ appId, tenantId, memberId, ttlMs: 100 }).secret;
+    links.close();
+    now -= 500;
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    monotonic += 100;
+    expect(links.consume(secret, identity, true, () => true)).toBe(false);
+  });
+
+  it("does not count elapsed time twice when two instances interleave", () => {
+    let monotonic = 0;
+    links.close();
+    links = new TeamsAccountLinks(path, () => now, () => monotonic);
+    const other = new TeamsAccountLinks(path, () => now, () => monotonic);
+    try {
+      const secret = links.issue({ appId, tenantId, memberId, ttlMs: 1000 }).secret;
+      now += 600;
+      monotonic += 600;
+      other.issue({ appId, tenantId, memberId: otherMember });
+      expect(links.consume(secret, identity, true, () => true)).toBe(true);
+    } finally { other.close(); }
+  });
+
+  it("fails closed for a challenge from an earlier process without deleting the original", async () => {
+    const secret = links.issue({ appId, tenantId, memberId }).secret;
+    vi.resetModules();
+    const { TeamsAccountLinks: NewProcessLinks } = await import("./account-links.ts");
+    const restarted = new NewProcessLinks(path, () => now);
+    try {
+      expect(restarted.consume(secret, identity, true, () => true)).toBe(false);
+      expect(links.consume(secret, identity, true, () => true)).toBe(true);
+    } finally { restarted.close(); }
   });
 
   it("does not cross app or tenant boundaries and requires the local membership to remain current", () => {

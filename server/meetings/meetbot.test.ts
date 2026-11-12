@@ -119,6 +119,76 @@ describe("the meeting bot's session", () => {
   });
 });
 
+
+describe("Zoom notice confirmation", () => {
+  it("does not capture when the notice is absent from the chat", async () => {
+    vi.useFakeTimers();
+    try {
+      const { page } = fakePage();
+      const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
+      const result = runSession(run.session);
+      await vi.runAllTimersAsync();
+      expect(await result).toBe("consent_failed");
+      expect(run.order).not.toContain("capture");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not use an older identical notice as confirmation", async () => {
+    vi.useFakeTimers();
+    try {
+      const { page } = fakePage();
+      vi.mocked(page.op).mockImplementation(async (request) => request.op === "chat"
+        ? [{ key: "old", messageId: "chat-message-old", isSelf: true, from: config.name, text: config.consent }]
+        : request.op === "value" ? "" : true);
+      const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
+      const result = runSession(run.session);
+      await vi.runAllTimersAsync();
+      expect(await result).toBe("consent_failed");
+      expect(run.order).not.toContain("capture");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(["same name", "you label", "reordered old message", "unstable old row"])("does not accept %s as notice confirmation", async (scenario) => {
+    vi.useFakeTimers();
+    try {
+      const { page } = fakePage();
+      let sent = false;
+      vi.mocked(page.enter).mockImplementation(async () => { sent = true; });
+      vi.mocked(page.op).mockImplementation(async (request) => {
+        if (request.op === "value") return "";
+        if (request.op !== "chat") return true;
+        if (scenario === "unstable old row") return [{ key: sent ? "1" : "0", messageId: null, isSelf: true, from: config.name, text: config.consent }];
+        if (scenario === "reordered old message") return [{ key: sent ? "1" : "0", messageId: "chat-message-old", isSelf: true, from: config.name, text: config.consent }];
+        return sent ? [{ key: "new", messageId: "chat-message-new", isSelf: false, from: scenario === "you label" ? "You" : config.name, text: config.consent }] : [];
+      });
+      const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
+      const result = runSession(run.session);
+      await vi.runAllTimersAsync();
+      expect(await result).toBe("consent_failed");
+      expect(run.order).not.toContain("capture");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("starts capture only after a new notice from the bot appears", async () => {
+    vi.useFakeTimers();
+    try {
+      const { page } = fakePage();
+      let sent = false;
+      vi.mocked(page.enter).mockImplementation(async () => { sent = true; });
+      vi.mocked(page.op).mockImplementation(async (request) => request.op === "chat"
+        ? sent ? [{ key: "new", messageId: "chat-message-new", isSelf: true, from: config.name, text: config.consent }] : []
+        : request.op === "value" ? "" : true);
+      const run = parts(page, { config: { ...config, platform: "zoom" }, adapter: { ...ADAPTERS.zoom, prejoin: async () => {}, settle: async () => {} } });
+      run.commands.push({ kind: "leave" });
+      const result = runSession(run.session);
+      await vi.runAllTimersAsync();
+      expect(await result).toBe("left");
+      expect(run.order.indexOf("consent")).toBeGreaterThan(-1);
+      expect(run.order.indexOf("consent")).toBeLessThan(run.order.indexOf("capture"));
+    } finally { vi.useRealTimers(); }
+  });
+});
+
 describe("meeting bot helpers", () => {
   it("reads @notes questions wherever the platform puts them", () => {
     expect(noteQuestion("@notes what have we decided?")).toEqual({ stop: false, question: "what have we decided?" });

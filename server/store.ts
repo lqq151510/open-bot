@@ -167,6 +167,7 @@ export function titleFromLlm(raw: string): string | null {
 }
 
 export interface BotRecord extends Omit<WireBot, "avatarUrl" | "tasks"> {
+  botGeneration?: string;
   tasks?: TaskRecord[];
   avatarUrl?: string;
   resumeCursors: Record<string, unknown>; mainThreadChoice?: string; // mainThreadChoice ("Set as main thread") is host-only; clients get mainThreadId.
@@ -186,7 +187,7 @@ export interface BotRecord extends Omit<WireBot, "avatarUrl" | "tasks"> {
   assignedSkills?: string[];
 }
 
-export type BotWirePrivateKeys = "resumeCursors" | "mainThreadChoice" | "tasks" | "avatarUrl" | "approvalGrant" | "lastProfileRequestId" | "lastTeamSetupReceipt" | "packageBase" | "assignedSkills";
+export type BotWirePrivateKeys = "botGeneration" | "resumeCursors" | "mainThreadChoice" | "tasks" | "avatarUrl" | "approvalGrant" | "lastProfileRequestId" | "lastTeamSetupReceipt" | "packageBase" | "assignedSkills";
 export type BotWireProjection = Pick<BotRecord, Exclude<keyof BotRecord, BotWirePrivateKeys>>;
 export type BotWireProjectionIsExact = AssertExact<Omit<WireBot, "avatarUrl" | "tasks">, BotWireProjection> & AssertSameKeys<Omit<WireBot, "avatarUrl" | "tasks">, BotWireProjection>;
 export const botWireProjectionIsExact: BotWireProjectionIsExact = true;
@@ -335,6 +336,7 @@ export class Store {
     const chiefSectionsSeen = new Set<string>();
     let groupsMigrated = false;
     for (const b of this.bots) {
+      if (b.botGeneration === undefined) { b.botGeneration = newId(); botsMigrated = true; }
       if (b.busy || (b.activity !== undefined && b.activity !== "idle")) botsMigrated = true;
       b.busy = false;
       b.activity = "idle"; if (dropRetiredApps(b)) botsMigrated = true; if (grantScopedApps(b)) botsMigrated = true; if (trimOutboundPolicy(b)) botsMigrated = true;
@@ -1298,6 +1300,14 @@ export class Store {
     return this.bots.find((b) => b.id === id) ?? null;
   }
 
+  botGeneration(id: string): string | null {
+    const matching = this.bots.filter((bot) => bot.id === id);
+    if (matching.length !== 1) return null;
+    const generation = matching[0].botGeneration;
+    if (typeof generation !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(generation)) return null;
+    return this.bots.filter((bot) => bot.botGeneration === generation).length === 1 ? generation : null;
+  }
+
   botByThread(threadId: string) {
     return this.bots.find((b) => b.threadId === threadId || b.tasks?.some((t) => t.threadId === threadId)) ?? null;
   }
@@ -1324,6 +1334,7 @@ export class Store {
     const section = sectionKey(profile.section);
     const bot: BotRecord = {
       id: opts.id ?? newId(),
+      botGeneration: newId(),
       threadId: opts.threadId ?? newId(),
       name,
       title: profile.title ?? "",
@@ -1390,7 +1401,7 @@ export class Store {
         const modelSelection = this.newBotSelection(operation.fields.modelSelection);
         next = { id: operation.botId, threadId: operation.threadId, name: operation.fields.name,
           title: "", description: "", soul: "", notifications: true, color: rotationColor(nextBots.length), unread: false,
-          resumeCursors: {}, createdAt, ...operation.fields, modelSelection,
+          resumeCursors: {}, createdAt, ...operation.fields, modelSelection, botGeneration: newId(),
           autoApprove: false, approvePeerComms: false,
           // A restricted Chief never creates a bot everyone sees.
           ...(chief.visibility && chief.visibility !== "everyone" ? { visibility: structuredClone(chief.visibility) } : {}),
@@ -1405,7 +1416,7 @@ export class Store {
       } else {
         if (at < 0) throw new Error("A setup target no longer exists");
         const previous = nextBots[at];
-        next = { ...previous, ...operation.fields };
+        next = { ...previous, ...operation.fields, botGeneration: previous.botGeneration };
         if (operation.fields.modelSelection) next.tasks = this.withDefaultModel(previous, operation.fields.modelSelection);
         nextBots[at] = next;
       }
@@ -1512,6 +1523,7 @@ export class Store {
   patchBot(id: string, patch: Partial<BotRecord>): BotRecord | null {
     const bot = this.bot(id);
     if (!bot) return null;
+    if (Object.hasOwn(patch, "botGeneration")) throw new Error("Bot identity cannot be changed");
     if (patch.connectorTools !== undefined) {
       const parsed = parseConnectorTools(patch.connectorTools);
       if (!parsed.ok) throw new Error(parsed.error);
@@ -1567,6 +1579,7 @@ export class Store {
   patchBotProfile(id: string, patch: BotProfilePatch & Partial<Pick<BotRecord, "cwd" | "lastProfileRequestId">>): BotRecord | null {
     const bot = this.bot(id);
     if (!bot) return null;
+    if (Object.hasOwn(patch, "botGeneration")) throw new Error("Bot identity cannot be changed");
     const next = { ...bot, ...patch };
     if (patch.soul !== undefined) {
       next.soulHash = soulHash(patch.soul);

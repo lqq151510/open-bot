@@ -1,6 +1,6 @@
 // How a meeting is run on a cloud computer. The tools, cards and routine only see MeetingEngine, so another engine (a
 // hosted meeting-bot service, say) can stand in for this one without changing them.
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { MeetingEndReason, MeetingPlatform } from "../../shared/meetings.ts";
 import { resolveProxy } from "../proxy-paths.ts";
@@ -39,6 +39,7 @@ export type MeetingEvent = { seq: number; at: number } & (
 export interface MeetingComputer {
   run(command: string, timeoutMs: number): Promise<{ ok: boolean; stdout: string; stderr: string }>;
   start(command: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  upload(path: string, contents: string): Promise<void>;
 }
 
 export interface MeetingEngine {
@@ -90,8 +91,17 @@ export function createBotEngine(source: () => { text: string; file: string } = b
     return bot.file;
   }
   async function put(computer: MeetingComputer, id: string, command: Record<string, unknown>): Promise<void> {
-    const bot = source();
-    await must(computer, `node ${bot.file} put ${folder(id)} ${Buffer.from(JSON.stringify(command)).toString("base64")}`, "Reaching the meeting bot", 30_000);
+    const dir = folder(id);
+    const name = `${Date.now()}-${randomUUID()}`;
+    const path = `${dir}/inbox/${name}`;
+    await must(computer, `test "$HOME" = /home/user && test ! -L ${ROOT} && test ! -L ${dir} && test ! -L ${dir}/inbox && mkdir -p ${dir}/inbox && chmod 700 ${dir}/inbox && test ! -e ${path}.tmp && test ! -L ${path}.tmp`, "Preparing the meeting inbox", 30_000);
+    try {
+      await computer.upload(`/home/user/.openbot-meet/${id}/inbox/${name}.tmp`, JSON.stringify(command));
+      await must(computer, `chmod 600 ${path}.tmp && ln ${path}.tmp ${path}.json && rm -f ${path}.tmp`, "Reaching the meeting bot", 30_000);
+    } catch (error) {
+      await computer.run(`rm -f ${path}.tmp`, 30_000).catch(() => {});
+      throw error;
+    }
   }
   const speech = (grant: SpeechGrant) => (grant.kind === "eleven" ? { kind: "eleven", token: grant.token, ...(grant.rotateMs ? { rotateMs: grant.rotateMs } : {}) } : { kind: grant.kind });
 
@@ -103,12 +113,18 @@ export function createBotEngine(source: () => { text: string; file: string } = b
         url: start.url, platform: start.platform, name: start.name, consent: start.consent, stt: speech(start.speech),
         maxMs: start.maxMs, lobbyMs: start.lobbyMs, aloneMs: start.aloneMs,
       };
+      const name = `config-${randomUUID()}.tmp`;
+      const temp = `${dir}/${name}`;
+      let ownsConfig = false;
       try {
-        await must(computer, `umask 077 && mkdir -p ${dir} && printf %s ${Buffer.from(JSON.stringify(config)).toString("base64")} | base64 -d > ${dir}/config.json && chmod 600 ${dir}/config.json`, "Setting up the meeting");
+        await must(computer, `test "$HOME" = /home/user && test ! -L ${ROOT} && test ! -L ${dir} && umask 077 && mkdir -p ${dir} && chmod 700 ${ROOT} ${dir} && test ! -e ${dir}/config.json && test ! -L ${dir}/config.json && test ! -e ${temp} && test ! -L ${temp}`, "Preparing the meeting");
+        await computer.upload(`/home/user/.openbot-meet/${start.id}/${name}`, JSON.stringify(config));
+        await must(computer, `chmod 600 ${temp} && ln ${temp} ${dir}/config.json && rm -f ${temp}`, "Setting up the meeting");
+        ownsConfig = true;
         const started = await computer.start(`cd "$HOME" && exec node ${file} run ${dir} >> ${dir}/stdout.log 2>&1`);
         if (!started.ok) throw new MeetingEngineError(started.error);
       } catch (error) {
-        await computer.run(`rm -f ${dir}/config.json`, 30_000).catch(() => {});
+        await computer.run(`rm -f ${temp}${ownsConfig ? ` ${dir}/config.json` : ""}`, 30_000).catch(() => {});
         throw error;
       }
     },

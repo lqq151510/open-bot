@@ -1,10 +1,14 @@
 // Meeting notes on this server: the meetings, their tools' routes, the Leave button and the computer they keep awake.
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { MEETING_ROUTINE } from "../../shared/meetings.ts";
 import type { WidgetAction } from "../../shared/widget.ts";
 import * as boat from "../boat.ts";
 import { saveBotAttachment } from "../bot-attachment.ts";
 import { createAgentCard } from "../chat-widgets.ts";
 import { startInBackground } from "../cloud-computer-background.ts";
+import { copyToComputer } from "../cloud-computer-files.ts";
 import type { AppConfig } from "../config.ts";
 import { createBotEngine, type MeetingComputer } from "../meetings/engine.ts";
 import { END_LINE, LEAVE_ACTION, liveCard } from "../meetings/cards.ts";
@@ -54,6 +58,18 @@ export function createMeetingsHost(deps: MeetingsHostDeps, routeDeps: () => Meet
     async start(command) {
       const started = await startInBackground(cfg, boxId, command, AbortSignal.timeout(60_000));
       return started.isError ? { ok: false, error: started.content.map((part) => ("text" in part ? part.text : "")).join(" ") } : { ok: true };
+    },
+    async upload(path, contents) {
+      const dir = mkdtempSync(join(tmpdir(), "openbot-meeting-upload-"));
+      try {
+        writeFileSync(join(dir, "payload"), contents, { mode: 0o600, flag: "wx" });
+        const result = await copyToComputer(cfg, boxId, dir, { from: "payload", path }, AbortSignal.timeout(60_000));
+        if ("error" in result || result.path !== path || result.bytes !== Buffer.byteLength(contents)) throw new Error("Secure meeting upload failed.");
+      } catch {
+        throw new Error("Secure meeting upload failed.");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     },
   });
 
