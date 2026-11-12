@@ -6600,7 +6600,7 @@
   "settings.simple.page.vault": "Vault",
   "settings.simple.group.bot": "Bot",
   "settings.permissions.autoReview.title": "Auto-review",
-  "settings.permissions.autoReview.subtitle": "Let bots check their own actions against your rules instead of stopping to ask.",
+  "settings.permissions.autoReview.subtitle": "Review {product}'s actions against your custom rules.",
   "settings.permissions.modes.title": "Bot permissions",
   "settings.permissions.modes.subtitle": "Choose what each bot may do without asking.",
   "settings.permissions.botAria": "Permission level for {name}",
