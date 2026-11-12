@@ -1,0 +1,61 @@
+name: Build OpenBot v0.1.0 Windows installer
+
+on:
+  push:
+    branches:
+      - codex/build-v0.1.0-assets
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v0.1.0
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+          cache: pnpm
+      - name: Deny unused dependency build scripts
+        run: pnpm approve-builds '!core-js' '!workerd'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Windows x64 packages
+        run: pnpm package:win
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $PWD 'release'
+          $destination = Join-Path $PWD 'release-upload'
+          $installer = Join-Path $source 'OpenBot-0.1.0-setup.exe'
+          $feed = Join-Path $source 'latest.yml'
+          if (!(Test-Path $installer) -or !(Test-Path $feed)) {
+            throw 'The Windows installer or updater feed was not produced.'
+          }
+          New-Item -ItemType Directory -Force -Path $destination | Out-Null
+          Copy-Item $installer $destination
+          Copy-Item $feed $destination
+          Copy-Item $installer (Join-Path $destination 'OpenBot-setup.exe')
+          Get-ChildItem -File $source | Where-Object {
+            $_.Name -like 'OpenBot-0.1.0-*.blockmap' -or $_.Name -eq 'OpenBot-0.1.0-x64.zip'
+          } | Copy-Item -Destination $destination
+          Get-ChildItem -File $destination | Get-FileHash -Algorithm SHA256 | Format-Table Path, Hash -AutoSize
+      - name: Upload Windows assets to v0.1.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem -File release-upload | Select-Object -ExpandProperty FullName
+          gh release upload v0.1.0 @assets --repo lqq151510/open-bot --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
