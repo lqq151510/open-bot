@@ -44,10 +44,10 @@ const RELEASES = new Map<string, AgentBrowserReleaseAsset>([
     {
       // Upstream 0.37.0 still lacks vercel-labs/agent-browser#1781's Windows cold-start fix.
       // Retain the native-verified revision until its replacement is tested.
-      target: "win32-x64", version: "0.36.0-omb.1",
-      asset: "agent-browser-win32-x64-0.36.0-omb.1.exe",
-      url: "https://github.com/milind-soni/OpenBot/releases/download/browser-engine-v0.36.0-omb.1/agent-browser-win32-x64-0.36.0-omb.1.exe",
-      sha256: "33bee834f6a6072ec8688b0914726e0262874d758f69f27e8baf7eaac6b5ed15", bytes: 13806080,
+      target: "win32-x64", version: "0.36.0-omb.2",
+      asset: "agent-browser-win32-x64-0.36.0-omb.2.exe",
+      url: "https://github.com/lqq151510/open-bot/releases/download/v0.1.0/agent-browser-win32-x64-0.36.0-omb.2.exe",
+      sha256: "6762144ba846dda3d263d16ef3bb59865dcb53b1f6c79cedb1c106d88197ac24", bytes: 13806080,
     },
   ],
 ]);

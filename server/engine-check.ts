@@ -10,9 +10,19 @@ export type EngineCheck = { ok: true } | ({ ok: false } & ServerErrorBody) | { o
 const PROMPT = "This is a connection check. Reply with the single word OK.";
 const TIMEOUT_MS = 90_000;
 const SIGNED_OUT = /not logged in|please run \/login|\blogin required\b|not signed in|sign in again|invalid api key|invalid_api_key|\b401\b|unauthori[sz]ed/i;
+/** A refusal the provider quotes in words, whose wording this app turns into a usage-limit notice. */
+const PROVIDER_REFUSAL = /\b(?:429|rate limit|usage limit|quota)\b|额度|配额|用量|余额/i;
+/** The CLI itself is missing, so no sign-in or provider answer can be reached. */
+const MISSING_CLI = /\bspawn .*ENOENT\b|command not found|is not recognized as an internal or external command/i;
 
-/** What a failed check says: the provider's own refusal in plain words, a sign-in to make again, or its own short text. */
+/** What a failed check says: a missing CLI to install, the provider's own refusal in plain words, a sign-in to make
+ * again, or its own short text. */
 export function engineCheckError(name: string, message: string): string {
+  if (MISSING_CLI.test(message)) return `${name} isn't installed on this computer anymore. Install it, then check again.`;
+  if (PROVIDER_REFUSAL.test(message)) {
+    const refusal = engineFailureMessage(name, message);
+    if (refusal) return refusal;
+  }
   if (SIGNED_OUT.test(message)) return `${name} isn't signed in on this computer anymore. Sign in again, then check again.`;
   const plain = engineFailureMessage(name, message);
   if (plain) return plain;

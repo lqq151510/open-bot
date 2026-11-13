@@ -13,8 +13,11 @@ export const speechHelperBinary = path.join(speechHelperBundle, "Contents", "Mac
 
 export function buildSpeechHelper() {
   const contents = path.join(speechHelperBundle, "Contents");
+  const localization = path.join(contents, "Resources", "zh-Hans.lproj");
   mkdirSync(path.join(contents, "MacOS"), { recursive: true });
+  mkdirSync(localization, { recursive: true });
   copyFileSync(path.join(resourcesDir, "speech-helper-Info.plist"), path.join(contents, "Info.plist"));
+  copyFileSync(path.join(resourcesDir, "macos", "speech", "zh-Hans.lproj", "InfoPlist.strings"), path.join(localization, "InfoPlist.strings"));
   // Universal, since the helper rides in both arm64 and x64 apps and bare `swiftc` builds host-arch only. macos12 = LSMinimumSystemVersion.
   const slices = ["arm64", "x86_64"].map((arch) => {
     const slice = `${speechHelperBinary}-${arch}`;

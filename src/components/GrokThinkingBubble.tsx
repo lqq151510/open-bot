@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { t } from "@/lib/i18n";
 import { WorkingDots } from "./WorkingIndicator";
 
 export interface GrokThinkingBubbleProps {
@@ -25,6 +26,7 @@ export function GrokThinkingBubble({
 
   const cleanThought = thought.trim();
   if (!cleanThought && !inProgress) return null;
+  const thinking = t("chat.reasoning.thinking");
 
   return (
     <div
@@ -57,18 +59,18 @@ export function GrokThinkingBubble({
         <span className="flex items-center gap-1.5 font-medium tracking-tight">
           {inProgress ? (
             <span className="thinking-shimmer font-medium">
-              Thinking...
+              {thinking}
               <span aria-hidden="true" className="thinking-sheen">
-                <span data-text="Thinking..." />
+                <span data-text={thinking} />
               </span>
             </span>
           ) : (
-            <span>Thought process</span>
+            <span>{t("chat.reasoning.title")}</span>
           )}
         </span>
 
         <span className="ml-auto flex items-center gap-1 text-[11px] text-ink-tertiary">
-          <span>{expanded ? "Collapse" : "Expand"}</span>
+          <span>{t(expanded ? "chat.reasoning.collapse" : "chat.reasoning.expand")}</span>
           <ChevronRight
             size={13}
             className={cn(
@@ -83,7 +85,7 @@ export function GrokThinkingBubble({
       {expanded && (
         <div className="border-t border-hairline/30 bg-inset/30 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-secondary">
           <div className="max-h-80 overflow-y-auto font-mono whitespace-pre-wrap break-words opacity-90">
-            {cleanThought || (inProgress ? "Synthesizing thoughts..." : "")}
+            {cleanThought || (inProgress ? t("chat.reasoning.synthesizing") : "")}
           </div>
         </div>
       )}

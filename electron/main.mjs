@@ -9,6 +9,10 @@ import { buildErrorPage, desktopViewerErrorPage } from "./error-pages.mjs";
 import { startCua, stopCua, registerCuaIpc, requestComputerUse, setCuaStateListener, grantLocalComputer, refreshLocalComputerGrant } from "./cua.mjs";
 import { createAndroidDeviceController } from "./android-device.mjs";
 import { finishSpeech, speechBusy, startSpeech, stopSpeech } from "./speech.mjs";
+import { calendarAppName, calendarBuildBundle, ensureCalendarHelper } from "./build-calendar-helper.mjs";
+import { installLocalCalendar } from "./local-calendar.mjs";
+import { ensurePhotosPicker, photosAppName, photosBuildBundle } from "./build-photos-picker.mjs";
+import { installLocalPhotos } from "./local-photos.mjs";
 import { installTalk, isTalkPanel } from "./talk-main.mjs";
 import { openBlankTerminal } from "./terminal-launch.mjs";
 import { linuxDisablesGpu } from "./linux-gpu.mjs";
@@ -2720,6 +2724,23 @@ ipcMain.handle("environments:forget", localWorkspaceOnly("environments:forget", 
 const savedServerStatus = createServerStatus({ entries: () => environmentsState.environments.filter((e) => e.kind === "remote" && !e.home && !e.team && !e.cloud), check: (origin) => checkServer(origin, (...args) => session.defaultSession.fetch(...args)),
   appVersion: app.getVersion(), onChange: () => { if (mainWindow && !mainWindow.isDestroyed() && senderIsLocal({ sender: mainWindow.webContents })) mainWindow.webContents.send("environments:status-changed"); } });
 installServerStatus({ ipcMain, guard: localWorkspaceOnly, status: savedServerStatus, app, powerMonitor, online: () => net.isOnline() });
+installLocalCalendar({
+  ipcMain,
+  guard: localWorkspaceOnly,
+  available: () => process.platform === "darwin" && !desktopRemoteAccess,
+  supported: () => Number.parseInt(os.release(), 10) >= 23,
+  bundle: app.isPackaged ? path.join(process.resourcesPath, calendarAppName) : calendarBuildBundle,
+  ensureBuilt: app.isPackaged ? () => {} : ensureCalendarHelper,
+  openShortcuts: () => shell.openExternal("shortcuts://"),
+});
+installLocalPhotos({
+  ipcMain,
+  guard: localWorkspaceOnly,
+  available: () => process.platform === "darwin" && !desktopRemoteAccess && Number.parseInt(os.release(), 10) >= 22,
+  bundle: app.isPackaged ? path.join(process.resourcesPath, photosAppName) : photosBuildBundle,
+  ensureBuilt: app.isPackaged ? () => {} : ensurePhotosPicker,
+  t: nativeT,
+});
 
 // A cloud page may open the native chooser, never choose a destination or edit the saved list.
 // Once My Cloud is home the switcher lists only whole places, and shows only when there is more than My Cloud.

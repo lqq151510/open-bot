@@ -47,8 +47,9 @@ const TRANSIENT_PATTERNS: Array<{ pattern: RegExp; reason: TransientReason }> = 
 
 /** A subscription's usage running out: terminal even when phrased as a rate limit. Claude Code 2.1.295
  * says "You've hit your weekly limit · resets …", "…your session limit", "…your Opus limit", "…your
- * team's shared budget", "You're out of usage credits", "You're out of extra usage". */
-export const USAGE_LIMIT = /\busage limit\b|\bhit your (?:(?!rate\b)[\w'’-]+ ){0,3}(?:limit|budget)\b|\b(?:weekly|daily|monthly|subscription|usage|session|5-hour) limit reached\b|\bout of (?:usage(?: credits)?|extra usage|credits)\b/i;
+ * team's shared budget", "You're out of usage credits", "You're out of extra usage"; relayed providers
+ * answer in Chinese: "API key 额度已用完", "配额已用完", "余额不足". */
+export const USAGE_LIMIT = /\busage limit\b|\bhit your (?:(?!rate\b)[\w'’-]+ ){0,3}(?:limit|budget)\b|\b(?:weekly|daily|monthly|subscription|usage|session|5-hour) limit reached\b|\bout of (?:usage(?: credits)?|extra usage|credits)\b|(?:额度|配额|用量|余额)(?:已|被)?(?:用完|用尽|耗尽|不足|超限)|(?:已达|超出)(?:使用)?上限/i;
 
 const TERMINAL_PATTERNS: Array<{ pattern: RegExp; reason: TerminalReason }> = [
   {

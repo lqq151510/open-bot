@@ -49,7 +49,6 @@ const { marker } = vi.hoisted(() => ({
   marker: (name: string) => () => `MARKER:${name};`,
 }));
 vi.mock("./EnginesSettings", () => ({ EnginesSettings: marker("engines") }));
-vi.mock("./DecisionModelSettings", () => ({ DecisionModelSettings: marker("decisionModel") }));
 vi.mock("./keys/KeysPage", () => ({ KeysPage: marker("apiKey") }));
 vi.mock("./RemoteComputerSection", () => ({ RemoteComputerSection: marker("companion") }));
 vi.mock("./CustomDomainSettings", () => ({ CustomDomainSettings: () => null }));
@@ -174,7 +173,7 @@ describe("Settings in Simple mode", () => {
     const placed = SIMPLE_PAGES.flatMap((page) => page.sections);
     expect(new Set(placed).size).toBe(placed.length);
     const hidden = SECTIONS.map((entry) => entry.id).filter((id) => !placed.includes(id));
-    expect(hidden).toEqual(["decisionModel", "imageGeneration", "skills", "backups", "workspaces", "experimental"]);
+    expect(hidden).toEqual(["imageGeneration", "skills", "backups", "workspaces", "experimental"]);
     for (const id of hidden) expect(SIMPLE_HIDDEN_SECTIONS).toContain(id);
   });
 
@@ -271,23 +270,22 @@ describe("Settings in Simple mode", () => {
     expect(html).not.toContain("API keys and connections");
   });
 
-  it("orders Computer as your bots' computers, Phone & devices, the browser, then Connect from elsewhere", () => {
+  it("orders Computer as your computer, managed devices, your bots' computers, the browser, then Connect from elsewhere", () => {
     fixture.section = "companion";
     const html = render();
     expect(currentPage(html)).toBe("computer");
-    expect(blocks(html)).toEqual(["computer", "companion", "browser", "elsewhere", "desktopWorkspaces", "remote"]);
-    expect(groupLabels(html)).toEqual(["Your bots’ computers", "Phone &amp; devices", "Built-in browser"].map((label) => label.replace("’", "&#x27;")));
+    expect(blocks(html)).toEqual(["companion", "devices", "computer", "browser", "elsewhere", "desktopWorkspaces", "remote"]);
+    expect(groupLabels(html)).toEqual(["Your computer", "Manage devices", "Your bots&#x27; computers", "Built-in browser"]);
     expect(html).toContain('aria-label="Enable the built-in browser"');
   });
 
-  it("leads Usage & billing with one usage block, folds the limits, then shows the plan", () => {
+  it("leads Usage & billing with one usage block, folds the limits for old Cloud settings links", () => {
     fixture.section = "cloudAccount";
     const html = render();
     expect(currentPage(html)).toBe("billing");
-    expect(blocks(html)).toEqual(["usage", "cloudAccount"]);
-    expect(html.indexOf("See all limits")).toBeLessThan(html.indexOf("MARKER:cloudAccount;"));
+    expect(blocks(html)).toEqual(["usage"]);
+    expect(html).not.toContain("MARKER:cloudAccount;");
     expect(placement(html, "MARKER:usage;")).toBe("folded");
-    expect(groupLabels(html)).toContain("Plan");
   });
 
   it("shows a hosted workspace's admins People in Account and Activity as its own group", () => {
@@ -308,7 +306,7 @@ describe("Settings in Simple mode", () => {
     const html = render();
     expect(pages(html)).toEqual(["general", "computer"]);
     expect(currentPage(html)).toBe("computer");
-    expect(blocks(html)).toEqual(["companion", "elsewhere", "desktopWorkspaces", "remote"]);
+    expect(blocks(html)).toEqual(["companion", "devices", "elsewhere", "desktopWorkspaces", "remote"]);
     expect(html).not.toContain('aria-label="Enable the built-in browser"');
     fixture.section = "appearance";
     const general = render();
@@ -338,14 +336,12 @@ describe("Settings in Simple mode", () => {
     fixture.section = section;
     const html = render();
     expect(currentPage(html)).toBe(page);
-    expect(blocks(html)).toContain(section === "remote" ? "remote" : section);
+    expect(blocks(html)).toContain(section === "cloudAccount" ? "usage" : section);
   });
 
   it.each<[AppSettingsSection, string]>([
     ["backups", "backups"],
     ["experimental", "skillAuthoring"],
-    // The add-a-key suggestion's Add key opens it straight away.
-    ["decisionModel", "decisionModel"],
   ])("opens a hidden page (%s) for as long as it is the open one", (section, content) => {
     fixture.section = section;
     const html = render();

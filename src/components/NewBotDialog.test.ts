@@ -33,10 +33,11 @@ vi.mock("@/state/store", async importOriginal => {
 });
 import { NewBotDialog } from "./NewBotDialog";
 import { setTeamChats } from "@/state/team-chats";
+import { setLocale } from "@/lib/i18n";
 import { Select } from "./Select";
 import type { BotCreationDraft } from "@/lib/bot-creation-draft";
 
-type Node = ReactElement<{ children?: ReactNode; role?: string; "aria-label"?: string; onClick?: () => void; disabled?: boolean }>;
+type Node = ReactElement<{ children?: ReactNode; role?: string; "aria-label"?: string; "aria-pressed"?: boolean; onClick?: () => void; disabled?: boolean }>;
 function nodes(value: ReactNode): Node[] {
   if (!isValidElement(value)) return [];
   const node = value as Node;
@@ -50,9 +51,12 @@ function output(element: Node): Node[] {
   return nodes(tree);
 }
 const named = (name: string) => (node: Node) => typeof node.type === "function" && node.type.name === name;
-function chooseStartingRole(dialog: Node[], value: string) {
+function startingRoleSelect(dialog: Node[]): Node {
   const role = output(dialog.find(named("DraftSection"))!).find(named("StartingRole"))!;
-  const select = output(role).find(node => node.type === Select)!;
+  return output(role).find(node => node.type === Select)!;
+}
+function chooseStartingRole(dialog: Node[], value: string) {
+  const select = startingRoleSelect(dialog);
   (select.props as unknown as { onChange: (event: { target: { value: string } }) => void }).onChange({ target: { value } });
 }
 function render(defaultsMode = false, onCreated?: () => void | Promise<void>) {
@@ -74,6 +78,25 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); setTeamChats(null); });
 
 describe("bot draft dialog", () => {
+  it("uses Simplified Chinese for a built-in role in the picker and draft", () => {
+    setLocale("zh");
+    try {
+      vi.stubGlobal("window", {});
+      fixture.ready = true;
+      const dialog = render();
+      expect(renderToStaticMarkup(startingRoleSelect(dialog.nodes))).toContain('<option value="coder">编程伙伴</option>');
+      chooseStartingRole(dialog.nodes, "coder");
+      const section = dialog.nodes.find(named("DraftSection"))!;
+      const { draft } = section.props as unknown as { draft: BotCreationDraft };
+      expect(draft.export().profile).toMatchObject({
+        title: "编程伙伴",
+        description: "在项目文件夹中工作：阅读、编辑、运行测试并解释变更。",
+      });
+    } finally {
+      setLocale("en");
+    }
+  });
+
   it("offers name, body and color choices in the simple creation view", () => {
     fixture.ready = true;
     fixture.advanced = false;
@@ -81,7 +104,9 @@ describe("bot draft dialog", () => {
     expect(rendered.html).toContain('data-quick-bot-identity');
     const quick = rendered.nodes.find(named("QuickBotIdentity"))!;
     const draft = (quick.props as unknown as { draft: BotCreationDraft }).draft;
-    const options = output(quick);
+    const options = output(output(quick).find(named("DraftAppearance"))!);
+    expect(options.filter(node => node.props["aria-pressed"] !== undefined)).toHaveLength(22);
+    expect(options.some(node => node.props["aria-label"] === "Use teal mascot color")).toBe(true);
     const body = options.find(node => node.props["aria-label"] === "Use the Star body");
     expect(body).toBeDefined();
     body!.props.onClick!();
@@ -91,6 +116,13 @@ describe("bot draft dialog", () => {
     expect(color).toBeDefined();
     color!.props.onClick!();
     expect(draft.bot.color).toBe("blue");
+    const picker = output(options.find(named("MascotColorPicker"))!);
+    const input = picker.find(node => node.type === "input")!;
+    const { onChange } = input.props as unknown as { onChange: (event: { currentTarget: { value: string } }) => void };
+    onChange({ currentTarget: { value: "#123abc" } });
+    expect(draft.export().profile.color).toBe("#123abc");
+    onChange({ currentTarget: { value: "#bad" } });
+    expect(draft.export().profile.color).toBe("#123abc");
   });
 
   it("preserves upstream audience selection for browser admins before creation", () => {
@@ -145,7 +177,7 @@ describe("bot draft dialog", () => {
     }
     fixture.advanced = false;
     const simple = render().html;
-    expect(simple, "Simple mode picks no model: new bots use the default").not.toContain(">Model<");
+    expect(simple).toContain(">Model<");
     expect(simple).toContain(">Bot settings<");
     fixture.effects[0]();
     expect(fixture.api).toHaveBeenCalledExactlyOnceWith("/api/bot-defaults");

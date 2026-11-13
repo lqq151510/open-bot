@@ -10,6 +10,8 @@ import { api, ApiError, useStore, type OptionCardData } from "@/state/store";
 import { appWaitingLine } from "@/lib/app-automations";
 import { useAppTriggers } from "@/lib/app-triggers";
 import { useAllAutomationActions } from "./automations/app-actions";
+import { RoutineReceipt } from "./RoutineReceipt";
+import { useRoutineActivityLink } from "./bot-panel/panel-link";
 
 // The editors live with the Automations page; a chat only loads one when Edit is pressed.
 const RoutineEditor = lazy(async () => ({ default: (await import("./RoutinesPage")).RoutineEditor }));
@@ -27,8 +29,9 @@ export function TriggerCard({ card, threadId }: { card: OptionCardData; threadId
   const [undoing, setUndoing] = useState(false);
   const [error, setError] = useState<string>();
   const ref = cardAutomation(card);
+  const automation = ref && automationFor(ref, { routines: state.routines, webhooks: state.webhooks, appTriggers: appTriggers.triggers, runs: state.routineRuns, bots: state.bots });
+  const openActivity = useRoutineActivityLink(dispatch, state.selectedId, automation?.kind === "schedule" ? automation : undefined);
   if (!ref) return null;
-  const automation = automationFor(ref, { routines: state.routines, webhooks: state.webhooks, appTriggers: appTriggers.triggers, runs: state.routineRuns, bots: state.bots });
   const fallbackName = card.routineRequest?.undo?.name ?? card.webhookRequest?.undo?.name ?? card.appTriggerRequest?.undo?.name ?? card.title;
 
   if (card.undone || !automation) {
@@ -67,13 +70,15 @@ export function TriggerCard({ card, threadId }: { card: OptionCardData; threadId
   };
   const visibleBots = state.bots.filter((bot) => !bot.hidden);
 
-  return (
+  const details = (
     <section data-trigger-card={automation.id} data-automation-status={status.state} aria-label={sentence} className="w-full max-w-[640px] rounded-xl border border-hairline/45 bg-card px-3.5 py-2.5 text-[13px]">
       <div className="flex items-start gap-2">
         <Zap size={14} className={cn("mt-0.5 shrink-0", status.state === "needs-you" ? "text-warning" : automation.enabled ? "text-accent" : "text-ink-tertiary")} />
-        <button type="button" onClick={() => dispatch({ type: "showRoutines", view: "list", routineId: automation.id })} className="min-w-0 text-left font-medium leading-snug text-ink hover:text-accent-text">
-          {t("automations.card.setUp", { sentence })}
-        </button>
+        {openActivity ? <span className="min-w-0 font-medium leading-snug text-ink">{t("automations.card.setUp", { sentence })}</span> : (
+          <button type="button" onClick={() => dispatch({ type: "showRoutines", view: "list", routineId: automation.id })} className="min-w-0 text-left font-medium leading-snug text-ink hover:text-accent-text">
+            {t("automations.card.setUp", { sentence })}
+          </button>
+        )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-[22px] text-[12px]">
         <span className={cn("min-w-0 flex-1 basis-48 truncate", status.state === "needs-you" ? "text-warning" : "text-ink-secondary")} title={line}>{line}</span>
@@ -85,6 +90,17 @@ export function TriggerCard({ card, threadId }: { card: OptionCardData; threadId
         </span>
       </div>
       {(error || actions.error) && <div role="alert" className="mt-1 pl-[22px] text-[12px] text-warning">{error ?? actions.error}</div>}
+    </section>
+  );
+
+  return (
+    <>
+      {openActivity ? (
+        <RoutineReceipt status={t("routines.receipt.created")} name={automation.name} onOpen={openActivity}
+          notice={error || actions.error || (status.state === "needs-you" ? line : undefined)}>
+          {details}
+        </RoutineReceipt>
+      ) : details}
       {/* On the page, not in the transcript: the transcript's scroller would clip it and the composer would cover Save. */}
       {editing && createPortal(
         <Suspense fallback={null}>
@@ -94,6 +110,6 @@ export function TriggerCard({ card, threadId }: { card: OptionCardData; threadId
         </Suspense>,
         document.body,
       )}
-    </section>
+    </>
   );
 }

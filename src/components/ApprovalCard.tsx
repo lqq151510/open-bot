@@ -20,6 +20,8 @@ import { computerAskWords } from "@/lib/computer-ask";
 import { mcpRequestActionLabel } from "@/lib/mcp-request-label";
 import { TriggerCard } from "./TriggerCard";
 import { CardHint } from "./CardHint";
+import { useRoutineActivityLink } from "./bot-panel/panel-link";
+import { RoutineReceipt } from "./RoutineReceipt";
 
 interface ToolLabels {
   [tool: string]: LocaleKey;
@@ -241,10 +243,16 @@ function AppliedChangeLine({
   const [sharing, setSharing] = useState(false);
   // Kept until the card's own patch arrives, so the Share button cannot come back in between.
   const [sharedNow, setSharedNow] = useState<{ requestId: string; shared: SkillShareRecord }>();
-  const config = useContext(StoreContext)?.state.config ?? null;
+  const store = useContext(StoreContext);
+  const config = store?.state.config ?? null;
   const reviewsTeamMemory = useOwnerOrAdmin() !== false;
   const canUndo = summary.canUndo && (!card.teamMemoryRequest || reviewsTeamMemory);
   const undone = card.undone === true;
+  const operation = card.routineRequest?.operation;
+  const routine = !undone && operation?.action === "update"
+    ? store?.state.routines.find((entry) => entry.id === operation.routineId)
+    : undefined;
+  const openActivity = useRoutineActivityLink(store?.dispatch, store?.state.selectedId, routine);
   const cancels = summary.cancels === true;
   const skill = card.skillRequest;
   const shared = skill?.shared ?? (sharedNow && sharedNow.requestId === card.requestId ? sharedNow.shared : undefined);
@@ -279,7 +287,7 @@ function AppliedChangeLine({
       })
       .finally(() => setUndoing(false));
   };
-  return (
+  const details = (
     <div className="w-full max-w-[840px] text-[13px] text-ink-tertiary" data-applied-change={name}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 leading-5">
         {undone ? <Undo2 size={13} className="shrink-0 self-center" /> : <Check size={13} className="shrink-0 self-center text-success/80" />}
@@ -310,14 +318,14 @@ function AppliedChangeLine({
             {sharing ? t("approval.applied.sharingSkill") : t("approval.applied.shareSkill")}
           </button>
         )}
-        <button
+        {!openActivity && <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
           className={cn(TEXT_ACTION, "text-ink-tertiary hover:text-ink-secondary")}
         >
           {open ? t("approval.applied.hideDetails") : t("approval.applied.details")}
-        </button>
+        </button>}
       </div>
       {shared && !undone && skippedNames.length > 0 && (
         <div className="mt-1 text-[13px] text-ink-tertiary">{t("approval.applied.shareSkipped", { names: skippedNames.join(", ") })}</div>
@@ -326,7 +334,7 @@ function AppliedChangeLine({
         <div className="mt-1 text-[13px] text-warning">{t("approval.applied.shareFailed", { error: skill.shareError })}</div>
       )}
       {error && <div role="alert" className="mt-1 text-[13px] text-warning">{error}</div>}
-      {open && (
+      {(open || openActivity) && (
         <pre
           tabIndex={0}
           aria-label={t("approval.aria.appliedDetails")}
@@ -337,6 +345,10 @@ function AppliedChangeLine({
       )}
     </div>
   );
+  if (openActivity && routine) {
+    return <RoutineReceipt status={t("approval.status.routineUpdated")} name={routine.name} onOpen={openActivity} notice={error}>{details}</RoutineReceipt>;
+  }
+  return details;
 }
 
 export const APPROVAL_CODE_CHIP =

@@ -1930,6 +1930,10 @@ export const ClaudeDriver: ProviderDriver<ClaudeConfig> = {
         }
         const model = named ?? config.managedModels?.[0] ?? config.endpointModels?.[0] ?? "claude-haiku-5-5";
         const env = environment(config.endpointModels ? undefined : model);
+        // --settings stays clean of the person's hooks, so their account settings ride in the CLI's environment instead:
+        // a relay's base URL and token live there, and without them a background call answers "not logged in".
+        const auth = inheritsUserConfig(env) ? {} : readClaudeAuthSettings(env, input.environment);
+        if (auth.env) Object.assign(env, auth.env);
         const args = backgroundCallArgs({ model, outputFormat: onUsage ? "json" : "text", supports: (flag) => cliVersion !== null && claudeCliSupports(cliVersion, flag), isolated: !inheritsUserConfig(env) });
         const { child, removeCwd } = spawnBackgroundCall(config.cli, args, env);
         let stdout = "";

@@ -31,6 +31,8 @@ describe("engineFailureMessage", () => {
       [grok("402 Payment Required", "Grok Build us…"), "Your Grok account is out of credits", "quota", false],
       [grok("429 Too Many Requests", "You've reached your free Grok Build usage limit for now. Get SuperGrok for much higher limits"),
         'This Grok account has reached its usage limit (Grok says: "You\'ve reached your free Grok Build usage limit for now"). Wait for it to reset', "quota", false],
+      [grok("429 Too Many Requests", "API key 额度已用完"), "This Grok account has reached its usage limit", "quota", false],
+      [grok("429 Too Many Requests", "配额已用完，请联系管理员"), "This Grok account has reached its usage limit", "quota", false],
       [grok("429 Too Many Requests", "slow down please"), 'Grok hit a rate limit (HTTP 429; Grok says: "slow down please"). Wait a minute', "rate_limited", true],
       [grok("529 Overloaded"), "Grok is overloaded right now (HTTP 529). This is usually temporary", "overloaded", true],
       [grok("503 Service Unavailable", "upstream connect error"), 'Grok had a temporary server problem (HTTP 503; Grok says: "upstream connect error")', "server_error", true],

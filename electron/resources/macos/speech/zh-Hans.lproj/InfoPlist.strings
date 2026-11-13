@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "当你用语音输入消息或和机器人通话时，OpenBot 会使用麦克风。";
+"NSSpeechRecognitionUsageDescription" = "OpenBot 在听写和通话时将你的语音转成文字。";

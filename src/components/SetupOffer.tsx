@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import type { LocaleKey } from "@/locales";
 import { api, useStore, type Bot, type Message } from "@/state/store";
+import { matchesSetupChoicePreset } from "../../shared/setup-choice-presets";
 import { moveChoiceFocus, returnFocusToComposer } from "./AskCard";
 
 const blank = (bot: Pick<Bot, "soul" | "description">): boolean => !bot.soul?.trim() && !bot.description?.trim();
@@ -66,11 +67,13 @@ export function SetupOffer({ botId, threadId, message, transcript }: { botId: st
   const updating = rewriting && !settled;
   if (pending || updating) waitedOnce.current = true;
   if (shown.current?.id !== message.id || (showedWait.current && !pending && !updating)) {
-    shown.current = { id: message.id, choices: message.setupChoices?.length ? message.setupChoices : FALLBACK_CHOICES.map((key) => t(key)) };
+    shown.current = { id: message.id, choices: message.setupChoices ?? [] };
   }
   showedWait.current = pending || updating;
   const quiet = settled || updating;
-  const choices = pending ? [] : shown.current!.choices;
+  const savedChoices = shown.current!.choices;
+  const isPreset = savedChoices.length === 0 || matchesSetupChoicePreset(savedChoices);
+  const choices = pending ? [] : isPreset ? FALLBACK_CHOICES.map((key) => t(key)) : savedChoices;
   const title = t("chat.setupCard.title");
 
   const ask = (text?: string) => {

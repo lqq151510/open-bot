@@ -1,6 +1,8 @@
 import { Children, createElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadLocale, setLocale } from "@/lib/i18n";
+import { SETUP_CHOICE_PRESETS } from "../../shared/setup-choice-presets";
 import type { Bot, Message } from "@/state/store";
 import { SetupOffer, SetupRequestChip, setupRequestPlaceholder } from "./SetupOffer";
 
@@ -76,6 +78,19 @@ describe("the setup card under a new bot's greeting", () => {
 
   it("offers its own answers on an older greeting that carries none", () => {
     expect(renderOffer(greeting).choices.map((node) => label(node).split("|")[1])).toEqual(["Research and digging into topics", "Keeping an eye on things for me", "Email, calendar and messages", "Bookings, shopping and errands", "Data, spreadsheets and reports", "Something else"]);
+  });
+
+  afterEach(() => setLocale("en"));
+
+  it("translates older built-in choices without changing personalized options, and sends the localized pick", async () => {
+    await loadLocale("zh-CN");
+    const savedPreset = { ...greeting, setupChoices: [...SETUP_CHOICE_PRESETS.en] };
+    const view = renderOffer(savedPreset);
+    expect(view.choices.map(label)).toContain("C|邮件、日历和消息");
+    expect(renderOffer(offered).choices.map(label)).toContain("A|Plan my trips");
+    key(view.card, "c");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fixture.api).toHaveBeenCalledExactlyOnceWith("/api/bots/b1/setup-request", { method: "POST", body: JSON.stringify({ threadId: "t1", text: "邮件、日历和消息" }) });
   });
 
   it("is not shown for a bot given a role or instructions, when the AI cannot set the bot up, or once closed", () => {

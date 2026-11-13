@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { CircleHelp } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import type { LocaleKey } from "@/locales";
@@ -68,9 +69,12 @@ export function WhatICanDo({ bot, engineName, teamName }: {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((value) => !value)}
-        className="rounded-full bg-ink px-3 py-1.5 text-[13px] font-medium text-canvas"
+        aria-label={t("chat.canDo.label")}
+        title={t("chat.canDo.label")}
+        className="flex items-center justify-center rounded-full bg-ink px-3 py-1.5 text-[13px] font-medium text-app @max-[32rem]/chathead:size-9 @max-[32rem]/chathead:p-0"
       >
-        {t("chat.canDo.label")}
+        <CircleHelp size={16} aria-hidden="true" className="hidden @max-[32rem]/chathead:block" />
+        <span className="@max-[32rem]/chathead:hidden">{t("chat.canDo.label")}</span>
       </button>
       {open && (
         <div

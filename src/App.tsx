@@ -14,6 +14,7 @@ import { ThreadRefsProvider } from "@/components/ThreadRefs";
 import { initAnalytics } from "@/lib/analytics";
 import { parseComputerHelp } from "@/lib/computer-control";
 import { Sidebar } from "@/components/Sidebar";
+import { SidebarFocusToggle } from "@/components/SidebarSimpleTop";
 import { NewRoomPanel } from "@/components/SidebarNewRoomPanel";
 import { ChatView } from "@/components/ChatView";
 import { GroupView } from "@/components/GroupView";
@@ -146,6 +147,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
   const cloudAddOpened = useRef(false);
   cloudAddOpened.current ||= Boolean(state.cloudAdd);
   const [localVmWorkspaceBotId, setLocalVmWorkspaceBotId] = useState<string | null>(null);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const previousViewRef = useRef(state.activeView);
   const calendarOriginRef = useRef<"chat" | "team-map" | "web-panel">("chat");
@@ -158,9 +160,8 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
   const canCreateBots = useOwnerOrAdmin();
   const requestNewBot = useCallback(() => {
     if (canCreateBots === false || state.botCreationPending || stoppedAtBotLimit(state)) return;
-    if (advanced) dispatch({ type: "newBot" });
-    else setNewBotOpen(true);
-  }, [advanced, canCreateBots, dispatch, state.botCreationPending, state.bots, state.config]);
+    setNewBotOpen(true);
+  }, [canCreateBots, state.botCreationPending, state.bots, state.config]);
   const roomPanelOpen = useRoomPanelShown({ group, state, simple: !advanced && !remoteClient });
   const sidePanelOpen = (Boolean(bot) && (state.settingsOpen || state.computerOpen || state.inspectorOpen || state.activityOpen)) || roomPanelOpen || (notificationFeed && state.notificationsOpen) || inboxShown;
   const collapseSidebar = sidePanelOpen && !sidebarAndPanelFit;
@@ -363,8 +364,9 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
       {framed && strips}
       <div className={framed ? "relative flex min-h-0 flex-1" : "contents"}>
       {!calendarFocus && <Sidebar
-        collapseToIcons={collapseSidebar}
+        collapseToIcons={collapseSidebar || (sidebarInline && isFocusMode)}
         open={drawerOpen}
+        focusControl={sidebarInline && <SidebarFocusToggle active={isFocusMode} onToggle={() => setIsFocusMode(active => !active)} />}
         onNewBot={requestNewBot}
         onClose={() => {
           setDrawerOpen(false);

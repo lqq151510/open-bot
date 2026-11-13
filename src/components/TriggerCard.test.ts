@@ -5,7 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type Message } from "@/state/store";
+import { ApiError, initialState, StoreContext, type Message } from "@/state/store";
+import { setAdvancedMode } from "@/lib/interface-mode";
 
 const fixture = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
@@ -42,36 +43,53 @@ function card(extra: Partial<NonNullable<Message["card"]>>): Message {
 const scheduleCard = card({ tool: "schedule_routine", routineRequest: { ...base, resultId: "routine-1", operation: { action: "create", routine: {
   name: "Morning brief", instructions: routine.prompt, schedule: { type: "daily", time: "09:00", weekdays: [1, 2, 3, 4, 5] }, runOn: "maus", durationMinutes: 30,
 } }, undo: { name: "Morning brief" } } });
+const updateCard = card({ tool: "manage_routine", routineRequest: { ...base, operation: {
+  action: "update", routineId: routine.id, expectedUpdatedAt: now, changes: { name: "Renamed brief" },
+}, undo: { name: "Renamed brief" } } });
 const webhookCard = card({ tool: "create_trigger", webhookRequest: { ...base, resultId: "hook-1", operation: { action: "create", webhook: { name: "Interested replies", instructions: webhook.prompt, runOn: "maus" } }, undo: { name: "Interested replies" } } });
 
 const render = (message: Message) => renderToStaticMarkup(createElement(ApprovalCard, { bot: { name: "Scout" }, message, threadId: "thread-1" }));
 let root: Root | null = null;
-/** Mounts the card for real and clicks the button with this label, so the click runs through React as a person's would. */
-function click(message: Message, label: string) {
-  const container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-  flushSync(() => root!.render(createElement(ApprovalCard, { bot: { name: "Scout" }, message, threadId: "thread-1" })));
-  const button = [...container.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === label);
-  if (!button) throw new Error(`no ${label} button in ${container.innerHTML}`);
-  flushSync(() => button.click());
+let host: HTMLDivElement;
+const renderMounted = (message: Message) => flushSync(() => root!.render(createElement(StoreContext.Provider, {
+  value: {
+    state: { ...initialState, ...fixture.state }, dispatch: fixture.dispatch,
+    flushBotPatches: vi.fn(async () => null), refreshInstances: vi.fn(async () => {}), refreshModels: vi.fn(async () => {}),
+  },
+}, createElement(ApprovalCard, { bot: { name: "Scout" }, message, threadId: "thread-1" }))));
+function mount(message: Message) {
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  renderMounted(message);
+  return host;
+}
+function click(message: Message, ...labels: string[]) {
+  const container = mount(message);
+  for (const label of labels) {
+    const button = [...container.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === label || candidate.getAttribute("aria-label") === label);
+    if (!button) throw new Error(`no ${label} button in ${container.innerHTML}`);
+    flushSync(() => button.click());
+  }
+  return container;
 }
 afterEach(() => { root?.unmount(); root = null; document.body.innerHTML = ""; });
 
 beforeEach(() => {
+  setAdvancedMode(false);
   fixture.dispatch.mockReset();
   fixture.api.mockReset();
   fixture.api.mockResolvedValue({});
-  fixture.state = { bots: [bot], routines: [routine], webhooks: [webhook], routineRuns: [], routinesLoadState: "ready" };
+  fixture.state = { bots: [bot], selectedId: bot.id, routines: [routine], webhooks: [webhook], routineRuns: [], routinesLoadState: "ready" };
 });
 
 describe("the chat card a bot-made automation leaves", () => {
   const sentence = "Every weekday at 9 AM, Scout summarizes the inbox and posts the three priorities";
 
   it("says what was set up in one sentence, what happens next, and offers Pause, Edit and Undo — never a confirmation", () => {
-    const html = render(scheduleCard);
+    const html = click(scheduleCard, "Details").innerHTML;
     expect(html).toContain('data-trigger-card="routine-1"');
-    expect(html).toContain(`Set up: ${sentence}`);
+    expect(html).toContain(sentence);
     expect(html).toMatch(/First run (today|tomorrow|[A-Z][a-z]+day) \d/);
     expect(html).not.toContain("Next: ");
     expect(html).not.toMatch(/hasn(&#x27;|')t run yet/);
@@ -83,49 +101,68 @@ describe("the chat card a bot-made automation leaves", () => {
     fixture.state.routineRuns = [
       { id: "run-2", routineId: "routine-1", botId: "bot-1", status: "completed", scheduledFor: now - 60_000, startedAt: now - 60_000, createdAt: now - 60_000, threadId: "exec-2", output: "Three priorities: invoices, hiring, launch.\nMore detail." },
     ];
-    const html = render(scheduleCard);
+    const html = click(scheduleCard, "Details").innerHTML;
     expect(html).toMatch(/Last ran today [^<]* ✓ Three priorities: invoices, hiring, launch\. · next: /);
     expect(html).not.toContain("More detail.");
     expect(html).not.toContain("Next: ");
   });
 
-  it("says Needs you with the plain reason when a run is waiting on the person", () => {
-    fixture.state.routineRuns = [{ id: "run-3", routineId: "routine-1", botId: "bot-1", status: "waiting", attention: "Approve the reply to Ada?", scheduledFor: now, createdAt: now }];
-    expect(render(scheduleCard)).toContain("Needs you: It&#x27;s waiting for your answer.");
-  });
-
   it("pauses through its own API, applies the answer at once, and says Paused with Resume once paused", async () => {
     fixture.api.mockResolvedValue({ routine: { ...routine, enabled: false } });
-    click(scheduleCard, "Pause");
+    click(scheduleCard, "Details", "Pause");
     await vi.waitFor(() => expect(fixture.dispatch).toHaveBeenCalledWith({ type: "routinePatched", routine: { ...routine, enabled: false } }));
     expect(fixture.api).toHaveBeenCalledWith("/api/routines/routine-1", { method: "PATCH", body: JSON.stringify({ enabled: false }) });
     fixture.state.routines = [{ ...routine, enabled: false }];
-    const html = render(scheduleCard);
-    expect(html).toContain(">Paused<");
-    expect(html).toContain("Resume</button>");
+    renderMounted(scheduleCard);
+    expect(host.innerHTML).toContain(">Paused<");
+    expect(host.innerHTML).toContain("Resume</button>");
   });
 
   it("says why when turning it back on is refused", async () => {
     fixture.state.routines = [{ ...routine, enabled: false }];
     fixture.api.mockRejectedValue(new Error("Its time has passed. Edit it to pick a new time."));
-    click(scheduleCard, "Resume");
+    click(scheduleCard, "Details", "Resume");
     await vi.waitFor(() => expect(document.querySelector("[role=alert]")?.textContent).toBe("Its time has passed. Edit it to pick a new time."));
   });
 
   it("says Done, with no Pause or Resume, once a one-time automation has happened", () => {
     fixture.state.routines = [{ ...routine, enabled: false, nextRunAt: null, schedule: { type: "once", at: now - 60_000 } }];
     fixture.state.routineRuns = [{ id: "run-4", routineId: "routine-1", botId: "bot-1", status: "completed", scheduledFor: now - 60_000, startedAt: now - 60_000, createdAt: now - 60_000, output: "Sent." }];
-    const html = render(scheduleCard);
+    const html = click(scheduleCard, "Details").innerHTML;
     expect(html).toMatch(/>Done · Last ran today [^<]* ✓ Sent\.</);
     expect(html).not.toMatch(/(Pause|Resume)<\/button>/);
   });
 
   it("undoes through the conversation's undo route with the card's request id", () => {
-    click(scheduleCard, "Undo");
+    click(scheduleCard, "Details", "Undo");
     expect(fixture.api).toHaveBeenCalledWith("/api/threads/thread-1/undo", { method: "POST", body: JSON.stringify({ requestId: "request-1" }) });
   });
 
-  it("opens the automation's panel on the Automations page from the sentence itself", () => {
+  it("opens the owning bot's Activity from the creation receipt", () => {
+    click(scheduleCard, "Open routine Morning brief");
+    expect(document.querySelector("[data-routine-receipt]")?.textContent).toContain("Routine created");
+    expect(document.querySelector("[data-trigger-card]")).toBeNull();
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleSettings", open: true, section: "overview", botId: bot.id });
+    expect(fixture.api).not.toHaveBeenCalled();
+  });
+
+  it("opens Activity for an updated routine using its id even after another rename", () => {
+    fixture.state.routines = [{ ...routine, name: "Current brief" }];
+    click(updateCard, "Open routine Current brief");
+    expect(document.querySelector('button[aria-label="Open routine Current brief"]')).not.toBeNull();
+    expect(document.querySelector("[data-routine-receipt]")?.textContent).toContain("Routine updated");
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleSettings", open: true, section: "overview", botId: bot.id });
+    expect(fixture.api).not.toHaveBeenCalled();
+  });
+
+  it("keeps the reason a run needs you visible when the receipt is collapsed", () => {
+    fixture.state.routineRuns = [{ id: "run-3", routineId: routine.id, botId: bot.id, status: "waiting", scheduledFor: now, createdAt: now }];
+    expect(mount(scheduleCard).textContent).toContain("Needs you: It's waiting for your answer.");
+  });
+
+  it.each(["advanced", "another conversation"])("keeps the Automations route in %s", (mode) => {
+    if (mode === "advanced") setAdvancedMode(true);
+    else fixture.state.selectedId = "other-bot";
     click(scheduleCard, `Set up: ${sentence}`);
     expect(fixture.dispatch).toHaveBeenCalledWith({ type: "showRoutines", view: "list", routineId: "routine-1" });
   });
@@ -155,7 +192,7 @@ describe("the chat card a bot-made automation leaves", () => {
 
   it("opens Edit over the whole page, never inside the transcript the card sits in", async () => {
     fixture.state = { ...fixture.state, groups: [], sections: [] };
-    click(scheduleCard, "Edit");
+    click(scheduleCard, "Details", "Edit");
     await vi.waitFor(() => expect(document.querySelector("[role=dialog]")).not.toBeNull(), { timeout: 5_000 });
     expect(document.querySelector("[data-trigger-card] [role=dialog]")).toBeNull();
     expect(document.querySelector("[role=dialog]")!.closest("body > div:not(:has([data-trigger-card]))")).not.toBeNull();

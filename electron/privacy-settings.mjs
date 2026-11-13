@@ -5,6 +5,7 @@ const PANES = Object.freeze({
   screen: "Privacy_ScreenCapture",
   speech: "Privacy_SpeechRecognition",
   accessibility: "Privacy_Accessibility",
+  calendars: "Privacy_Calendars",
 });
 
 /** A permission's pane in System Settings → Privacy & Security, or the section itself for any other name: macOS never

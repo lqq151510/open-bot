@@ -299,25 +299,25 @@ describe("the Simple composer in a group chat", () => {
 });
 
 describe("the Advanced composer", () => {
-  it("keeps the paperclip, the approval shield and the split call button, with no +, on Simple's floating surface", () => {
+  it("groups attachments under Add and keeps approval and calling on the floating surface", () => {
     fixture.advanced = true;
     render({ bot });
-    expect(plus()).toBeNull();
+    expect(plus()).not.toBeNull();
     expect(container.querySelector('[data-tour="composer"]')!.className.split(" ")).toEqual(expect.arrayContaining(["rounded-2xl", "bg-composer", "ring-[0.5px]", "shadow-(--shadow-float)"]));
-    expect(container.querySelector('button[aria-label="Attach a file"]')).not.toBeNull();
+    openPlus();
+    expect(item("attach")?.textContent).toContain("Attach files");
     expect(container.querySelector('[aria-haspopup="menu"][aria-label$="for Claude"]')).not.toBeNull();
     expect(fixture.call).toMatchObject({ placement: "composer" });
     expect(fixture.call?.fill).toBeUndefined();
     expect(container.querySelector("[data-composer-backdrop]")!.className.split(" ")).toContain("top-1/2");
   });
 
-  it("offers Teach a task as its own button, which starts a /learn draft ahead of anything typed", () => {
+  it("starts a /learn draft from Teach a task in the Add menu", () => {
     fixture.advanced = true;
     restoreComposerDraft(`bot:${bot.id}:${bot.threadId}`, { text: "how I file expenses", attachments: [] });
     render({ bot });
-    const teach = container.querySelector<HTMLButtonElement>('button[aria-label="Teach a task"]');
-    expect(teach).not.toBeNull();
-    click(teach);
+    openPlus();
+    click(item("teach"));
     expect(container.querySelector("textarea")!.value).toBe("/learn how I file expenses");
   });
 
@@ -325,14 +325,16 @@ describe("the Advanced composer", () => {
     fixture.advanced = true;
     fixture.config = { features: { skillAuthoring: false } };
     render({ bot });
-    expect(container.querySelector('button[aria-label="Teach a task"]')).toBeNull();
+    openPlus();
+    expect(item("teach")).toBeNull();
   });
 
   it("leaves Teach a task out when the bot's engine can't run agents", () => {
     fixture.advanced = true;
     fixture.agentsMcp = false;
     render({ bot });
-    expect(container.querySelector('button[aria-label="Teach a task"]')).toBeNull();
+    openPlus();
+    expect(item("teach")).toBeNull();
   });
 
   it("sends with the bot's own button too, and keeps the accent in a room", () => {
@@ -349,10 +351,12 @@ describe("the Advanced composer", () => {
     expect(sendButton()!.style.backgroundColor).toBe("var(--color-accent)");
   });
 
-  it("keeps the room's Goal chip and its header call button", () => {
+  it("offers the room's Goal in the Add menu and keeps calling in the header", () => {
     fixture.advanced = true;
     render({ group: room, members: [bot, peer] });
-    expect(container.querySelector('[aria-label="Finish together"]')?.getAttribute("aria-pressed")).toBe("false");
+    openPlus();
+    expect(item("goal")?.textContent).toContain("Finish together");
+    expect(item("goal")?.querySelector(".lucide-check")).toBeNull();
     expect(fixture.groupCall).toBeNull();
   });
 

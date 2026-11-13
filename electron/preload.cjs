@@ -316,6 +316,18 @@ const bridge = {
       ipcRenderer.invoke("android-device:input", serial, payload).then(() => undefined),
   },
   speechStart: (options) => ipcRenderer.invoke("speech:start", options),
+  ...(process.platform === "darwin" && !desktopRemoteClient ? { localCalendar: {
+    list: () => ipcRenderer.invoke("local-calendar:list"),
+    status: () => ipcRenderer.invoke("local-calendar:status"),
+    request: () => ipcRenderer.invoke("local-calendar:request"),
+    preview: (ids, days) => ipcRenderer.invoke("local-calendar:preview", ids, days),
+    weather: () => ipcRenderer.invoke("local-calendar:weather"),
+    openShortcuts: () => ipcRenderer.invoke("local-calendar:open-shortcuts"),
+  } } : {}),
+  ...(process.platform === "darwin" && !desktopRemoteClient && Number.parseInt(process.getSystemVersion?.(), 10) >= 13 ? { localPhotos: {
+    pick: (limit, bytes) => navigator.userActivation?.isActive === true
+      ? ipcRenderer.invoke("local-photos:pick", limit, bytes) : Promise.resolve({ status: "cancelled" }),
+  } } : {}),
   speechStop: () => ipcRenderer.invoke("speech:stop"),
   speechFinish: () => ipcRenderer.invoke("speech:finish"),
   onSpeechTranscript: (cb) => {

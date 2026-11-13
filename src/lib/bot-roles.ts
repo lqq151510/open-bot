@@ -1,4 +1,4 @@
-import { CLASSIC_ROLE_IDS, readyBot } from "./ready-bots";
+import { CLASSIC_ROLE_IDS, readyBot, readyBotProfileCopy } from "./ready-bots";
 
 export interface BotRole {
   id: string;
@@ -26,8 +26,7 @@ export function roleProfilePatch(role: BotRole): {
 } {
   return {
     name: role.name,
-    title: role.title,
-    description: role.description,
+    ...readyBotProfileCopy(role),
     soul: role.soul,
   };
 }

@@ -27,6 +27,8 @@ import { BotPanel } from "./bot-panel/PanelShell";
 import { LibraryTab } from "./bot-panel/LibraryTab";
 import type { SimplePageId } from "./bot-panel/page-registry";
 import { BOT_PANEL_ID, sidePanelCls } from "./bot-panel/side-panel";
+import { useDetailsWidth } from "./bot-panel/use-details-width";
+import { SIDEBAR_INLINE, useMediaQuery } from "@/lib/use-media-query";
 import { HistoryRollbackDialog, useBotHistory, useBotOverview } from "./bot-settings/useBotOverview";
 import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { ShareBotButton, useTeamName } from "./bot-access/ShareBotButton";
@@ -55,6 +57,8 @@ export function BotSettingsDialog({ bot, overlay = false }: {
   const q = query.trim().toLowerCase();
   const advanced = useAdvancedMode();
   const simpleView = !advanced;
+  const inline = useMediaQuery(SIDEBAR_INLINE);
+  const detailsWidth = useDetailsWidth(dialogRef, simpleView && inline && !overlay);
   const linkedSection = !collapsed && !state.botSettingsExpandRemembered ? section : null;
   const slackUrl = useSlackManagementUrl(bot.id);
   const ownerOrAdmin = useOwnerOrAdmin();
@@ -178,7 +182,19 @@ export function BotSettingsDialog({ bot, overlay = false }: {
         aria-labelledby="bot-settings-title"
         tabIndex={-1}
         className={sidePanelCls(overlay, simpleView)}
+        style={detailsWidth.style}
       >
+        {detailsWidth.handle && (
+          <div
+            role="separator"
+            tabIndex={0}
+            aria-orientation="vertical"
+            aria-controls={BOT_PANEL_ID}
+            aria-label={t("botPanel.resize")}
+            {...detailsWidth.handle}
+            className="absolute inset-y-0 -start-1 z-10 hidden w-2 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px hover:after:bg-accent/50 focus-visible:after:bg-focus md:block"
+          />
+        )}
         {simpleView ? (
           <BotPanel
             bot={bot}

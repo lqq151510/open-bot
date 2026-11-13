@@ -5,6 +5,7 @@ import { lacksAdminScope } from "../lib/admin-scope";
 import { isBotLimitRefusal, showBotLimit } from "../lib/bot-limit";
 import { noteRefusedRequest } from "../lib/session-ended";
 import { serverErrorText } from "../lib/server-error";
+import { activeLocale } from "../lib/i18n";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -33,6 +34,9 @@ export async function api<T = any>(path: string, init?: ApiInit): Promise<T> {
     markCloudAwake();
   }
   const sent = new Headers(headers ?? { "content-type": "application/json" });
+  if (rest.method === "POST" && (path === "/api/bots" || /^\/api\/bots\/[\w-]+\/setup-request$/.test(path))) {
+    sent.set("Accept-Language", activeLocale());
+  }
   if (background) sent.set(BACKGROUND_HEADER, "1");
   const res = await fetch(path, {
     ...rest,

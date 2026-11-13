@@ -4,11 +4,11 @@ import type { ComponentProps } from "react";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { usePlaceMenuItem } from "./PlaceChip";
 
-type PhonePlusProps = Pick<ComponentProps<typeof ComposerPlusMenu>, "onAttach" | "goal" | "teach" | "approval" | "callBotId">;
+type PhonePlusProps = Pick<ComponentProps<typeof ComposerPlusMenu>, "onAttach" | "goal" | "teach" | "approval" | "callBotId" | "extraItems">;
 
-function PhonePlusWithPlace({ place, ...rest }: PhonePlusProps & { place: Parameters<typeof usePlaceMenuItem>[0] }) {
+function PhonePlusWithPlace({ place, extraItems = [], ...rest }: PhonePlusProps & { place: Parameters<typeof usePlaceMenuItem>[0] }) {
   const item = usePlaceMenuItem(place);
-  return <ComposerPlusMenu {...rest} extraItems={[item]} circle />;
+  return <ComposerPlusMenu {...rest} extraItems={[...extraItems, item]} circle />;
 }
 
 /** The phone composer's round +: attach, Finish together, where the bot works, approval level and call mode. */

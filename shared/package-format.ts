@@ -10,7 +10,7 @@ import { z } from "zod";
 import { BOT_PROFILE_LIMITS, fitsOnOneLine } from "./bot-profile.ts";
 import { redactSecretsInText } from "./redact.ts";
 import { normalizeCronSchedule } from "./routine-schedule.ts";
-import { MAUS_COLOR_NAMES } from "./wire.ts";
+import { isMausColor, type MausColor } from "./wire.ts";
 import { isSkillName, parseSkillMd, scanSkillText, SKILL_FILE_MAX_BYTES } from "./skill-md.ts";
 
 export const PACKAGE_FORMAT = "openmaus.package";
@@ -222,7 +222,7 @@ const packageDocumentV1Schema = z.object({
       description: optionalText(4_000),
       soul: soulSchema.optional(),
       appearance: z.object({
-        color: z.enum(MAUS_COLOR_NAMES, { error: "is not supported" }),
+        color: z.custom<MausColor>(isMausColor, { error: "is not supported" }),
         mascotExpression: optionalText(80),
         mascotBody: optionalText(40),
       }),
@@ -310,7 +310,7 @@ const avatarSchema = z.object({
 });
 
 const appearanceSchema = z.object({
-  color: z.enum(MAUS_COLOR_NAMES, { error: "is not supported" }),
+  color: z.custom<MausColor>(isMausColor, { error: "is not supported" }),
   mascotExpression: optionalText(80),
   mascotBody: optionalText(40),
   avatar: avatarSchema.optional(),

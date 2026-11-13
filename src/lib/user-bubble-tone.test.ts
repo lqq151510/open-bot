@@ -54,6 +54,12 @@ describe("user bubble tone", () => {
     expect((userBubbleStyle(color) as Record<string, unknown>).backgroundImage).toBe(tone.gradient);
   });
 
+  it.each(["#000000", "#ffffff", "#ffdf12", "#123abc"] as const)("keeps text readable with custom color %s", color => {
+    const tone = userBubbleTone(color);
+    expect(contrastRatio(tone.ink, tone.background)).toBeGreaterThanOrEqual(BUBBLE_TEXT_MIN);
+    expect(contrastRatio(tone.ink, tone.deep)).toBeGreaterThanOrEqual(BUBBLE_TEXT_MIN);
+  });
+
   it("keeps yellow bright with dark text instead of darkening it to olive", () => {
     const tone = userBubbleTone("yellow");
     expect(toOklch(tone.background).l).toBeGreaterThan(toOklch(MAUS_COLORS.yellow).l);

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+import { useAdvancedMode } from "@/lib/interface-mode";
 import type { Action, BotSettingsSection } from "@/state/store";
 import { isSimplePage, PAGES, sectionTarget, type PageId, type PanelTarget, type SimplePageId } from "./page-registry";
 
@@ -10,9 +11,11 @@ import { isSimplePage, PAGES, sectionTarget, type PageId, type PanelTarget, type
  */
 export interface PanelLink {
   section: BotSettingsSection;
+  botId?: string;
   page?: PageId;
   /** A card on the section's tab to scroll to, such as "conversations". */
   anchor?: string;
+  routineId?: string;
   nonce: number;
 }
 
@@ -27,11 +30,17 @@ const watchers = new Set<() => void>();
 export function openBotSettings(
   dispatch: (action: Action) => void,
   section: BotSettingsSection,
-  options: { botId?: string; page?: PageId; anchor?: string } = {},
+  options: Pick<PanelLink, "botId" | "page" | "anchor" | "routineId"> = {},
 ): void {
-  latest = { section, ...(options.page ? { page: options.page } : {}), ...(options.anchor ? { anchor: options.anchor } : {}), nonce: (latest?.nonce ?? 0) + 1 };
+  latest = { ...options, section, nonce: (latest?.nonce ?? 0) + 1 };
   dispatch({ type: "toggleSettings", open: true, section, ...(options.botId !== undefined ? { botId: options.botId } : {}) });
   for (const watch of Array.from(watchers)) watch();
+}
+
+export function useRoutineActivityLink(dispatch: ((action: Action) => void) | undefined, selectedId: string | undefined, routine?: { id: string; botId: string }): (() => void) | undefined {
+  const advanced = useAdvancedMode();
+  if (!dispatch || !routine || selectedId !== routine.botId || advanced || (typeof window !== "undefined" && window.ogb?.remoteClient?.active)) return;
+  return () => openBotSettings(dispatch, "overview", { botId: routine.botId, routineId: routine.id });
 }
 
 function subscribe(watch: () => void) {
@@ -55,6 +64,7 @@ const SIMPLE_ALIAS: Partial<Record<PageId, SimplePageId>> = { mcp: "apps" };
  * that page, else the section's place, at the link's card when it named one. */
 export function linkTarget(section: BotSettingsSection, link: PanelLink | null): PanelTarget {
   const ours = link?.section === section ? link : null;
+  if (ours?.routineId) return { tab: "details", routineId: ours.routineId };
   const page = ours?.page && (SIMPLE_ALIAS[ours.page] ?? ours.page);
   if (page && isSimplePage(page)) return { tab: PAGES[page].home, page };
   return ours?.anchor ? { ...sectionTarget(section), anchor: ours.anchor } : sectionTarget(section);

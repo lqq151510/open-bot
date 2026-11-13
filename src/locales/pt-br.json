@@ -8963,6 +8963,7 @@
   "native.splash.openingNamed": "Abrindo {name}…",
   "native.splash.wakingNamed": "Acordando {name}…",
   "native.common.close": "Fechar",
+  "native.startup.opening": "Iniciando o OpenBot…",
   "native.tray.open": "Abrir o OpenMaus Bot",
   "native.tray.quit": "Sair do OpenMaus Bot",
   "native.lendTray.computer": "computador",
@@ -9799,5 +9800,13 @@
   "remote.client.endsDec7": "Este tipo de conexão termina em 7 de dezembro. Depois disso, pareie este computador de novo em Celular e dispositivos no outro computador.",
   "phone.code.pairingCode": "Código de pareamento",
   "phone.code.typeIntro": "Abra o app do {app} e digite este código de pareamento.",
-  "phone.signIn.emailCode": "Código de login do seu e-mail"
+  "phone.signIn.emailCode": "Código de login do seu e-mail",
+  "composer.photos.pick": "Escolher no app Fotos",
+  "composer.photos.file": "Foto {index}.jpg",
+  "composer.photos.failed": "Não foi possível abrir o app Fotos ou carregar a seleção. Tente de novo.",
+  "composer.photos.busy": "O seletor de fotos já está aberto.",
+  "composer.photos.skipped": "Algumas fotos não foram anexadas ({count}). Elas podem estar baixando ou ultrapassar o limite de anexos.",
+  "composer.photos.full": "Remova uma imagem para adicionar mais fotos.",
+  "native.photos.title": "Escolher fotos para o OpenBot",
+  "native.photos.loading": "Preparando as fotos selecionadas…"
 }

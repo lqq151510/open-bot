@@ -1,14 +1,13 @@
 import { directMessageSent, roomMessageSent } from "@/lib/product-events";
 import { useComposerDictation } from "@/lib/use-composer-dictation";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
-import { Mic, Paperclip, Square, X } from "lucide-react";
+import { Mic, Square, X } from "lucide-react";
 import { useStore, visibleMessages, currentTaskBot, type Bot, type Group, type InstanceInfo, type Message } from "@/state/store";
 import { cn } from "@/lib/cn";
 import { PHONE_LAYOUT, useMediaQuery } from "@/lib/use-media-query";
 import { useMenuMotion } from "./MenuMotion";
 import { ELEVATED_CARD, ELEVATED_FLOAT } from "./elevated";
 import { uploadDraftImage } from "@/lib/composer-uploads";
-import { intakeFilesWithNotice } from "@/lib/attach-notice";
 import { activeLocale, t } from "@/lib/i18n";
 import { useAdvancedMode } from "@/lib/interface-mode";
 import { imeComposing, sendKeyLabel, sendsMessage, useSendKey } from "@/lib/send-key";
@@ -34,14 +33,15 @@ import {
 import { DEVS_CHOICE, MentionMenu, teammateChoices, type MentionChoice } from "./MentionMenu"; import { useTeammates } from "@/state/team-people"; import { hiddenFromSidebar, useViewerEmail } from "@/lib/default-bot";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import { MentionTextarea } from "./MentionTextarea";
-import { ComposerAttachments, pathForFile } from "./ComposerAttachments";
+import { ComposerAttachments } from "./ComposerAttachments";
+import { useComposerLocalInputs } from "./ComposerLocalInputs";
 import { PointedChips } from "./app/PointedChips"; import { SetupRequestChip, setupRequestPlaceholder } from "./SetupOffer";
 import { takePointedChips } from "@/lib/pointed-chips";
 import { splitTranscriptCitations, type CitationAttachment } from "@/lib/citations";
+import { ApprovalModeSelector } from "./ApprovalModeSelector";
 import { PlaceChip } from "./PlaceChip";
 import { HelperPresencePills, useActiveHelpers } from "./HelperPresencePills";
 import { useAgentSwarm } from "@/lib/agent-swarm";
-import { ApprovalModeSelector } from "./ApprovalModeSelector";
 import { approvalModeFor } from "../../shared/approval-mode";
 import { useOnCall } from "@/lib/call";
 import { isLiveCallRunning, useLiveMedia } from "@/lib/live-call-media";
@@ -69,7 +69,7 @@ import { composerPlaceholder, sendLabels, SIMPLE_COMPOSER, SIMPLE_CONTROL, slotC
 import { PendingApprovalActions, PendingApprovalPanel, pendingApprovals } from "./PendingApproval";
 import { CallButton } from "./CallView";
 import { GroupCallButton } from "./GroupCallView";
-import { ApprovalChip, ComposerPlusMenu, GoalToggle, TeachTaskButton } from "./ComposerPlusMenu";
+import { ApprovalChip, ComposerPlusMenu, GoalToggle } from "./ComposerPlusMenu";
 import { PhonePlus } from "./PhonePlus";
 import { useThreadApproval } from "./thread-approval";
 import { useStackedField, useTallPill } from "./composer-wrap";
@@ -516,24 +516,11 @@ export function Composer({
   const modeBot = group ? undefined : bot;
   const { choice: approvalChoice, dialogs: approvalDialogs } = useThreadApproval(modeBot);
   const uploadImage = useCallback((file: File) => uploadDraftImage(draftId, file), [draftId]);
-  const pickFiles = async (picked: FileList | null) => {
-    if (!picked?.length) return;
-    changeDraftAttachmentPending(draftId, true);
-    try {
-      const { attachments: added, notice } = await intakeFilesWithNotice(Array.from(picked), {
-        allowImages: engineSupportsImages,
-        getPath: pathForFile,
-        uploadImage,
-        imageSlots: imageSlotsLeft(attachments),
-        imageBytes: imageBytesLeft(attachments),
-      });
-      if (added.length) addAttachments(added);
-      if (notice) setAttachmentNotice(notice);
-    } finally {
-      changeDraftAttachmentPending(draftId, false);
-    }
-    refocusInput();
-  };
+  const { pickFiles, localItems, briefing } = useComposerLocalInputs({
+    draftId, locked, remoteClient, bot: modeBot, instances: state.instances, opener: shellRef,
+    attachments, allowImages: engineSupportsImages, attachmentPending, uploadImage,
+    onAdd: addAttachments, onNotice: setAttachmentNotice, refocusInput,
+  });
 
   const hasContent = Boolean(effectiveText.trim()) || attachments.length > 0;
   const onCall = useOnCall();
@@ -770,6 +757,7 @@ export function Composer({
           </div>
         )}
         {!group && <PointedChips threadId={threadId} />}{!group && bot && <SetupRequestChip bot={bot} threadId={threadId} />}
+        {briefing}
         <ComposerAttachments
           items={attachments}
           onAdd={addAttachments}
@@ -809,6 +797,7 @@ export function Composer({
           <div className="flex shrink-0 items-center">
             <PhonePlus
               onAttach={() => fileInput.current?.click()}
+              extraItems={localItems}
               goal={goal}
               teach={canLearn ? teachTask : undefined}
               approval={approvalChoice && modeBot && { name: modeBot.name, choice: approvalChoice }}
@@ -838,20 +827,14 @@ export function Composer({
           />
           {!locked && !singleRow && (
             <div className={cn("flex items-center gap-1", simpleDock ? "shrink-0" : "flex-wrap")}>
-              {simpleDock && <ComposerPlusMenu onAttach={() => fileInput.current?.click()} goal={goal} teach={canLearn ? teachTask : undefined} />}
-              {advanced && <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                aria-label={t("composer.attach")}
-                title={t("composer.attach")}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-secondary hover:bg-control hover:text-ink"
-              >
-                <Paperclip size={16} strokeWidth={1.75} absoluteStrokeWidth />
-              </button>}
-              {advanced && canLearn && <TeachTaskButton onClick={teachTask} />}
-              {/* Simple mode shows a mode's chip only while it is on, so a choice made in the + menu or the bot panel stays in view. */}
-              {goal && (advanced || goal.on) && <GoalToggle {...goal} compact={simpleDock} />}
+              <ComposerPlusMenu
+                onAttach={() => fileInput.current?.click()}
+                extraItems={localItems}
+                goal={goal}
+                teach={canLearn ? teachTask : undefined}
+              />
               {advanced && approvalChoice && <ApprovalModeSelector {...approvalChoice} />}
+              {simpleDock && goal?.on && <GoalToggle {...goal} compact />}
               {simpleDock && approvalChoice && profile && bot && approvalModeFor(bot) !== approvalModeFor(profile) && <ApprovalChip choice={approvalChoice} />}
               {modeBot && !remoteClient && advanced && (
                 <PlaceChip

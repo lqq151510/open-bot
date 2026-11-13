@@ -32,7 +32,7 @@ const { SimpleBillingPage } = await import("./SettingsSimplePages");
 
 const has = () => true;
 const disclose: Disclose = (id) => ({ id, open: true, onToggle: () => {} });
-const html = () => renderToStaticMarkup(createElement(SimpleBillingPage, { has, disclose, cloudAccount: "EXISTING CLOUD ACCOUNT" }));
+const html = () => renderToStaticMarkup(createElement(SimpleBillingPage, { has, disclose }));
 
 const usage = (used: number): CloudUsage => ({
   tier: "personal",
@@ -69,6 +69,6 @@ describe("simple billing", () => {
     expect(text).not.toContain("91%");
     expect(text).not.toContain("$3.75");
     expect(text).not.toContain("Premium");
-    expect(text).toContain("EXISTING CLOUD ACCOUNT");
+    expect(text).not.toContain("EXISTING CLOUD ACCOUNT");
   });
 });

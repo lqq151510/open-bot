@@ -281,8 +281,8 @@ See [Run OpenBot from scripts and CI](docs/headless-cli.md).
 
 ## Quick start
 
-This fork has no published releases as of 2026-11-12. Build and run it from source;
-the upstream project's installers are not builds of this repository.
+Download the macOS or Windows installer from [OpenBot Releases](https://github.com/lqq151510/open-bot/releases).
+To run OpenBot from source:
 
 ```sh
 git clone https://github.com/lqq151510/open-bot.git && cd open-bot
@@ -305,7 +305,7 @@ pnpm package:win      # Windows: installer + ZIP
 pnpm package:linux    # Ubuntu x64: .deb + AppImage
 ```
 
-These packaging scripts have not been verified for this fork's current revision. The full `pnpm test`
+The full `pnpm test`
 chain cannot pass in this checkout: the broker source and test configuration under
 `cloudflare/composio-broker` and `.github/workflows/ci.yml` are missing. Run targeted tests and report
 their results separately; they do not establish a full-suite pass. The cloud-home Docker build references

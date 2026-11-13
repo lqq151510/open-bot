@@ -66,6 +66,7 @@ export interface PanelTarget {
   tab: PanelTab;
   page?: SimplePageId;
   anchor?: string;
+  routineId?: string;
   /** Opens the Instructions editor in place on the Bot settings page. */
   editInstructions?: boolean;
 }

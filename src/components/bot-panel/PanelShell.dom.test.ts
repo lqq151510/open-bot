@@ -25,7 +25,10 @@ vi.mock("../AvatarImageGenerator", () => ({ AvatarImageGenerator: () => null }))
 vi.mock("@/lib/use-organization-branding", () => ({ useOrganizationBranding: () => null }));
 const stub = (name: string) => (props: Record<string, unknown>) =>
   createElement("div", { [`data-stub-${name}`]: true, "data-editing-instructions": props.editingInstructions === true ? "true" : undefined });
-vi.mock("./DetailsTab", () => ({ DetailsTab: stub("details") }));
+vi.mock("./DetailsTab", () => ({ DetailsTab: ({ linkedRoutineId }: { linkedRoutineId?: string }) =>
+  createElement("div", { "data-stub-details": true }, linkedRoutineId &&
+    createElement("div", { "data-panel-routine": linkedRoutineId }, createElement("div", { "data-panel-routine-title": true, tabIndex: -1 }))),
+}));
 vi.mock("./LibraryTab", () => ({ LibraryTab: stub("library") }));
 vi.mock("./ComputerTab", () => ({ ComputerTab: stub("computer") }));
 vi.mock("./pages", () => ({
@@ -46,7 +49,7 @@ const bot: Bot = {
   modelSelection: { instanceId: "claude", model: "claude-opus-5-5" },
 };
 const onClose = vi.fn();
-const derived = { activeState: "idle", patch: vi.fn() } as never;
+const derived = { activeState: "idle", patch: vi.fn(), botRoutines: [{ id: "r-1" }] } as never;
 
 let host: HTMLDivElement;
 let root: Root;
@@ -131,6 +134,24 @@ describe("named links into the bot panel", () => {
     render("access");
     await settle();
     expect(tab()).toBe("details");
+  });
+
+  it("returns from Library to the requested routine every time the receipt is opened", async () => {
+    const openRoutine = () => openBotSettings(fixture.dispatch, "overview", { botId: bot.id, routineId: "r-1" });
+    render("overview");
+    await settle();
+    click(host.querySelector('[data-panel-tab="library"]'));
+    expect(tab()).toBe("library");
+    flushSync(openRoutine);
+    await settle();
+    const title = host.querySelector('[data-panel-routine="r-1"] [data-panel-routine-title]');
+    expect(tab()).toBe("details");
+    expect(document.activeElement).toBe(title);
+
+    (host.querySelector('[data-panel-tab="details"]') as HTMLButtonElement).focus();
+    flushSync(openRoutine);
+    await settle();
+    expect(document.activeElement).toBe(title);
   });
 
   it("opens Bot settings with the Instructions editor for a soul link, and closes it when the panel moves on", async () => {

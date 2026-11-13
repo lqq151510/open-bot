@@ -130,7 +130,7 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
 
   return (
     <div data-panel-tabpanel="library">
-      <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3.5 flex flex-wrap gap-1.5">
+      {total > 0 && <div role="group" aria-label={t("botPanel.tab.library")} className="mb-3.5 flex flex-wrap gap-1.5">
         {[{ id: "all" as const, label: t("apps.filter.all") }, ...categories].map((category) => (
           <button
             key={category.id}
@@ -147,9 +147,9 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
             {category.label}
           </button>
         ))}
-      </div>
+      </div>}
       {selectedCount === 0 && (
-        <p data-panel-empty="library" className="px-3 py-7 text-center text-[13px] leading-[18px] text-ink-tertiary">
+        <p data-panel-empty="library" className="mx-auto max-w-[17rem] px-3 py-8 text-center text-[13px] leading-[18px] text-ink-tertiary">
           {selected === "all" ? t("botPanel.library.empty") : t("botPanel.library.emptyCategory")}
         </p>
       )}

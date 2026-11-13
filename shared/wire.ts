@@ -8,6 +8,7 @@ import type { CommandAllowlistCandidate } from "./command-allowlist.ts";
 import type { TurnDigest } from "./digest.ts";
 import type { BotAvatarCrop, MascotFaceColor } from "./bot-avatar.ts";
 import type { BotBodyId } from "./bot-body.ts";
+import type { MausColor } from "./mascot-colors.ts";
 import type { ReplyStyle } from "./reply-style.ts";
 import type { CredentialTargetId, CUSTOM_SECRET_TARGET, SecretDelivery } from "./credential-request.ts";
 import type { TeamSetupRequest } from "./team-setup.ts"; import type { DefaultBotFields, HelperIntroField } from "./default-bot.ts";
@@ -66,15 +67,7 @@ export type CloudBackend = "box" | "vps";
 /** A place a bot can act. `cloud` covers both cloud backends. */
 export type Surface = "cloud" | "vm" | "local" | "browser";
 
-export const MAUS_COLOR_NAMES = [
-  "green", "blue", "red", "orange", "purple", "cyan", "pink",
-  "yellow", "teal", "coral", "silver", "chrome",
-] as const;
-export type MausColor = (typeof MAUS_COLOR_NAMES)[number];
-
-export function isMausColor(value: unknown): value is MausColor {
-  return typeof value === "string" && (MAUS_COLOR_NAMES as readonly string[]).includes(value);
-}
+export { MAUS_COLOR_NAMES, isCustomMausColor, isMausColor, type CustomMausColor, type MausColor, type PresetMausColor } from "./mascot-colors.ts";
 
 /** The face a bot rests on, as one of the engine's state names. */
 export type MausExpression = string;

@@ -1,3 +1,4 @@
+import { MascotColorPicker } from "../MascotColorPicker";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronDown, Loader2, Trash2 } from "lucide-react";
 
@@ -174,6 +175,7 @@ export function AvatarEditorCard({ bot, activeState, onPatch, onClose }: {
                 />
               ))}
             </div>
+            <div className="mt-2 flex justify-center"><MascotColorPicker color={bot.color} disabled={busy} onChange={color => pickMascot({ color })} /></div>
             <MascotFaceColorPicker bot={bot} disabled={busy} onPatch={pickMascot} />
             <button
               type="button"

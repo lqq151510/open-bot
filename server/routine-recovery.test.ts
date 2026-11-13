@@ -104,6 +104,8 @@ describe("classifyRoutineFailure", () => {
     [TRIAL_CREDIT_REFUSED.used_up, { setup: true, trialCredit: "used_up" }, { kind: "owner", cause: "credits" }],
     ["This Claude account has reached its 5-hour limit.", { stopReason: "quota", limitResetsAt: START + 3_600_000 }, { kind: "owner", cause: "usage_limit", resetsAt: START + 3_600_000 }],
     ["You've hit your weekly limit · resets Oct 12 at 2:30pm (Asia/Calcutta)", {}, { kind: "owner", cause: "usage_limit" }],
+    ["API Error: Request rejected (429) · API key 额度已用完", {}, { kind: "owner", cause: "usage_limit" }],
+    ["Claude hit a rate limit (HTTP 429; Claude says: \"Request rejected (429) · API key 额度已用完\"). Wait a minute, then run it again.", {}, { kind: "owner", cause: "usage_limit" }],
     ["Claude Code is too old for this model. Update it.", { setup: true, stopReason: "update_required" }, { kind: "owner", cause: "setup" }],
     ["The engine stopped without saying why (stop reason: cancelled).", { stopReason: "cancelled" }, { kind: "final" }],
     ["the turn was interrupted", {}, { kind: "final" }],

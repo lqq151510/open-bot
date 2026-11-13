@@ -419,8 +419,7 @@ export function readyBotTemplate(defaults: NewBotDefaults, bot: ReadyBot): NewBo
   template.profile = {
     ...template.profile,
     name: bot.name,
-    title: bot.title,
-    description: bot.description,
+    ...readyBotProfileCopy(bot),
     soul: bot.soul,
     color: bot.look.color,
     mascotBody: bot.look.mascotBody,
@@ -433,9 +432,15 @@ export function readyBotTemplate(defaults: NewBotDefaults, bot: ReadyBot): NewBo
   return template;
 }
 
+export function readyBotProfileCopy(bot: Pick<ReadyBot, "id" | "title" | "description">): { title: string; description: string } {
+  return {
+    title: tFromServer(`readyBots.bot.${bot.id}.title`, bot.title),
+    description: tFromServer(`readyBots.bot.${bot.id}.description`, bot.description),
+  };
+}
+
 export function readyBotCopy(bot: ReadyBot): { title: string; description: string; tryAsking: string } {
-  const copy = (field: string, english: string) => tFromServer(`readyBots.bot.${bot.id}.${field}`, english);
-  return { title: copy("title", bot.title), description: copy("description", bot.description), tryAsking: copy("try", bot.tryAsking[0]!) };
+  return { ...readyBotProfileCopy(bot), tryAsking: tFromServer(`readyBots.bot.${bot.id}.try`, bot.tryAsking[0]!) };
 }
 
 export function matchesReadyBot(bot: ReadyBot, query: string): boolean {

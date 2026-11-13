@@ -8,7 +8,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { MAUS_COLORS, type MausColor, type MausMotion, type MausState } from "@/lib/mascot";
+import { mascotColorHex, type MausColor, type MausMotion, type MausState } from "@/lib/mascot";
 import { HALLOWEEN_BODIES, type HalloweenBody, type HalloweenBodyId } from "../../shared/halloween-bodies";
 import type { CursorAvatarHandle } from "./CursorAvatar";
 import { mascotClock, usePrefersReducedMotion } from "./mascot-clock";
@@ -136,9 +136,9 @@ export function vivid(hex: string): string {
 }
 
 export function carvedFills(body: HalloweenBody, color: MausColor): { body: string; accent: string } {
-  const accent = vivid(MAUS_COLORS[color] ?? MAUS_COLORS.green);
+  const accent = vivid(mascotColorHex(color));
   if (body.paint === "bone") return { body: body.bone ?? "#f1ede6", accent };
-  if (body.paint === "pale") return { body: mix(MAUS_COLORS[color] ?? MAUS_COLORS.green, "#ffffff", 0.86), accent };
+  if (body.paint === "pale") return { body: mix(mascotColorHex(color), "#ffffff", 0.86), accent };
   return { body: accent, accent };
 }
 

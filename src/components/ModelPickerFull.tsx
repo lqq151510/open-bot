@@ -1,5 +1,7 @@
-import { Check, KeyRound, Plus, Search } from "lucide-react";
-import type { InstanceInfo } from "@/state/store";
+import { Check, ChevronDown, KeyRound, Plus, Search } from "lucide-react";
+import type { InstanceInfo, ModelSelection } from "@/state/store";
+import { modelName, variantSuffix } from "@/lib/simple-model-menu";
+import { UsageBars } from "./EngineUsage";
 import { engineDisplayName, isClaudeAccount, SIGN_IN_FAMILY_LABEL, signInFamily, splitEngineRail, type SignInFamily } from "@/lib/engine-rail";
 import { modelOptionLabel } from "@/lib/model-label";
 import { cn } from "@/lib/cn";
@@ -205,5 +207,30 @@ export function ClaudeAccountSelect({ accounts, selectedId, onSelect }: {
         {accounts.map((account) => <option key={account.instanceId} value={account.instanceId}>{engineDisplayName(account)}</option>)}
       </Select>
     </label>
+  );
+}
+
+export function AdvancedModelTriggerContent({ active, selection, attention, compactHeader, chooseLabel }: {
+  active: InstanceInfo | undefined;
+  selection: ModelSelection;
+  attention: string | undefined;
+  compactHeader: boolean;
+  chooseLabel: string;
+}) {
+  return (
+    <>
+      <span className={cn("relative mr-1.5 flex shrink-0 group-disabled:opacity-50", compactHeader && "@max-[32rem]/chathead:mr-0")}>
+        {active
+          ? <InstanceProviderMark instance={active} size={14} subtle />
+          : <span className="size-3.5 rounded-full bg-ink/[0.08]" aria-hidden="true" />}
+        {attention && <span data-model-attention className="absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full bg-warning ring-[1.5px] ring-app" />}
+      </span>
+      <span className={cn("flex min-w-0 items-center", compactHeader && "@max-[32rem]/chathead:hidden")}>
+        <span className="min-w-0 max-w-[160px] truncate">{selection.model ? modelName(active, selection.model) : chooseLabel}</span>
+        {selection.variant !== undefined && <span className="shrink-0 whitespace-pre">{variantSuffix(active, selection.model, selection.variant)}</span>}
+        <UsageBars engine={selection.instanceId} className="ml-1.5" />
+        <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-1 shrink-0 text-ink-tertiary group-hover:text-ink-secondary" />
+      </span>
+    </>
   );
 }

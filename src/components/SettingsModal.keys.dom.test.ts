@@ -36,7 +36,6 @@ vi.mock("@/lib/analytics", () => ({ analyticsEnabled: () => false, setAnalyticsE
 vi.mock("@/lib/use-owner-or-admin", () => ({ useOwnerOrAdmin: () => null }));
 vi.mock("./DesktopCapabilities", () => ({ useDesktopCapabilities: () => ({ capabilities: {} }) }));
 vi.mock("./EnginesSettings", () => ({ EnginesSettings: marker("engines") }));
-vi.mock("./DecisionModelSettings", () => ({ DecisionModelSettings: marker("decisionModel") }));
 vi.mock("./RemoteComputerSection", () => ({ RemoteComputerSection: marker("companion") }));
 vi.mock("./CustomDomainSettings", () => ({ CustomDomainSettings: () => null }));
 vi.mock("./PhoneDevicesSection", () => ({ PhoneDevicesSection: () => null }));

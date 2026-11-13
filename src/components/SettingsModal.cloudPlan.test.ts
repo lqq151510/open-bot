@@ -24,28 +24,16 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); });
 const render = () => renderToStaticMarkup(createElement(SettingsModal));
 
-describe.each(["Simple", "Advanced"] as const)("%s Settings → OMB Cloud on a server open in the app's window", (mode) => {
+describe.each(["Simple", "Advanced"] as const)("%s Settings with the old Cloud account route", (mode) => {
   beforeEach(() => { fixture.advanced = mode === "Advanced"; });
-  const reachable = () => fixture.advanced ? 'data-settings-section="cloudAccount"' : 'data-settings-block="cloudAccount"';
-  it("is not offered on a server that is not an OMB Cloud home", () => {
-    vi.stubGlobal("window", { ogb: { cloudPlan: plan } });
-    const html = render();
-    expect(html).not.toContain("CLOUD_PLAN_MARKER"); expect(html).not.toContain(reachable());
-  });
-  it("shows the plan, read only, on the person's own Cloud", () => {
-    vi.stubGlobal("window", { ogb: { cloudPlan: plan } });
-    fixture.config = { cloudHome: true };
-    const html = render();
-    expect(html).toContain("CLOUD_PLAN_MARKER home"); expect(html).toContain(reachable());
-    expect(html).toContain(fixture.advanced ? 'value="cloudAccount"' : 'data-settings-page="billing"');
-  });
-  it("is the full account section in the app on this computer", () => {
+  it.each([false, true])("opens usage without the Cloud account page (Cloud home: %s)", cloudHome => {
     vi.stubGlobal("window", { ogb: { cloudAccount: {}, cloudPlan: plan } });
+    fixture.config = { cloudHome };
     const html = render();
-    expect(html).toContain("CLOUD_PLAN_MARKER");
-    expect(html).not.toContain("CLOUD_PLAN_MARKER home");
-    expect(html).toContain(reachable());
-    // Simple's plan row above the card already carries the offer, so the card does not repeat it.
-    expect(html.includes("CLOUD_PLAN_MARKER offer")).toBe(fixture.advanced);
+    expect(html).not.toContain("CLOUD_PLAN_MARKER");
+    expect(html).not.toContain('data-settings-section="cloudAccount"');
+    expect(html).not.toContain('data-settings-block="cloudAccount"');
+    expect(html).not.toContain('value="cloudAccount"');
+    expect(html).toContain(fixture.advanced ? 'data-settings-section="usage"' : 'data-settings-page="billing"');
   });
 });

@@ -1,6 +1,7 @@
 import { Flame, Brain, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { GrokPersonaMode } from "@/lib/grok-mode";
+import { t } from "@/lib/i18n";
 
 export interface GrokModePillProps {
   mode: GrokPersonaMode;
@@ -18,6 +19,8 @@ export function GrokModePill({
   className,
 }: GrokModePillProps) {
   const isFun = mode === "fun";
+  const modeAction = t(isFun ? "grokMode.switchNormal" : "grokMode.switchFun");
+  const thinkAction = t(think ? "grokMode.disableThink" : "grokMode.enableThink");
 
   return (
     <div className={cn("flex items-center gap-1 text-[12px]", className)} data-testid="grok-mode-pill">
@@ -25,8 +28,8 @@ export function GrokModePill({
       <button
         type="button"
         onClick={onToggleMode}
-        title={isFun ? "Grok 模式：幽默机智 (Fun Mode) - 点击切换为严谨模式" : "Grok 模式：严谨专业 (Normal Mode) - 点击切换为幽默机智模式"}
-        aria-label={isFun ? "Switch to Normal mode" : "Switch to Fun mode"}
+        title={modeAction}
+        aria-label={modeAction}
         className={cn(
           "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium transition-all duration-200 select-none",
           isFun
@@ -39,15 +42,15 @@ export function GrokModePill({
         ) : (
           <Sparkles size={13} className="text-ink-tertiary" />
         )}
-        <span className="tracking-tight">{isFun ? "Fun" : "Normal"}</span>
+        <span className="tracking-tight">{t(isFun ? "grokMode.fun" : "grokMode.normal")}</span>
       </button>
 
       {/* Think / Extended Reasoning switch */}
       <button
         type="button"
         onClick={onToggleThink}
-        title={think ? "深度思考模式已开启 (Think Mode On) - 点击关闭" : "深度思考模式已关闭 (Think Mode Off) - 点击开启思维链"}
-        aria-label={think ? "Turn off Think mode" : "Turn on Think mode"}
+        title={thinkAction}
+        aria-label={thinkAction}
         className={cn(
           "flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium transition-all duration-200 select-none",
           think
@@ -56,7 +59,7 @@ export function GrokModePill({
         )}
       >
         <Brain size={13} className={think ? "text-accent" : "text-ink-tertiary"} />
-        <span className="tracking-tight">Think</span>
+        <span className="tracking-tight">{t("grokMode.think")}</span>
       </button>
     </div>
   );

@@ -1,3 +1,4 @@
+import { MascotColorPicker } from "./MascotColorPicker";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 import type { Bot } from "@/state/store";
@@ -207,6 +208,7 @@ function MascotAppearancePickers({ bot, busy, onPatch }: { bot: Bot; busy: boole
         aria-label={t("mascot.useColor", { color: colorName(color) })}
       />)}
     </div>
+    <div className="mt-2"><MascotColorPicker color={bot.color} disabled={busy} onChange={color => onPatch({ color })} /></div>
     <div className="mb-2 mt-4 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-secondary">{t("botIdentity.body")}</div>
     <div className="grid grid-cols-5 gap-1.5">
       {MASCOT_BODY_IDS.map(id => <BodyButton key={id} id={id} name={bodyName(id)} bot={bot} busy={busy} onPatch={onPatch} />)}

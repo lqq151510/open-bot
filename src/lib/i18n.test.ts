@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applyBrand, DEFAULT_BRAND } from "./brand";
-import { activePackComplete, documentLanguage, intlLocale, resolveLocale, setLocale, t, tFromServer } from "./i18n";
+import { activePackComplete, documentLanguage, intlLocale, loadLocale, resolveLocale, setLocale, t, tFromServer } from "./i18n";
 import { en, localeChoices, locales } from "@/locales";
 
 afterEach(() => {
@@ -137,10 +137,11 @@ describe("t", () => {
 });
 
 describe("activePackComplete", () => {
-  it("is true only for a pack other than English that has every English key", () => {
+  it("loads the complete Simplified Chinese pack for a system language and detects a partial pack", async () => {
     expect(activePackComplete()).toBe(false);
-    setLocale("pt-br");
+    expect(await loadLocale("zh-Hans-CN")).toBe("zh");
     expect(activePackComplete()).toBe(true);
+    expect(t("settings.section.imageGeneration")).toBe("图片生成");
     locales["zz"] = { "approval.held.native": "x" };
     try {
       setLocale("zz");

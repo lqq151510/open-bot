@@ -21,6 +21,17 @@ describe("checking a just-connected engine with one tiny real message", () => {
     expect(engineCheckError("ChatGPT", "spawn codex ENOENT with key sk-proj-abcdefghijklmnopqrstuvwxyz0123456789")).not.toContain("sk-proj-abcdefghijklmnop");
   });
 
+  it("does not read a relayed 429 quota as a sign-out, and names a missing CLI instead of its system error", async () => {
+    const quota = await checkEngine(engine(async () => { throw new Error("API Error: Request rejected (429) · API key 额度已用完"); }));
+    if (quota.ok !== false) throw new Error(`expected a failed check, got ${JSON.stringify(quota)}`);
+    expect(quota.error).toContain("usage limit");
+    expect(quota.error).not.toContain("signed in");
+    expect(await checkEngine({
+      instanceId: "grok", displayName: "Grok", driverKind: "grokAgent",
+      generateMemoryText: async () => { throw new Error("spawn grok ENOENT"); },
+    })).toEqual({ ok: false, error: "Grok isn't installed on this computer anymore. Install it, then check again." });
+  });
+
   it("can't check an engine without a one-shot call, and runs one check per engine at a time", async () => {
     expect(await checkEngine(engine(undefined))).toEqual({ ok: null });
     let answer!: (text: string) => void;

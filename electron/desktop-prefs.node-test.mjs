@@ -265,11 +265,12 @@ test("a page of the window says which language it shows, and main hears it only 
 });
 
 const PRELOAD = readFileSync(new URL("./preload.cjs", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-function preload(origin, { activation = false, saved = null, language = null } = {}) {
+function preload(origin, { activation = false, saved = null, language = null, osVersion = "14.0", remoteClient = false } = {}) {
   let bridge;
   const invoked = [], synced = [], sent = [], heard = new Map();
   vm.runInNewContext(PRELOAD, {
-    process: { platform: "darwin", argv: [`--omb-local-origin=${LOCAL}`, "--omb-company-desktop=1"] },
+    process: { platform: "darwin", getSystemVersion: () => osVersion, argv: [`--omb-local-origin=${LOCAL}`, "--omb-company-desktop=1",
+      ...(remoteClient ? ["--openbot-remote-client"] : [])] },
     location: { origin }, navigator: { userActivation: { isActive: activation } }, TextEncoder, localStorage: { getItem: () => null },
     require: () => ({ webUtils: {}, contextBridge: { exposeInMainWorld: (_name, value) => { bridge = value; } },
       ipcRenderer: { on(channel, handler) { heard.set(channel, handler); }, removeListener() {}, send(...args) { sent.push(args); },
@@ -320,6 +321,18 @@ test("device controls are exposed to this computer's renderer and hidden from re
   for (const channel of ["state", "set"]) {
     assert.ok(main.includes(`ipcMain.handle("device-access:${channel}", localWorkspaceOnly("device-access:${channel}"`));
   }
+});
+
+test("Photos opens only from user interaction on a supported local desktop", async () => {
+  assert.equal(preload(CLOUD, { activation: true }).bridge.localPhotos, undefined);
+  assert.equal(preload(LOCAL, { remoteClient: true }).bridge.localPhotos, undefined);
+  assert.equal(preload(LOCAL, { osVersion: "12.7.6" }).bridge.localPhotos, undefined);
+  const inactive = preload(LOCAL);
+  assert.equal((await inactive.bridge.localPhotos.pick(3, 4096)).status, "cancelled");
+  assert.deepEqual(inactive.invoked, []);
+  const active = preload(LOCAL, { activation: true, osVersion: "13.0" });
+  await active.bridge.localPhotos.pick(3, 4096);
+  assert.deepEqual(active.invoked, [["local-photos:pick", 3, 4096]]);
 });
 
 test("the preload gives every page of the window the app language this computer keeps", async () => {

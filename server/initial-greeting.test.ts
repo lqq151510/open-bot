@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { initialGreeting, setupRequestLine } from "./initial-greeting.ts";
+import { initialGreeting, initialGreetingMessage, setupRequestLine } from "./initial-greeting.ts";
+import { requestedAppLanguage } from "./language.ts";
 
 describe("the line after Set me up", () => {
   it("is written in the app's language, by region, with English for any other", () => {
@@ -31,5 +32,16 @@ describe("a new bot's greeting", () => {
     for (const person of [undefined, "", "   "]) {
       expect(initialGreeting("Scout", "en", person)).toBe("Hi, I'm Scout. What would you like me to do?");
     }
+  });
+
+  it("seeds the Simplified Chinese welcome and choices for a Chinese system locale", () => {
+    const language = requestedAppLanguage("zh-Hans-CN")!;
+    expect(initialGreetingMessage("Scout", language, true, "王小明")).toMatchObject({
+      text: "你好，王小明！我是 Scout。你想先让我帮你做什么？",
+      setupChoices: expect.arrayContaining(["邮件、日历和消息"]),
+    });
+    expect(setupRequestLine(language)).toContain("每天早上整理我的收件箱");
+    expect(requestedAppLanguage("en-US,en;q=0.9")).toBeUndefined();
+    expect(requestedAppLanguage("*")).toBeUndefined();
   });
 });

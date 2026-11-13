@@ -157,7 +157,13 @@ test("the tray's menu and the startup screen speak the app's language, and the t
   const html = startupScreenHtml(iconPath, { t: text.t, lang: text.intlTag() });
   assert.match(html, /<html lang="pt-BR">/);
   assert.match(html, /<button aria-label="Fechar"/);
+  assert.match(html, /Iniciando o OpenBot…/);
   assert.match(startupScreenHtml(iconPath), /<html lang="en">.*<button aria-label="Close"/s);
+  text.set("zh-Hans-CN");
+  const chinese = startupScreenHtml(iconPath, { t: text.t, lang: text.intlTag() });
+  assert.match(chinese, /<html lang="zh">/);
+  assert.match(chinese, /<button aria-label="关闭"/);
+  assert.match(chinese, /正在启动 OpenBot…/);
 });
 
 test("tray restores minimized windows, supports explicit quit, and disposes once", async () => {

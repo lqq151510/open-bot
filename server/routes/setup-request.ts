@@ -6,11 +6,12 @@ import { askForSetup, cancelSetupRequest, type SetupRequestStore } from "../setu
 import type { Message } from "../store.ts";
 import { PASS, type RouteHandler } from "./table.ts";
 import { refusalBody, userError } from "../user-errors.ts";
+import type { IncomingMessage } from "node:http";
 
 export interface SetupRequestRouteDeps {
   store: SetupRequestStore;
   /** The language the server writes the bot's lines in. */
-  language(): string | undefined;
+  language(req: IncomingMessage): string | undefined;
   /** Why this caller may not write in this conversation (a Cloud guest in the owner's chat), or null. */
   sendRefusal(auth: RequestAuth, threadId: string): string | null;
   /** Who this caller is where several people share the place (their reactor key); undefined where one person does. */
@@ -53,7 +54,7 @@ export function createSetupRequestRoutes(deps: SetupRequestRouteDeps): RouteHand
     if (deps.store.taskByThread(botId, threadId) && !deps.canSetUp(botId, threadId)) return json(res, 409, userError("serverError.setup.noTools"));
     const key = `${botId}:${threadId}`;
     if (picking.has(key)) return json(res, 409, { ...userError("serverError.chat.answerSent") });
-    const asked = askForSetup(deps.store, botId, threadId, deps.language(), deps.presser(auth), picked !== undefined);
+    const asked = askForSetup(deps.store, botId, threadId, deps.language(req), deps.presser(auth), picked !== undefined);
     if (!asked.ok) return json(res, asked.status, refusalBody(asked));
     if (picked === undefined) return json(res, 200, asked);
     picking.add(key);

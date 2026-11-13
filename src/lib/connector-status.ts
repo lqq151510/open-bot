@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n";
+import type { LocaleKey } from "@/locales";
 
 export interface ConnectorStatus {
   connected: boolean;
@@ -71,4 +72,23 @@ export function connectedInventoryCopy(phase: ConnectorInventoryPhase) {
     title: t("connectors.empty.noneTitle"),
     description: t("connectors.empty.noneDesc"),
   };
+}
+
+export function hasUsableConnectedApps(configured: boolean, phase: ConnectorInventoryPhase, stale: boolean, status: Record<string, ConnectorStatus>): boolean {
+  return configured && phase === "ready" && !stale && Object.values(status).some((service) => service.connected);
+}
+
+export type ConnectorSetup = "ready" | "needs-setup" | "service-unavailable";
+
+export function connectorSetupNotice(state: {
+  configured: boolean;
+  stale: boolean;
+  setup: ConnectorSetup | undefined;
+  remoteClient: boolean;
+}): { key: LocaleKey; tone: "info" | "warning" } | null {
+  if (state.configured || state.stale) return null;
+  if (state.setup === "needs-setup") {
+    return { key: state.remoteClient ? "connectors.setupNeededRemote" : "connectors.setupNeeded", tone: "info" };
+  }
+  return { key: "connectors.notConfigured", tone: "warning" };
 }

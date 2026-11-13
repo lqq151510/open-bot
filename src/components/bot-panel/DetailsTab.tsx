@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { appendComposerDraft } from "@/lib/drafts";
 import { routineFinished, routineNextLabel } from "@/lib/routine-display";
+import { scheduleLabel } from "@/lib/schedule-label";
 import { useStore, type Bot } from "@/state/store";
 import { BotAvatar } from "../Avatar";
 import { useChatMoreItems } from "../ChatMoreMenu";
@@ -45,11 +46,12 @@ export function ItemRow({ item }: { item: SidebarMenuItem }) {
   );
 }
 
-export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
+export function DetailsTab({ bot, derived, onOpen, slackUrl, linkedRoutineId }: {
   bot: Bot;
   derived: Derived;
   onOpen: (page: SimplePageId) => void;
   slackUrl?: string | null;
+  linkedRoutineId?: string;
 }) {
   const [hiddenSuggestions, setHiddenSuggestions] = useState<string[]>([]);
   const { items } = useChatMoreItems(bot);
@@ -58,6 +60,11 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
   const screen = [...bot.messages].reverse().find((message) => message.kind === "screen" && (message.hasImage || message.png));
   const screenSrc = screen ? screenFramePreview({ threadId: bot.threadId, messageId: screen.id }, screen.mime).src : null;
   const routinesOn = derived.botRoutines.filter((routine) => routine.enabled).length;
+  const upcoming = [...derived.botRoutines]
+    .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? Infinity) - (b.nextRunAt ?? Infinity) || a.name.localeCompare(b.name))
+    .slice(0, 3);
+  const linkedRoutine = derived.botRoutines.find((routine) => routine.id === linkedRoutineId);
+  const visibleRoutines = linkedRoutine && !upcoming.includes(linkedRoutine) ? [...upcoming.slice(0, 2), linkedRoutine] : upcoming;
   const conversationItems = CONVERSATION_ITEMS.flatMap((key) => items.filter((item) => item.key === key));
 
   return (
@@ -76,20 +83,23 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
         </div>
       ) : derived.botRoutines.length > 0 ? (
         <Card label={t("botPanel.section.upcoming")} anchor="routines">
-          {[...derived.botRoutines]
-            .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? Infinity) - (b.nextRunAt ?? Infinity) || a.name.localeCompare(b.name))
-            .slice(0, 3)
-            .map((routine) => (
-              <div key={routine.id} data-panel-routine={routine.id} className={cn(rowCls, "min-w-0")}>
+          {visibleRoutines.map((routine) => {
+            const finished = routineFinished(routine);
+            const next = routineNextLabel(routine);
+            const schedule = routine.enabled && !finished ? scheduleLabel(routine.schedule) : next;
+            return (
+              <div key={routine.id} data-panel-routine={routine.id} className={cn(rowCls, "min-w-0", routine.id === linkedRoutineId && "bg-ink/[0.06]")}>
                 <RowIcon icon={Clock} />
-                <button type="button" onClick={() => onOpen("routines")} className="min-w-0 flex-1 text-left hover:text-accent-text">
+                <div data-panel-routine-title tabIndex={-1} role="group" aria-label={`${routine.name}, ${schedule}`}
+                  className="min-w-0 flex-1 scroll-mt-12 rounded-sm focus-visible:outline-2 focus-visible:outline-focus">
                   <span className="block truncate text-[14px] font-medium">{routine.name}</span>
-                  <span className="block text-[12px] text-ink-secondary">{routineNextLabel(routine)}</span>
-                </button>
-                {!routineFinished(routine) && <Switch checked={routine.enabled} aria-label={t("routines.toggle", { name: routine.name })}
+                  <span className="block truncate text-[12px] text-ink-secondary" title={next}>{schedule}</span>
+                </div>
+                {!finished && <Switch checked={routine.enabled} aria-label={t("routines.toggle", { name: routine.name })}
                   onClick={() => dispatch({ type: "updateRoutine", routineId: routine.id, patch: { enabled: !routine.enabled } })} />}
               </div>
-            ))}
+            );
+          })}
           <NavRow
             data-panel-page="routines"
             icon={Calendar}
@@ -99,24 +109,6 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
           />
         </Card>
       ) : null}
-
-      {!hiddenSuggestions.includes(bot.id) && (
-        <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
-          {slackUrl ? <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
-            <RowIcon icon={Slack} />
-            <RowText title={t("botPanel.suggestions.slack")} />
-            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </a> : <button type="button" data-panel-action="suggest-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
-            <RowIcon icon={Slack} />
-            <RowText title={t("botPanel.suggestions.slack")} />
-            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </button>}
-          {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
-            appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
-            requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
-          }} />}
-        </Card>
-      )}
 
       <Card label={t("botPanel.tab.computer")} anchor="computer">
         <NavRow
@@ -136,6 +128,24 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl }: {
       </Card>
 
       <VoiceChatSummary />
+
+      {!hiddenSuggestions.includes(bot.id) && (
+        <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
+          {slackUrl ? <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botPanel.suggestions.slack")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </a> : <button type="button" data-panel-action="suggest-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botPanel.suggestions.slack")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </button>}
+          {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
+            appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
+            requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
+          }} />}
+        </Card>
+      )}
 
       <TryAsking bot={bot} />
 

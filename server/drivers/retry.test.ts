@@ -134,6 +134,10 @@ describe("classifyError — usage limits", () => {
       "You've hit your team's shared budget. /model to switch models.",
       "You're out of usage credits. Contact your admin to add more.",
       "You're out of extra usage",
+      // A relayed provider answers in Chinese; a 429 with this wording is a spent quota, not a short rate limit.
+      "API Error: Request rejected (429) · API key 额度已用完",
+      "配额已用完，请充值后再试",
+      "账户余额不足",
     ]) {
       expect(classifyError({ text }), text).toEqual({ transient: false, reason: "quota" });
       expect(classifyError({ exitCode: 1, stderr: text }), text).toEqual({ transient: false, reason: "quota" });

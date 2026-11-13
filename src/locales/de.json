@@ -3298,6 +3298,7 @@
   "server.meetings.end.lost": "Die Verbindung zum Cloud-Computer der Besprechung ist abgebrochen. Was bis dahin gehört wurde, bleibt erhalten.",
   "server.meetings.end.meet_refused": "Google Meet hat mich nicht als Gast hereingelassen. Der Host kann Gäste in den Hoststeuerelementen zulassen, oder die Besprechung lässt keine Personen außerhalb der Organisation zu.",
   "server.meetings.end.speech_unavailable": "Ich konnte für diese Besprechung keine Spracherkennung bekommen, daher bin ich nicht beigetreten.",
+  "server.meetings.end.notice_verification_unavailable": "Ich konnte den Hinweis zum Mitschreiben in Zoom nicht zuverlässig überprüfen. Deshalb bin ich der Besprechung nicht beigetreten und habe sie nicht aufgezeichnet.",
   "server.meetings.card.settingUp": "Transkription wird eingerichtet (einmalig, etwa eine Minute)…",
   "server.meetings.card.speechStopped": "Transkription gestoppt: {problem}",
   "native.connect.empty": "Gib die Adresse des Servers ein oder füge seinen Link ein.",

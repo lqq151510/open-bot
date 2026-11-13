@@ -644,10 +644,10 @@ describe("the Details tab", () => {
     expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleComputer", open: true });
   });
 
-  it("holds suggestions, computer, voice chat, conversations and this conversation's rows, in that order, with no switch or Thinking row", () => {
+  it("holds computer, voice chat, suggestions, conversations and this conversation's rows, in that order, with no switch or Thinking row", () => {
     const rendered = botTab(makeBot());
     expect(ofType(rendered, BotConversations)!.props.bot).toMatchObject({ id: "scout" });
-    const order = ['data-panel-card="suggestions"', 'data-panel-card="computer"', 'data-panel-card="voice-chat"', 'data-panel-card="conversations"', 'data-panel-item="find"', 'data-panel-item="activity"']
+    const order = ['data-panel-card="computer"', 'data-panel-card="voice-chat"', 'data-panel-card="suggestions"', 'data-panel-card="conversations"', 'data-panel-item="find"', 'data-panel-item="activity"']
       .map((marker) => rendered.html.indexOf(marker));
     expect(order.every((index) => index > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -696,6 +696,15 @@ describe("the Details tab", () => {
     expect(onOpen).toHaveBeenLastCalledWith("routines");
     fixture.derived.botRoutines = [routine({ enabled: false })];
     expect(rowValue(botTab(makeBot()), "routines")).toBe("None");
+  });
+
+  it("includes the routine a receipt names even when it falls outside the first three", () => {
+    const bot = makeBot();
+    fixture.derived.botRoutines = [routine(), routine({ id: "r2" }), routine({ id: "r3" }), routine({ id: "r4", enabled: false })];
+    expect(botTab(bot).html).not.toContain('data-panel-routine="r4"');
+    const linked = capture(() => DetailsTab({ bot, derived: derived(), onOpen, linkedRoutineId: "r4" }));
+    expect(linked.html).toContain('data-panel-routine="r4"');
+    expect(linked.html.match(/data-panel-routine=/g)).toHaveLength(3);
   });
 
   it("shows routine status and dispatches the existing schedule toggle", () => {
@@ -937,7 +946,7 @@ describe("the Library tab", () => {
 
   it("says what it will hold while the bot has made nothing, then what it remembers, its skills and its folder", () => {
     const rendered = library(makeBot());
-    expect(rendered.nodes.filter((node) => node.type === "button" && ["All", "Pages", "Media", "Files"].includes(String(node.props.children))).map((node) => node.props.children)).toEqual(["All", "Pages", "Media", "Files"]);
+    expect(rendered.nodes.filter((node) => node.type === "button" && ["All", "Pages", "Media", "Files"].includes(String(node.props.children))).map((node) => node.props.children)).toEqual([]);
     expect(rendered.html).toContain('data-panel-empty="library"');
     const order = ['data-panel-empty="library"', 'data-panel-page="memory"', 'data-panel-page="skills"', 'data-panel-page="folder"'].map((marker) => rendered.html.indexOf(marker));
     expect(order.every((index) => index > -1)).toBe(true);
@@ -945,7 +954,8 @@ describe("the Library tab", () => {
   });
 
   it("keeps an empty category selected and shows its empty state", () => {
-    const bot = makeBot();
+    const bot = makeBot({ messages: [{ id: "report", role: "bot", kind: "text", at: Date.now(),
+      attachments: [{ kind: "file", path: "/api/attachments/report.pdf", mime: "application/pdf", name: "report.pdf" }] }] });
     const rendered = library(bot);
     const media = rendered.nodes.find((node) => node.type === "button" && node.props.children === "Media")!;
     click(media);

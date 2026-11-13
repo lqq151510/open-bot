@@ -9,7 +9,7 @@ import { routineRunText } from "./routine-display";
 import type { RoutineRun } from "./routines";
 import { serverLine } from "../../server/server-lines";
 import "../../server/server-line-packs";
-import { setLocale } from "./i18n";
+import { loadLocale, setLocale } from "./i18n";
 
 afterEach(() => setLocale("en"));
 
@@ -52,6 +52,15 @@ describe("server notices", () => {
     expect(botLineText({ text: "English", textCode: "chat.notice.webhookHome", textParams: { name: "Orders" } }))
       .toBe("Voltei para este computador, então meu webhook “Orders” tem um endereço aqui novamente. Abra “Automações”, escolha “Copiar endereço” em “Orders” e cole no app que envia para ele.");
     expect(botLineText({ text: "Hello" })).toBe("Hello");
+  });
+
+  it("only translates the known English greeting on a bot's setup offer", async () => {
+    await loadLocale("zh");
+    const greeting = { role: "bot" as const, text: "Hi 小明, I'm Scout. What would you like me to do?", setupOffer: true };
+    expect(botLineText(greeting, "Scout")).toBe("你好，小明！我是 Scout。你想先让我帮你做什么？");
+    expect(botLineText({ ...greeting, role: "user" }, "Scout")).toBe(greeting.text);
+    expect(botLineText({ ...greeting, setupOffer: undefined }, "Scout")).toBe(greeting.text);
+    expect(botLineText(greeting, "Scout II")).toBe(greeting.text);
   });
 });
 

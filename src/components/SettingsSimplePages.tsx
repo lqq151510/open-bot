@@ -22,7 +22,6 @@ import { PeopleSection } from "./PeopleSection";
 import { ActivitySection } from "./ActivitySection";
 import { BuiltInBrowserRow, ServerSitesRow } from "./BrowserSettingsRows";
 import { OrganizationSettings } from "./OrganizationSettings";
-import { CloudPlanRow, CloudPlanFootnote, useCloudPlan } from "./ProIntroduction";
 import { CloudUsageDetails, CloudUsageSummaryView, useCloudUsageSettings } from "./CloudUsageMeter";
 import { SettingRow, SettingsDisclosureRow, SettingsGroup, SettingsRows, Switch } from "./SettingsPrimitives";
 import { BotAvatar } from "./Avatar";
@@ -67,7 +66,6 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, ai, botAccess }: {
         <SettingsGroup label={t("settings.group.account")} block="general">
           <SettingsRows>
             {has("general") && <ProfileSummaryRow />}
-            {has("general") && <CloudPlanRow place="account" />}
             {has("people") && <div data-settings-block="people" className="scroll-mt-4"><PeopleSection simple startOpen={peopleOpen} /></div>}
           </SettingsRows>
         </SettingsGroup>
@@ -272,10 +270,8 @@ export function SimpleComputerPage({ has, remoteAccess, servers, disclose }: { h
   );
 }
 
-export function SimpleBillingPage({ has, disclose, cloudAccount }: { has: Has; disclose: Disclose; cloudAccount: ReactNode }) {
+export function SimpleBillingPage({ has, disclose }: { has: Has; disclose: Disclose }) {
   const { usage, upgrade, dialog } = useCloudUsageSettings();
-  const plan = useCloudPlan();
-  const signedOut = plan?.view.kind === "signed-out" || plan?.view.kind === "removed";
   return (
     <div className="flex flex-col gap-5">
       <div data-settings-block="usage" className="scroll-mt-4">
@@ -292,12 +288,6 @@ export function SimpleBillingPage({ has, disclose, cloudAccount }: { has: Has; d
           {usage && <CloudUsageDetails usage={usage} upgrade={upgrade} />}
           {has("usage") && <AdminOnly note="settings.adminOnly.usage"><UsageSection /></AdminOnly>}
         </SettingsDisclosureRow>
-      )}
-      {has("cloudAccount") && (
-        <SettingsGroup label={t("settings.simple.billing.plan")} block="cloudAccount" footnote={<CloudPlanFootnote />}>
-          <SettingsRows><CloudPlanRow place="plan" usage={usage} upgrade={upgrade} /></SettingsRows>
-          {signedOut ? null : <div className="flex flex-col gap-4">{cloudAccount}</div>}
-        </SettingsGroup>
       )}
     </div>
   );
@@ -487,7 +477,7 @@ export function SimpleVaultPage({ onReady }: { onReady?: (open: () => void) => v
         {contactBox && (
           <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.02]">
             <div className="p-4 text-center text-[13px] text-ink-secondary">
-              没有匹配的项目
+              {t("rail.noMatch")}
             </div>
           </div>
         )}

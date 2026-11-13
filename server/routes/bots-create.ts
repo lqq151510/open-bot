@@ -21,6 +21,7 @@ import { writeMemoryFile, writeMemoryTopic } from "../workspace.ts";
 import { refusalBody, userError } from "../user-errors.ts";
 import type { ServerErrorBody } from "../../shared/server-text.ts";
 import { PASS, type RouteHandler } from "./table.ts";
+import type { IncomingMessage } from "node:http";
 
 export type ModelSelectionCheck = { ok: true; selection: ModelSelection } | ({ ok: false; status: number } & ServerErrorBody);
 
@@ -42,12 +43,15 @@ export interface BotCreateRouteDeps {
   storedAvatarExists(avatarUrl: string): boolean;
   defaultSelection(): Promise<ModelSelection>;
   checkedModelSelection(raw: unknown, current?: { selection: ModelSelection; busy: boolean }, requireAvailableModel?: boolean): ModelSelectionCheck;
+  /** Why this instance cannot run right now, or null; checked only when the caller asks for a model that must work. */
+  availableModelRefusal?(instanceId: string): Promise<string | null>;
   cloudOwnerSession(auth: RequestAuth): boolean;
   wireBot(bot: BotRecord): WireBot;
   /** A Team Cloud: a new bot records who created it, and may name who it reports to. */
   team?: { name: string; people: Pick<TeamPeople, "has"> } | null;
   /** Starts writing personal answers for a new bot's setup card; never awaited. */
-  personaliseSetupCard?(bot: BotRecord): void;
+  personaliseSetupCard?(bot: BotRecord, language?: string): void;
+  greetingLanguage?(req: IncomingMessage): string | undefined;
 }
 
 const OWN_ID = /^[\w-]{8,128}$/;
@@ -179,6 +183,10 @@ export function createBotCreateRoutes(deps: BotCreateRouteDeps): RouteHandler {
         if (!checked.ok) return json(res, checked.status, refusalBody(checked));
         selection = checked.selection;
       }
+      if (body.requireAvailableModel === true) {
+        const refusal = await deps.availableModelRefusal?.(selection.instanceId);
+        if (refusal) return json(res, 400, { error: refusal });
+      }
       if (hostedModels && !hostedModels.allows(selection)) return json(res, 400, { error: hostedModels.error() });
       // The capacity check sits beside the synchronous write, after every await.
       if (store.bots.length >= MAX_WORKSPACE_BOTS) {
@@ -194,10 +202,11 @@ export function createBotCreateRoutes(deps: BotCreateRouteDeps): RouteHandler {
       if (kept.id && "error" in keptBotIds(kept, store)) return json(res, 409, { error: "a bot with this id already exists here" });
       // A bot moved in from another computer keeps its own look; a new one named no look starts in a fresh one.
       const look = kept.id || settings.color || settings.mascotBody ? undefined : freshLook(store.bots);
+      const greetingLanguage = deps.greetingLanguage?.(req);
       const bot = store.createBot({ ...profile.patch, soul: settings.soul, section, modelSelection: selection,
         toolScope: settings.toolScope ?? undefined, color: settings.color ?? look?.color, mascotBody: settings.mascotBody ?? look?.mascotBody,
         ...(deps.team && creator ? { createdBy: creator } : {}), ...(reportsTo ? { reportsTo } : {}),
-        ...(created?.ok ? { visibility: created.visibility } : {}) }, kept.id ? { ...kept, seedMessages: false } : {});
+        ...(created?.ok ? { visibility: created.visibility } : {}) }, kept.id ? { ...kept, seedMessages: false } : { greetingLanguage });
       const createdRoutines: Array<{ id: string; enabled: boolean }> = [];
       try {
         const { chiefOfStaff: _chief, managedSections: _managed, toolScope: _toolScope, ...ordinary } = settings;
@@ -262,7 +271,7 @@ export function createBotCreateRoutes(deps: BotCreateRouteDeps): RouteHandler {
         try { routines!.update(routine.id, { enabled: true }); }
         catch { warnings.push(`Bot created; routine ${routine.id} could not be activated.`); }
       }
-      deps.personaliseSetupCard?.(bot);
+      deps.personaliseSetupCard?.(bot, greetingLanguage);
       return json(res, 201, {
         ...(warnings.length ? { warnings } : {}),
         bot: {

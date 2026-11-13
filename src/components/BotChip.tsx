@@ -1,6 +1,6 @@
 import { useContext, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { MAUS_COLORS, type MausColor } from "@/lib/mascot";
+import { mascotColorHex } from "@/lib/mascot";
 import { useShowThreads } from "@/lib/thread-preferences";
 import { openBot, StoreContext, type Bot } from "@/state/store";
 import { BotAvatar } from "./Avatar";
@@ -26,9 +26,7 @@ export function BotChip({
     return <span className="inline-flex items-center gap-1 font-medium">{children ?? botName}</span>;
   }
 
-  const colorHex = (bot.color && Object.hasOwn(MAUS_COLORS, bot.color as MausColor))
-    ? MAUS_COLORS[bot.color as MausColor]
-    : MAUS_COLORS.purple;
+  const colorHex = mascotColorHex(bot.color || "purple");
 
   return (
     <button

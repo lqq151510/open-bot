@@ -4,7 +4,7 @@ import { api, BotEditorStore, useStore, type Bot } from "@/state/store";
 import { BotCreationDraft, EMPTY_BOT_DEFAULTS } from "@/lib/bot-creation-draft";
 import { createConfiguredBot, preparedBotTemplate } from "@/lib/create-configured-bot";
 import { BOT_ROLES, roleProfilePatch } from "@/lib/bot-roles";
-import { readyBot, readyBotTemplate } from "@/lib/ready-bots";
+import { readyBot, readyBotProfileCopy, readyBotTemplate } from "@/lib/ready-bots";
 import { chosenPreset, presetDraftPatch, presetGroups, presetPictureFile, presetSummaryLines, type BotPreset } from "@/lib/bot-presets";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -33,10 +33,11 @@ import { SharePresetDialog } from "./SharePresetDialog";
 import { SettingRow } from "./SettingsPrimitives";
 import { Select } from "./Select";
 import { BotAvatar, MausAvatar } from "./Avatar";
-import { MAUS_COLOR_LABEL, colorSwatch, type MausColor } from "@/lib/mascot";
-import { colorName } from "@/lib/mascot-names";
+import { MascotColorPicker } from "./MascotColorPicker";
+import { MAUS_COLOR_LABEL, MAUS_COLOR_NAMES, colorSwatch } from "@/lib/mascot";
+import { bodyName, colorName } from "@/lib/mascot-names";
 import { BOT_PROFILE_LIMITS } from "../../shared/bot-profile";
-import type { MascotBodyId } from "../../shared/mascot-bodies";
+import { MASCOT_BODY_IDS } from "../../shared/mascot-bodies";
 
 const SECTIONS = ["Identity", "Soul", "Skills", "Memory", "Routines", "Access", "Model", "Permissions", "Voice & alerts"] as const;
 type Section = typeof SECTIONS[number];
@@ -72,7 +73,6 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
   const ownerOrAdmin = useOwnerOrAdmin();
   const showThreads = useShowThreads();
   const advanced = useAdvancedMode();
-  const sections = advanced ? SECTIONS : SECTIONS.filter((section) => section !== "Model");
   const [showFullEditor, setShowFullEditor] = useState(false);
   const quick = !advanced && !defaultsMode && !readyBotId && !showFullEditor;
   const startsQuick = useRef(quick);
@@ -202,11 +202,20 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
       {quick ? <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {ready ? <fieldset disabled={saving}><QuickBotIdentity draft={draft} /></fieldset>
           : !error && <div role="status" className="text-[13px] text-ink-secondary">{t("newBot.loading")}</div>}
-        <div className="mt-4 text-center"><button type="button" onClick={() => setShowFullEditor(true)} className="rounded-lg px-3 py-2 text-[13px] text-ink-secondary hover:bg-control hover:text-ink">{t("botPanel.page.settings")}</button></div>
+        <div className="mt-4 flex justify-center gap-2">
+          <button type="button" onClick={() => { setActive("Model"); setShowFullEditor(true); }}
+            className="rounded-lg px-3 py-2 text-[13px] text-ink-secondary hover:bg-control hover:text-ink">
+            {t("botSettings.sections.model")}
+          </button>
+          <button type="button" onClick={() => { setActive("Identity"); setShowFullEditor(true); }}
+            className="rounded-lg px-3 py-2 text-[13px] text-ink-secondary hover:bg-control hover:text-ink">
+            {t("botPanel.page.settings")}
+          </button>
+        </div>
       </div> : <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav aria-label={t("newBot.sections")} className="flex shrink-0 gap-1 overflow-x-auto border-b border-hairline/40 p-2 sm:w-40 sm:flex-col sm:border-b-0 sm:border-r">
           {!advanced && !defaultsMode && !readyBotId && <button type="button" onClick={() => setShowFullEditor(false)} className="shrink-0 rounded-lg px-3 py-2 text-left text-[13px] text-ink-secondary hover:bg-control/50">{t("rail.back")}</button>}
-          {sections.map(label => <button key={label} type="button" onClick={() => setActive(label)} aria-current={active === label ? "page" : undefined}
+          {SECTIONS.map(label => <button key={label} type="button" onClick={() => setActive(label)} aria-current={active === label ? "page" : undefined}
             className={cn("shrink-0 rounded-lg px-3 py-2 text-left text-[13px]", active === label ? "bg-control text-ink" : "text-ink-secondary hover:bg-control/50")}>{t(SECTION_KEYS[label])}</button>)}
         </nav>
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">
@@ -232,63 +241,8 @@ export function NewBotDialog({ defaultsMode = false, onClose, onCreated, readyBo
   </div>;
 }
 
-const JELLY_SHAPES = [
-  // Row 1 (5 shapes)
-  { id: "circle", name: "Circle", body: "circle" as MascotBodyId },
-  { id: "squircle", name: "Squircle", body: "squircle" as MascotBodyId },
-  { id: "diamond", name: "Diamond", body: "diamond" as MascotBodyId },
-  { id: "star", name: "Star", body: "star" as MascotBodyId },
-  { id: "cursor", name: "Cursor", body: "cursor" as MascotBodyId },
-  // Row 2 (5 shapes)
-  { id: "capsule", name: "Capsule", body: "capsule" as MascotBodyId },
-  { id: "blob", name: "Blob", body: "blob" as MascotBodyId },
-  { id: "drop", name: "Drop", body: "drop" as MascotBodyId },
-  { id: "pill", name: "Pill", body: "capsule" as MascotBodyId },
-  { id: "shield", name: "Shield", body: "shield" as MascotBodyId },
-  // Row 3 (3 shapes, centered)
-  { id: "pebble", name: "Pebble", body: "blob" as MascotBodyId },
-  { id: "starburst", name: "Starburst", body: "star" as MascotBodyId },
-  { id: "hexagon", name: "Hexagon", body: "hexagon" as MascotBodyId },
-] as const;
-
-const JELLY_COLORS: MausColor[] = [
-  // Row 1 (6 colors)
-  "chrome",
-  "coral",
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  // Row 2 (5 colors)
-  "cyan",
-  "blue",
-  "purple",
-  "pink",
-  "silver",
-];
-
-const JELLY_SWATCHES: Record<MausColor, string> = {
-  chrome: "#18181b",
-  coral: "#78350f",
-  red: "#ef4444",
-  orange: "#f97316",
-  yellow: "#f59e0b",
-  green: "#22c55e",
-  cyan: "#14b8a6",
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  pink: "#ec4899",
-  silver: "#94a3b8",
-  teal: "#01A492",
-};
-
-function quickSwatch(color: MausColor): string {
-  return JELLY_SWATCHES[color] ?? colorSwatch(color);
-}
-
 function QuickBotIdentity({ draft }: { draft: BotCreationDraft }) {
   const bot = draft.bot;
-  const currentBody = bot.mascotBody ?? "cursor";
   return (
     <div data-quick-bot-identity className="mx-auto flex max-w-[460px] flex-col items-center">
       <div className="flex size-28 items-center justify-center">
@@ -303,133 +257,69 @@ function QuickBotIdentity({ draft }: { draft: BotCreationDraft }) {
         maxLength={BOT_PROFILE_LIMITS.name}
         onChange={event => draft.patch({ name: event.target.value })}
         placeholder={t("newBot.namePlaceholder")}
-        className={cn(
-          "mt-4 w-full rounded-xl border border-hairline/50 bg-inset/40 px-4 py-2.5 text-center text-[15px] text-ink placeholder:text-ink-secondary/70 focus:border-accent focus:bg-inset focus:outline-none transition-all",
-        )}
+        className="mt-4 w-full rounded-xl border border-hairline/50 bg-inset/40 px-4 py-2.5 text-center text-[15px] text-ink placeholder:text-ink-secondary/70 focus:border-accent focus:bg-inset focus:outline-none transition-all"
       />
 
-      {/* 13 种果冻形状网格 (3 行：5 + 5 + 3) */}
-      <div role="group" aria-label={t("botIdentity.body")} className="mt-5 flex flex-col items-center gap-2">
-        <div className="grid grid-cols-5 gap-2.5">
-          {JELLY_SHAPES.slice(0, 5).map(shape => {
-            const isSelected = currentBody === shape.body && (bot.avatarCrop ?? "mascot") === "mascot";
-            return (
-              <button
-                key={shape.id}
-                type="button"
-                aria-pressed={isSelected}
-                aria-label={t("mascot.useBody", { name: shape.name })}
-                onClick={() => draft.patch({ mascotBody: shape.body, avatarCrop: "mascot" })}
-                className={cn(
-                  "flex size-12 items-center justify-center rounded-xl transition-all cursor-pointer hover:bg-control/60 focus-visible:outline-2 focus-visible:outline-focus",
-                  isSelected
-                    ? "ring-2 ring-accent ring-offset-2 ring-offset-panel shadow-sm scale-105"
-                    : "opacity-85 hover:opacity-100",
-                )}
-              >
-                <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={shape.body} size={36} animated={false} trackPointer={false} />
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-5 gap-2.5">
-          {JELLY_SHAPES.slice(5, 10).map(shape => {
-            const isSelected = currentBody === shape.body && (bot.avatarCrop ?? "mascot") === "mascot";
-            return (
-              <button
-                key={shape.id}
-                type="button"
-                aria-pressed={isSelected}
-                aria-label={t("mascot.useBody", { name: shape.name })}
-                onClick={() => draft.patch({ mascotBody: shape.body, avatarCrop: "mascot" })}
-                className={cn(
-                  "flex size-12 items-center justify-center rounded-xl transition-all cursor-pointer hover:bg-control/60 focus-visible:outline-2 focus-visible:outline-focus",
-                  isSelected
-                    ? "ring-2 ring-accent ring-offset-2 ring-offset-panel shadow-sm scale-105"
-                    : "opacity-85 hover:opacity-100",
-                )}
-              >
-                <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={shape.body} size={36} animated={false} trackPointer={false} />
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex justify-center gap-2.5">
-          {JELLY_SHAPES.slice(10, 13).map(shape => {
-            const isSelected = currentBody === shape.body && (bot.avatarCrop ?? "mascot") === "mascot";
-            return (
-              <button
-                key={shape.id}
-                type="button"
-                aria-pressed={isSelected}
-                aria-label={t("mascot.useBody", { name: shape.name })}
-                onClick={() => draft.patch({ mascotBody: shape.body, avatarCrop: "mascot" })}
-                className={cn(
-                  "flex size-12 items-center justify-center rounded-xl transition-all cursor-pointer hover:bg-control/60 focus-visible:outline-2 focus-visible:outline-focus",
-                  isSelected
-                    ? "ring-2 ring-accent ring-offset-2 ring-offset-panel shadow-sm scale-105"
-                    : "opacity-85 hover:opacity-100",
-                )}
-              >
-                <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={shape.body} size={36} animated={false} trackPointer={false} />
-              </button>
-            );
-          })}
-        </div>
+      <DraftAppearance draft={draft} />
+    </div>
+  );
+}
+
+function DraftAppearance({ draft }: { draft: BotCreationDraft }) {
+  const bot = draft.bot;
+  const currentBody = bot.mascotBody ?? "cursor";
+  return (
+    <div className="flex flex-col items-center">
+      <div role="group" aria-label={t("botIdentity.body")} className="mt-5 grid grid-cols-5 gap-2.5">
+        {MASCOT_BODY_IDS.map(bodyId => {
+          const isSelected = currentBody === bodyId && (bot.avatarCrop ?? "mascot") === "mascot";
+          return (
+            <button
+              key={bodyId}
+              type="button"
+              aria-pressed={isSelected}
+              aria-label={t("mascot.useBody", { name: bodyName(bodyId) })}
+              onClick={() => draft.patch({ mascotBody: bodyId, avatarCrop: "mascot" })}
+              className={cn(
+                "flex size-12 items-center justify-center rounded-xl transition-all cursor-pointer hover:bg-control/60 focus-visible:outline-2 focus-visible:outline-focus",
+                isSelected
+                  ? "ring-2 ring-accent ring-offset-2 ring-offset-panel shadow-sm scale-105"
+                  : "opacity-85 hover:opacity-100",
+              )}
+            >
+              <MausAvatar color={bot.color} faceColor={bot.mascotFaceColor} bodyId={bodyId} size={36} animated={false} trackPointer={false} />
+            </button>
+          );
+        })}
       </div>
 
-      {/* 11 款底色调色盘 (2 行：6 + 5) */}
-      <div role="group" aria-label={t("botIdentity.color")} className="mt-5 flex flex-col items-center gap-2.5">
-        <div className="flex justify-center gap-2.5">
-          {JELLY_COLORS.slice(0, 6).map(color => {
-            const isSelected = bot.color === color;
-            return (
-              <button
-                key={color}
-                type="button"
-                aria-pressed={isSelected}
-                title={t(MAUS_COLOR_LABEL[color])}
-                aria-label={t("mascot.useColor", { color: colorName(color) })}
-                onClick={() => draft.patch({ color, avatarCrop: "mascot" })}
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-full transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-focus",
-                  isSelected && "ring-2 ring-ink ring-offset-2 ring-offset-panel scale-110",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-5 rounded-full shadow-inner"
-                  style={{ background: quickSwatch(color) }}
-                />
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex justify-center gap-2.5">
-          {JELLY_COLORS.slice(6, 11).map(color => {
-            const isSelected = bot.color === color;
-            return (
-              <button
-                key={color}
-                type="button"
-                aria-pressed={isSelected}
-                title={t(MAUS_COLOR_LABEL[color])}
-                aria-label={t("mascot.useColor", { color: colorName(color) })}
-                onClick={() => draft.patch({ color, avatarCrop: "mascot" })}
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-full transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-focus",
-                  isSelected && "ring-2 ring-ink ring-offset-2 ring-offset-panel scale-110",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-5 rounded-full shadow-inner"
-                  style={{ background: quickSwatch(color) }}
-                />
-              </button>
-            );
-          })}
-        </div>
+      <div role="group" aria-label={t("botIdentity.color")} className="mt-5 grid grid-cols-6 gap-2.5">
+        {MAUS_COLOR_NAMES.map(color => {
+          const isSelected = bot.color === color;
+          return (
+            <button
+              key={color}
+              type="button"
+              aria-pressed={isSelected}
+              title={t(MAUS_COLOR_LABEL[color])}
+              aria-label={t("mascot.useColor", { color: colorName(color) })}
+              onClick={() => draft.patch({ color, avatarCrop: "mascot" })}
+              className={cn(
+                "flex size-7 items-center justify-center rounded-full transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-focus",
+                isSelected && "ring-2 ring-ink ring-offset-2 ring-offset-panel scale-110",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className="size-5 rounded-full shadow-inner"
+                style={{ background: colorSwatch(color) }}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3">
+        <MascotColorPicker color={bot.color} onChange={color => draft.patch({ color, avatarCrop: "mascot" })} />
       </div>
     </div>
   );
@@ -453,6 +343,10 @@ function DraftSection({ active, draft, defaultsMode, owner }: { active: Section;
   const derived = useBotSettingsDerived(bot);
   if (active === "Identity") return <div className="space-y-4">
     <StartingRole draft={draft} defaultsMode={defaultsMode} />
+    <div className="flex flex-col items-center">
+      <BotAvatar bot={bot} size={64} animated={false} />
+      <DraftAppearance draft={draft} />
+    </div>
     <IdentitySection bot={bot} patch={derived.patch} activeState={derived.activeState} mascotMotion={null}
       namePlaceholder={defaultsMode ? t("newBot.randomName") : undefined} />
     <label className="block text-[13px] text-ink-secondary">{t("newBot.team")}
@@ -527,7 +421,7 @@ function StartingRole({ draft, defaultsMode }: { draft: BotCreationDraft; defaul
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
-  const roles = BOT_ROLES.map(role => <option key={role.id} value={role.id}>{role.title}</option>);
+  const roles = BOT_ROLES.map(role => <option key={role.id} value={role.id}>{readyBotProfileCopy(role).title}</option>);
   return <div>
     <label className="block text-[13px] text-ink-secondary">{t("newBot.startingRole")}
       <Select size="lg" className="mt-1.5 w-full" value={draft.preset ? `preset:${draft.preset.id}` : ""} onChange={event => void choose(event.target.value)}>

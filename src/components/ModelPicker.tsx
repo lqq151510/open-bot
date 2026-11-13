@@ -23,7 +23,7 @@ import { approvalModeFor, modelSwitchNeedsAsk } from "../../shared/approval-mode
 import { cn } from "@/lib/cn";
 import { useMenuMotion } from "./MenuMotion";
 import { SimpleModelMenu, type SimpleThinking } from "./SimpleModelMenu";
-import { apiKeysLabel, ClaudeAccountSelect, engineStatus, FollowBotModelRow, ModelEngineRail, ModelRow, ModelSearch } from "./ModelPickerFull";
+import { AdvancedModelTriggerContent, apiKeysLabel, ClaudeAccountSelect, engineStatus, FollowBotModelRow, ModelEngineRail, ModelRow, ModelSearch } from "./ModelPickerFull";
 import { MENU_LABEL, MENU_LINE, MENU_ROW, MENU_SEPARATOR, MENU_STROKE, MENU_TRAILING } from "./menu-recipe";
 import { modelMenuKey, modelMenuPointerMove } from "./model-menu-keys";
 import { lockedWhileBusy, offersReasoning, useRefocusAfterPick, variantChoices, variantLabel } from "./model-picker-reasoning";
@@ -207,6 +207,7 @@ export function ModelPicker({
   contained = false,
   label,
   size = "md",
+  compactHeader = false,
 }: {
   bot: Bot;
   threadId?: string;
@@ -214,6 +215,7 @@ export function ModelPicker({
   contained?: boolean;
   label?: ReactNode;
   size?: "sm" | "md";
+  compactHeader?: boolean;
 }) {
   const { state, dispatch: storeDispatch, refreshInstances, refreshModels: refreshInstanceModels } = useStore();
   const [open, setOpen] = useState(false);
@@ -580,6 +582,7 @@ export function ModelPicker({
   const attentionLine = !advanced && attention ? `\n${attention}` : "";
   const busyLine = bot.busy ? `\n${t(threadId ? "model.threadBusy" : "model.busy")}` : "";
 
+  const chooseLabel = t("model.choose");
   const triggerProps = {
     ref: triggerRef,
     "data-tour": "model",
@@ -599,7 +602,8 @@ export function ModelPicker({
     "aria-expanded": open && !locked,
     "aria-haspopup": "dialog" as const,
     "aria-controls": open ? menuId : undefined,
-    title: `${summary}${followLine}${attentionLine}${busyLine}`,
+    "aria-label": selection.model ? `${chooseLabel}: ${modelName(active, selection.model)}` : chooseLabel,
+    title: `${summary || chooseLabel}${followLine}${attentionLine}${busyLine}`,
   };
 
   const trigger = advanced ? (
@@ -624,7 +628,7 @@ export function ModelPicker({
           {active && showActiveAccount && (
             <span data-model-account className="text-ink-secondary">{engineDisplayName(active)} · </span>
           )}
-          {modelLabel(active, selection.model)}
+          {selection.model ? modelLabel(active, selection.model) : chooseLabel}
           {active && modelProvider(active, selection.model) && (
             <span className="text-ink-secondary"> · {modelProvider(active, selection.model)}</span>
           )}
@@ -656,18 +660,10 @@ export function ModelPicker({
           ? "min-w-0 max-w-[58%] transition-colors duration-150 hover:bg-ink/[0.06] hover:text-ink aria-expanded:bg-ink/[0.08] aria-expanded:text-ink disabled:hover:bg-transparent"
           : cn("shrink-0", ELEVATED_FLOAT, ELEVATED_HOVER, "hover:text-ink aria-expanded:text-ink disabled:hover:bg-composer"),
         size === "sm" ? "h-7 pl-2 pr-1.5" : "h-8 pl-2.5 pr-2",
+        compactHeader && "@max-[32rem]/chathead:size-9 @max-[32rem]/chathead:justify-center @max-[32rem]/chathead:p-0",
       )}
     >
-      <span className="relative mr-1.5 flex shrink-0 group-disabled:opacity-50">
-        {active
-          ? <InstanceProviderMark instance={active} size={14} subtle />
-          : <span className="size-3.5 rounded-full bg-ink/[0.08]" aria-hidden="true" />}
-        {attention && <span data-model-attention className="absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full bg-warning ring-[1.5px] ring-app" />}
-      </span>
-      <span className="min-w-0 max-w-[160px] truncate">{modelName(active, selection.model)}</span>
-      {selection.variant !== undefined && <span className="shrink-0 whitespace-pre">{variantSuffix(active, selection.model, selection.variant)}</span>}
-      <UsageBars engine={selection.instanceId} className="ml-1.5" />
-      <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-1 shrink-0 text-ink-tertiary group-hover:text-ink-secondary" />
+      <AdvancedModelTriggerContent active={active} selection={selection} attention={attention} compactHeader={compactHeader} chooseLabel={chooseLabel} />
     </button>
   );
 

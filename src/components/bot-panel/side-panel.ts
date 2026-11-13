@@ -7,5 +7,5 @@ export const sidePanelCls = (overlay: boolean, simple = false) => cn(
   simple && !overlay ? "border-l-[0.5px] border-ink/[0.06] bg-app" : "border-l border-hairline/40 bg-panel",
   overlay
     ? cn("md:inset-auto md:right-0 md:top-0 md:bottom-0 md:shadow-2xl", simple ? "md:w-[clamp(320px,31vw,566px)]" : "md:w-[min(420px,42vw)]")
-    : cn("md:static md:z-auto md:shrink-0", simple ? "md:w-[clamp(320px,31vw,566px)]" : "md:w-[min(420px,42vw)]"),
+    : cn("md:z-auto md:shrink-0", simple ? "md:relative md:inset-auto md:w-[clamp(260px,31vw,566px)]" : "md:static md:w-[min(420px,42vw)]"),
 );

@@ -1,5 +1,6 @@
 import { byLanguage } from "./language.ts";
 import { greetingName } from "../shared/greeting-name.ts";
+import { SETUP_CHOICE_PRESETS } from "../shared/setup-choice-presets.ts";
 
 type Greeting = (name: string, person?: string) => string;
 
@@ -9,6 +10,7 @@ const GREETINGS: { en: Greeting } & Record<string, Greeting> = {
   es: (name, person) => `Hola${person ? ` ${person}` : ""}, soy ${name}. ¿Qué te gustaría que hiciera?`,
   "pt-br": (name, person) => `Oi${person ? ` ${person}` : ""}, eu sou ${name}. O que você gostaria que eu fizesse?`,
   ko: (name, person) => `안녕하세요${person ? `, ${person}님` : ""}. 저는 ${name}입니다. 무엇을 도와드릴까요?`,
+  zh: (name, person) => `你好${person ? `，${person}` : ""}！我是 ${name}。你想先让我帮你做什么？`,
   "zh-tw": (name, person) => `嗨${person ? ` ${person}` : ""}，我是 ${name}。你想要我幫你做什麼？`,
 };
 
@@ -18,31 +20,17 @@ const SETUP_REQUEST_LINES: { en: string } & Record<string, string> = {
   es: "Genial. Cuéntame con tus propias palabras en qué te gustaría que te ayude y me prepararé para ello. Por ejemplo: \"ordena mi bandeja de entrada cada mañana\" o \"investiga a nuestros competidores cada semana\".",
   "pt-br": "Ótimo. Me conte com suas palavras em que você gostaria de ajuda e eu me preparo para isso. Por exemplo: \"organize minha caixa de entrada toda manhã\" ou \"pesquise nossos concorrentes toda semana\".",
   ko: "좋아요. 도움이 필요한 일을 편하게 말씀해 주시면 거기에 맞게 제가 설정할게요. 예: \"매일 아침 받은편지함 정리해 줘\", \"매주 경쟁사 조사해 줘\".",
+  zh: "好的。用你自己的话告诉我想做什么，我会按你的需要来设置。例如：「每天早上整理我的收件箱」或「每周调研竞争对手」。",
   "zh-tw": "好的。用你自己的話告訴我想要幫忙的事，我會照著設定好自己。例如：「每天早上整理我的收件匣」或「每週研究我們的競爭對手」。",
 };
 
-/** The answers a blank bot's greeting offers on its setup card. Picking one sets the bot up for its words, as
- * `/setup <words>` would; the client sends the words, never a position, so these may change freely. */
-const SETUP_CHOICES: { en: readonly string[] } & Record<string, readonly string[]> = {
-  en: ["Research and digging into topics", "Keeping an eye on things for me", "Email, calendar and messages",
-    "Bookings, shopping and errands", "Data, spreadsheets and reports"],
-  es: ["Investigar y profundizar en temas", "Estar pendiente de cosas por mí", "Correo, calendario y mensajes",
-    "Reservas, compras y recados", "Datos, hojas de cálculo e informes"],
-  "pt-br": ["Pesquisar e aprofundar temas", "Ficar de olho nas coisas para mim", "E-mail, agenda e mensagens",
-    "Reservas, compras e tarefas", "Dados, planilhas e relatórios"],
-  ko: ["리서치와 주제 깊이 파고들기", "이것저것 지켜보기", "이메일, 캘린더, 메시지",
-    "예약, 쇼핑, 심부름", "데이터, 스프레드시트, 보고서"],
-  "zh-tw": ["研究與深入探討主題", "幫我留意各種事情", "電子郵件、行事曆和訊息",
-    "預約、購物和跑腿", "資料、試算表和報告"],
-};
-
 export function setupChoices(language?: string): string[] {
-  return [...byLanguage(SETUP_CHOICES, language)];
+  return [...byLanguage<readonly string[]>(SETUP_CHOICE_PRESETS, language)];
 }
 
 /** The fixed answers exist in this language, not only the English stand-in. */
 export function hasSetupChoices(language?: string): boolean {
-  return byLanguage(SETUP_CHOICES, language) !== SETUP_CHOICES.en || /^en(?:-|$)/i.test(language?.trim() || "en");
+  return byLanguage<readonly string[]>(SETUP_CHOICE_PRESETS, language) !== SETUP_CHOICE_PRESETS.en || /^en(?:-|$)/i.test(language?.trim() || "en");
 }
 
 /** `person`: the name the person gave, greeted by greetingName; absent or blank, the greeting names no one. */

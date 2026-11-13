@@ -18,6 +18,9 @@ import {
   accountToReconnect,
   connectedInventoryCopy,
   connectorActionLabel,
+  connectorSetupNotice,
+  type ConnectorSetup,
+  hasUsableConnectedApps,
   hasActiveConnection,
   needsReconnect,
   requiresAccountAlias,
@@ -31,6 +34,7 @@ import { appCategoryLabel, CATEGORY_SECTION_SIZE, catalogSections, connectorDesc
 import { McpServersPanel } from "./McpServersPanel";
 import { McpAppSummary } from "./McpAppSummary";
 import { LocalAppDirectory } from "./LocalAppDirectory";
+import { LocalBriefingCard, matchesLocalBriefingSearch } from "./LocalBriefingDialog";
 import { LOCAL_APP_DIRECTORY } from "@/lib/local-app-directory";
 import { HOSTED_MCP_APPS, type HostedApp, type HostedConnections } from "@/lib/hosted-mcp-apps";
 import { EmailCard } from "./EmailCard";
@@ -75,30 +79,13 @@ export function botsWithLimitedServiceTools(bots: Bot[], instances: InstanceInfo
   });
 }
 
-export function hasUsableConnectedApps(configured: boolean, phase: ConnectorInventoryPhase, stale: boolean, status: Record<string, ConnectorStatus>): boolean {
-  return configured && phase === "ready" && !stale && Object.values(status).some((service) => service.connected);
-}
+export { connectorSetupNotice, hasUsableConnectedApps, type ConnectorSetup } from "@/lib/connector-status";
 
 /** Whether a hosted app's card shows: it matches the search, and the filter is All, or Connected and it isn't known to be
  * disconnected (unknown while its servers load). */
 export function hostedShown(app: HostedApp, search: string, filter: AppsFilter, connected: HostedConnections | null): boolean {
   const matches = !search || `${app.label} ${app.keywords} ${t(app.description)}`.toLowerCase().includes(search.toLowerCase().trim());
   return matches && (filter === "all" || (filter === "connected" && connected?.[app.id] !== false));
-}
-
-export type ConnectorSetup = "ready" | "needs-setup" | "service-unavailable";
-
-export function connectorSetupNotice(state: {
-  configured: boolean;
-  stale: boolean;
-  setup: ConnectorSetup | undefined;
-  remoteClient: boolean;
-}): { key: LocaleKey; tone: "info" | "warning" } | null {
-  if (state.configured || state.stale) return null;
-  if (state.setup === "needs-setup") {
-    return { key: state.remoteClient ? "connectors.setupNeededRemote" : "connectors.setupNeeded", tone: "info" };
-  }
-  return { key: "connectors.notConfigured", tone: "warning" };
 }
 
 export interface CatalogPagination {
@@ -160,6 +147,7 @@ export function PluginsPanel() {
   const [postizConnected, setPostizConnected] = useState<boolean | null>(null);
   const [emailConnected, setEmailConnected] = useState<boolean | null>(null);
   const [detailSlug, setDetailSlug] = useState<string | null>(null);
+  const calendarBridge = remoteClient ? undefined : window.ogb?.localCalendar;
   const detailSlugRef = useRef(detailSlug);
   detailSlugRef.current = detailSlug;
   const detailBackRef = useRef<HTMLButtonElement>(null);
@@ -420,6 +408,7 @@ export function PluginsPanel() {
     && (!search || `${c.label} ${c.slug} ${connectorDescription(c)}`.toLowerCase().includes(search.toLowerCase())));
   const isConnected = (slug: string) => hasActiveConnection(status[slug]);
   const filter: AppsFilter = surface === "mcp" ? "mcp" : tab === "connected" ? "connected" : "all";
+  const showLocalBrief = calendarBridge && filter === "all" && category === null && matchesLocalBriefingSearch(search);
   const shownHosted = new Set(HOSTED_MCP_APPS.filter((app) => hostedShown(app, search, filter, hostedConnected)).map((app) => app.id));
   const showEmail = (!search || `email mail imap smtp mailbox ${t("email.description")}`.toLowerCase().includes(search.toLowerCase().trim())) && (filter === "all" || (filter === "connected" && emailConnected !== false));
   const showX = (!search || `${X_CARD_SEARCH} ${t("apps.x.description")}`.toLowerCase().includes(search.toLowerCase().trim())) && (filter === "all" || (filter === "connected" && xConnected !== false));
@@ -620,6 +609,7 @@ export function PluginsPanel() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-7 sm:px-7">
+          {showLocalBrief && <LocalBriefingCard bridge={calendarBridge} />}
           {stale && (
             <div className="mb-3 flex items-start gap-2 rounded-xl bg-warning/10 px-3 py-2 text-[13px] text-warning">
               <TriangleAlert size={14} className="mt-px shrink-0" />
@@ -744,7 +734,7 @@ export function PluginsPanel() {
                         </button>
                       </div>
                     )}
-                    {cards !== null && allShown.length === 0 && !nativeCardsShown && sections.length <= 1 && (
+                    {cards !== null && allShown.length === 0 && !nativeCardsShown && !showLocalBrief && sections.length <= 1 && (
                       <div className="flex min-h-40 flex-col items-center justify-center text-center">
                         <div className="text-[14px] font-medium text-ink">
                           {filter === "connected" ? connectedEmptyCopy.title : t("connectors.noAppsFound")}

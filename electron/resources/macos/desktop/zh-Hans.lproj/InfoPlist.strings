@@ -1,0 +1,5 @@
+"NSMicrophoneUsageDescription" = "OpenBot 使用麦克风，让你通过语音输入消息。";
+"NSSpeechRecognitionUsageDescription" = "OpenBot 在设备上将你的语音转为文字，方便你输入消息。";
+"NSAccessibilityUsageDescription" = "当你允许机器人操作这台 Mac 时，OpenBot 需要使用辅助功能。";
+"NSScreenCaptureUsageDescription" = "OpenBot 使用屏幕录制权限，让机器人在操作这台 Mac 前看见屏幕。";
+"NSDownloadsFolderUsageDescription" = "当你从 Grok Bot 迁移时，OpenBot 会在下载文件夹中查找你导出的文件。";

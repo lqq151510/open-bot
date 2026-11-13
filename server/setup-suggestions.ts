@@ -184,7 +184,7 @@ export interface SetupSuggestionsDeps {
   withinBudget(): boolean;
   /** sideJobs.text("setup-suggestions", botId). */
   writer(botId: string): SideJobText | null;
-  facts(bot: BotRecord): SuggestionBasis;
+  facts(bot: BotRecord, language?: string): SuggestionBasis;
   apps(bot: BotRecord): SuggestionApps;
   log?(line: string): void;
 }
@@ -339,14 +339,14 @@ export function createSetupSuggestions(deps: SetupSuggestionsDeps) {
 
   return {
     /** Marks the card as waiting before it returns, so the new bot's first transcript carries the mark. */
-    personalise(botId: string): void {
+    personalise(botId: string, language?: string): void {
       try {
         const bot = deps.store.bot(botId);
         const greeting = bot && deps.enabled() ? openSetupOffer(deps.store, bot.id, bot.threadId) : null;
         if (!bot || !greeting || jobs.has(bot.id) || greeting.setupChoicesPending || !deps.canSetUp(bot) || !deps.withinBudget()) return;
         const writer = deps.writer(bot.id);
         if (!writer) return;
-        const basis = deps.facts(bot);
+        const basis = deps.facts(bot, language);
         const apps = deps.apps(bot);
         if (!worthAsking(basis, apps)) return;
         deps.store.patchMessage(bot.threadId, greeting.id, { setupChoicesPending: true });
@@ -420,8 +420,8 @@ export function setupSuggestionsFor(host: SetupSuggestionsHost) {
     canSetUp: (bot) => host.engine(bot)?.agentsMcp === true,
     withinBudget: host.withinBudget,
     writer: host.writer,
-    facts: (bot) => suggestionBasis(bot, { bots: host.store.bots, shared: host.shared(), aboutMe: host.config().profile?.aboutMe,
-      languageCode: host.languageCode(), canBrowse: host.engine(bot)?.browserMcp === true && host.browserOn() && bot.browser !== false }),
+    facts: (bot, language) => suggestionBasis(bot, { bots: host.store.bots, shared: host.shared(), aboutMe: host.config().profile?.aboutMe,
+      languageCode: language ?? host.languageCode(), canBrowse: host.engine(bot)?.browserMcp === true && host.browserOn() && bot.browser !== false }),
     apps: (bot) => {
       if (!host.engine(bot)?.composioMcp || bot.composio === false || !host.apps.configured()) return null;
       const allowed = bot.connectorTools ? new Set(Object.keys(bot.connectorTools)) : null;

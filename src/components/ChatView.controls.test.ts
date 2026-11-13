@@ -90,11 +90,11 @@ describe("the header's right side", () => {
     expect(header().controls).not.toContain("data-what-i-can-do");
   });
 
-  it("keeps the resident share button in Simple mode, with model picker and computer hidden from the header", () => {
+  it("keeps the resident share button in Simple mode, with the model picker visible in the header", () => {
     fixture.advanced = false;
     try {
       const { markup, controls } = header();
-      expect(controls).not.toContain("data-test-model-control");
+      expect(controls).toContain("data-test-model-control");
       expect(controls).not.toContain('data-tour="computer"');
       expect(controls).toContain("data-panel-share");
       expect(markup).not.toContain('data-testid="chat-more"');

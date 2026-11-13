@@ -1,5 +1,5 @@
-import { Search, X } from "lucide-react";
-import type { Ref } from "react";
+import { PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -69,5 +69,27 @@ export function SidebarSearchPill({ query, onQuery, onClose }: { query: string; 
         </button>
       </div>
     </div>
+  );
+}
+
+export function SidebarRailTop({ onSearch, focusControl, children, style }: { onSearch(): void; focusControl?: ReactNode; children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div data-sidebar-rail-top className="flex flex-col items-center gap-2 pt-1" style={style}>
+      <button type="button" onClick={onSearch} aria-label={t("sidebar.searchAria")} title={t("sidebar.searchAria")} className={SIMPLE_TOP_BUTTON}>
+        <Search size={18} strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      {focusControl}
+      {children}
+    </div>
+  );
+}
+
+export function SidebarFocusToggle({ active, onToggle }: { active: boolean; onToggle(): void }) {
+  const label = t(active ? "sidebar.focus.exit" : "sidebar.focus.enter");
+  const Icon = active ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <button type="button" aria-label={label} title={label} aria-pressed={active} onClick={onToggle} className={SIMPLE_TOP_BUTTON}>
+      <Icon size={17} strokeWidth={1.5} aria-hidden="true" />
+    </button>
   );
 }

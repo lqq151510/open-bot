@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { removeTempDir } from "./cleanup.ts";
 import { ownTurnText, runRoomHandoffAgent } from "./room-handoff-agent.ts";
+import { withUnseenMessages } from "../delta-context.ts";
+import { withVolatileNote } from "../drivers/prompt-split.ts";
 
 async function withMcp(script: string, test: (run: () => Promise<string>, dir: string) => Promise<void>) {
   const dir = mkdtempSync(join(tmpdir(), "omb-handoff-process-"));
@@ -54,6 +56,10 @@ it("reads a turn's own words: a replayed history and recalled passages are not t
   expect(ownTurnText({ message: { content: replayed } })).toBe("\n\nTHIS-JOB");
   const recalled = "Recalled for this message — passages from your own memory files and earlier conversations: OTHER-JOB\n[end of recalled passages — the message follows]\nTHIS-JOB";
   expect(ownTurnText({ message: { content: [{ type: "text", text: recalled }] } })).toBe("\nTHIS-JOB");
+  const unseen = withUnseenMessages("User: OTHER-JOB", "THIS-JOB");
+  expect(ownTurnText({ message: { content: unseen } })).toBe("\n\nTHIS-JOB");
+  const reminder = withVolatileNote("THIS-JOB", "A saved routine made from OTHER-JOB");
+  expect(ownTurnText({ message: { content: reminder } })).toBe("THIS-JOB");
 });
 
 it("runs the script entry a turn was itself asked for, a one-shot entry once, and refuses a turn nobody scripted", () => withMcp(RESPONDER, async (_run, dir) => {

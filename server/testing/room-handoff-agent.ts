@@ -5,6 +5,7 @@ import { appendFileSync, readFileSync, existsSync, writeFileSync } from "node:fs
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { waitForExit } from "./cleanup.ts";
+import { UNSEEN_END } from "../delta-context.ts";
 
 type AgentsIntegration = { command: string; args: string[]; env: Record<string, string> };
 
@@ -25,8 +26,13 @@ export function ownTurnText(prompt: unknown): string {
   const content = (prompt as any)?.message?.content;
   const text = typeof content === "string" ? content
     : Array.isArray(content) ? content.map((block: any) => typeof block === "string" ? block : block?.text ?? "").join("\n") : "";
-  const replayed = text.lastIndexOf(REPLAYED_HISTORY_END);
-  return (replayed < 0 ? text : text.slice(replayed + REPLAYED_HISTORY_END.length))
+  let tail = 0;
+  for (const marker of [REPLAYED_HISTORY_END, UNSEEN_END]) {
+    const at = text.lastIndexOf(marker);
+    if (at >= 0) tail = Math.max(tail, at + marker.length);
+  }
+  return text.slice(tail)
+    .replace(/^<system-reminder>\n[\s\S]*?\n<\/system-reminder>\n\n/, "")
     .replace(/Recalled for this message[\s\S]*?\[end of recalled passages[^\]]*\]/g, "");
 }
 

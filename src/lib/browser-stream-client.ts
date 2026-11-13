@@ -550,6 +550,4 @@ const decodeHostSetup = (reason: string): PreviewStreamHostSetup => {
 
 /** What a viewer tells the person; beside it, the libraries `command` ready to copy or a link to the sandbox steps. */
 export const previewStreamHostSetupMessage = (setup: PreviewStreamHostSetup) =>
-  setup.need === "sandbox"
-    ? "This server's host blocks the sandbox its browser runs in. An administrator can allow it for one copy of Chrome with these steps, then try again:"
-    : "This server's host is missing libraries its browser needs. Run this once on the host, then try again:";
+  t(setup.need === "sandbox" ? "browser.preview.hostNeedsSandbox" : "browser.preview.hostNeedsLibraries");

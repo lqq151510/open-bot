@@ -47,7 +47,7 @@ describe("the add-a-key suggestion card", () => {
 
   it("Add key opens Settings → Decision and extraction on this device; nothing is sent", () => {
     (render(message()).add!.props.onClick as () => void)();
-    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleAppSettings", open: true, section: "decisionModel" });
+    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleAppSettings", open: true, section: "connections" });
     expect(fixture.api).not.toHaveBeenCalled();
   });
 

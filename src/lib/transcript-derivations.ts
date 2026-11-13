@@ -55,6 +55,15 @@ export function dayLabel(at: number, today = localDay(Date.now())): string {
   return dates.format(at);
 }
 
-export function botLineText(message: { text?: string; textCode?: string; textParams?: ServerTextParams }): string {
-  return noticeText(message.textCode, message.text ?? "", message.textParams);
+export function botLineText(message: { text?: string; textCode?: string; textParams?: ServerTextParams; setupOffer?: boolean; role?: Message["role"] }, botName?: string): string {
+  const text = message.text ?? "";
+  if (message.role === "bot" && message.setupOffer === true && botName && activeLocale() === "zh") {
+    const suffix = `, I'm ${botName}. What would you like me to do?`;
+    if (text === `Hi${suffix}`) return t("chat.setupCard.greeting", { name: botName });
+    if (text.startsWith("Hi ") && text.endsWith(suffix)) {
+      const person = text.slice(3, -suffix.length);
+      if (person && person === person.trim() && !/[\r\n]/.test(person)) return t("chat.setupCard.greetingNamed", { person, name: botName });
+    }
+  }
+  return noticeText(message.textCode, text, message.textParams);
 }

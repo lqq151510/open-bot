@@ -56,7 +56,7 @@ let root: Root;
 let container: HTMLDivElement;
 const render = (props: Parameters<typeof Composer>[0]) => flushSync(() => root.render(createElement(Composer, props)));
 const plus = () => container.querySelector<HTMLElement>("[data-composer-plus]")?.closest("button") ?? null;
-const menu = () => document.body.querySelector<HTMLElement>('[data-sidebar-popover-menu="anchored"]');
+const menu = () => document.body.querySelector<HTMLElement>('[data-sidebar-popover-menu="anchored"], [data-composer-menu]');
 const item = (key: string) => document.body.querySelector<HTMLButtonElement>(`[data-menu-key="${key}"]`);
 const click = (element: Element | null) => {
   if (!element) throw new Error("nothing to click");
@@ -111,12 +111,15 @@ describe("the phone composer", () => {
     expect(item("place")?.textContent).toContain("Works on");
   });
 
-  it("keeps Advanced mode's buttons in a row on a wider screen", () => {
+  it("keeps Advanced mode's less-used controls in the + menu on a wider screen", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: !query.includes("max-width"), addEventListener() {}, removeEventListener() {} }));
     fixture.advanced = true;
     render({ bot });
-    expect(container.querySelector('button[aria-label="Attach a file"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Attach a file"]')).toBeNull();
     expect(container.querySelector('[data-testid="place-chip"]')).not.toBeNull();
     expect(fixture.call?.inverse).toBe(false);
+    openPlus();
+    const keys = [...menu()!.querySelectorAll("[data-menu-key]")].map((row) => row.getAttribute("data-menu-key"));
+    expect(keys).toEqual(expect.arrayContaining(["attach", "teach", "goal"]));
   });
 });

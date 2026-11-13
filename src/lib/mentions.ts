@@ -1,5 +1,5 @@
 import { t } from "./i18n";
-import { MAUS_COLORS, type MausColor } from "./mascot";
+import { mascotColorHex, type MausColor } from "./mascot";
 import { isMentionBoundary, isMentionNameContinuation } from "../../shared/mention-boundary";
 import { personTagAt, personTagNames } from "../../shared/person-mention";
 import { devsTagAt } from "../../shared/devs-mention";
@@ -78,7 +78,7 @@ export function mentionRanges(text: string, peers: readonly MentionPeer[], every
     const length = all ? 8 : peer?.name.length ?? devsTagAt(rest, botNames);
     if (length === undefined) continue;
     // Only palette values enter CSS.
-    const color = !all && peer?.color && Object.hasOwn(MAUS_COLORS, peer.color) ? MAUS_COLORS[peer.color] : undefined;
+    const color = !all && peer?.color ? mascotColorHex(peer.color) : undefined;
     ranges.push({ start: at, end: at + length + 1, ...(color ? { color } : {}), ...(!all && peer?.person ? { person: true as const } : {}) });
     at += length;
   }

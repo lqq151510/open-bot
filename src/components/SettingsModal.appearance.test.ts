@@ -434,14 +434,12 @@ describe("Settings → Appearance", () => {
     expect(render()).not.toContain('<option value="organization"');
     expect(render()).toContain("Midnight");
   });
-  it("offers personal Cloud separately and only through the local desktop bridge", () => {
+  it("opens Usage for a saved personal Cloud setting and omits the Cloud entry", () => {
     fixture.section = "cloudAccount";
     vi.stubGlobal("window", { ogb: { cloudAccount: {} } });
-    expect(render()).toContain('<option value="cloudAccount" selected="">OpenBot Cloud</option>');
-    expect(render()).toContain("Free local use");
-    fixture.section = "appearance";
-    vi.stubGlobal("window", {}); expect(render()).not.toContain('<option value="cloudAccount"');
-    vi.stubGlobal("window", { ogb: { cloudAccount: {}, remoteClient: { active: true } } });
-    expect(render()).not.toContain('<option value="cloudAccount"');
+    const markup = render();
+    expect(markup).toContain('<option value="usage" selected="">Usage</option>');
+    expect(markup).not.toContain('<option value="cloudAccount"');
+    expect(markup).not.toContain("Free local use");
   });
 });

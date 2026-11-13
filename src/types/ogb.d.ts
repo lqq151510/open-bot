@@ -341,6 +341,8 @@ const __APP_VERSION__: string;
       /** Start native dictation. Call mode supplies endpointMs so silence
        * finalizes a turn; composer dictation omits it and remains manual. */
       speechStart(options?: { endpointMs?: number }): Promise<void>;
+      localCalendar?: import("../../shared/local-briefing").LocalCalendarBridge;
+      localPhotos?: import("../../shared/local-photos").LocalPhotosBridge;
       speechStop(): Promise<void>;
       /** Finish capture and emit the recognizer's final transcript. */
       speechFinish?(): Promise<void>;
@@ -364,8 +366,8 @@ const __APP_VERSION__: string;
       permStatus(): Promise<{ mic: string; pageMic?: "allowed" | "refused" }>;
       /** Triggers the macOS microphone prompt; resolves true when granted. */
       permRequestMic(): Promise<boolean>;
-      /** Opens System Settings on a privacy pane: mic|screen|speech|accessibility. */
-      permOpenSettings(pane: "mic" | "screen" | "speech" | "accessibility"): Promise<void>;
+      /** Opens the matching privacy pane in System Settings. */
+      permOpenSettings(pane: "mic" | "screen" | "speech" | "accessibility" | "calendars"): Promise<void>;
       /** Relaunch the local desktop app through its normal shutdown cleanup. */
       relaunch?(): Promise<boolean>;
       /** Copies an engine install command and opens a blank terminal. False

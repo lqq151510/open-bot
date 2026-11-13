@@ -37,7 +37,7 @@ export function HelperKeySuggestion({ threadId, message }: { threadId?: string; 
           <button
             type="button"
             data-testid="helper-suggestion-add"
-            onClick={() => dispatch({ type: "toggleAppSettings", open: true, section: "decisionModel" })}
+            onClick={() => dispatch({ type: "toggleAppSettings", open: true, section: "connections" })}
             className={ASK_PRIMARY_BUTTON}
           >
             {t("chat.helperSuggestion.addKey")}

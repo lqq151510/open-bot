@@ -57,6 +57,18 @@ describe("readyBotTemplate", () => {
     expect(profile).toMatchObject({ name: "Fern", title: "Plant care log", soul: plant.soul, color: "green", mascotBody: "drop" });
   });
 
+  it("copies the translated title and description shown in the template gallery", () => {
+    setLocale("zh");
+    try {
+      const { profile } = readyBotTemplate(defaults(), plant);
+      const { title, description } = readyBotCopy(plant);
+      expect(title).toBe("植物照护日志");
+      expect(profile).toMatchObject({ title, description, name: plant.name, soul: plant.soul });
+    } finally {
+      setLocale("en");
+    }
+  });
+
   it("never changes the person's model, approval level, computer, folder or apps", () => {
     const { profile } = readyBotTemplate(defaults(), plant);
     expect(profile).toMatchObject({

@@ -1,5 +1,10 @@
 const ALIASES: Record<string, string> = { pt: "pt-br", "zh-hant": "zh-tw", "zh-hk": "zh-tw", "zh-mo": "zh-tw" };
 
+/** The app sends its selected language as a single Accept-Language tag for generated setup text. */
+export function requestedAppLanguage(header: string | undefined): string | undefined {
+  return header && /^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,3}$/i.test(header) ? header : undefined;
+}
+
 /** The entry for the language set in Settings, else for its parent ("pt-br" → "pt"), else English. */
 export function byLanguage<T>(table: { en: T } & Partial<Record<string, T>>, language: string | undefined): T {
   let candidate = language?.trim().toLowerCase() || "en";
