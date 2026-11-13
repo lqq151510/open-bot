@@ -3,7 +3,9 @@ name: Build OpenBot v1.1.0 installers
 on:
   push:
     branches: [codex/build-v1.1.0-assets]
-    paths: [.github/workflows/build-release-v1.1.0.yml]
+    paths:
+      - .github/workflows/build-release-v1.1.0.yml
+      - scripts/verify-release-feed-1.1.0.mjs
   workflow_dispatch:
 
 permissions:
@@ -56,17 +58,42 @@ jobs:
             resources="$app/Contents/Resources"
             test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = 1.1.0
             if [ "$arch" = arm64 ]; then slice=arm64; else slice=x86_64; fi
-            lipo -verify_arch "$slice" "$app/Contents/MacOS/OpenBot"
+            lipo "$app/Contents/MacOS/OpenBot" -verify_arch "$slice"
             test -s "$resources/zh-Hans.lproj/InfoPlist.strings"
             for helper in Calendar Photos Speech; do
-              lipo -verify_arch "$slice" "$resources/OpenBot $helper.app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$resources/OpenBot $helper.app/Contents/Info.plist")"
+              bundle="$resources/OpenBot $helper.app"
+              executable=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$bundle/Contents/Info.plist")
+              lipo "$bundle/Contents/MacOS/$executable" -verify_arch "$slice"
             done
             codesign --verify --deep --strict "$app"
             node scripts/smoke-browser-bundle.mjs --resources "$resources" --target "darwin-${arch}" --check-only
           done
           resources="$RUNNER_TEMP/openbot-arm64/OpenBot.app/Contents/Resources"
           OMB_SMOKE_DIST="$resources/server" node scripts/smoke-packaged-server.mjs --browser-bundle "$resources/browser-engine"
-          test -s release/latest-mac.yml
+          node --input-type=module - release/latest-mac.yml <<'JS'
+          import assert from "node:assert/strict";
+          import { createHash } from "node:crypto";
+          import { createReadStream, readFileSync, statSync } from "node:fs";
+          import { basename, dirname, join } from "node:path";
+          import { parse } from "yaml";
+
+          const path = process.argv[2];
+          const feed = parse(readFileSync(path, "utf8"));
+          const expected = ["arm64", "x64"].flatMap(arch => ["dmg", "zip"].map(ext => "OpenBot-1.1.0-" + arch + "." + ext));
+          assert.equal(feed.version, "1.1.0");
+          assert.deepEqual(feed.files.map(file => file.url).sort(), expected.sort());
+          assert.equal(feed.sha512, feed.files.find(file => file.url === feed.path)?.sha512);
+          for (const file of feed.files) {
+            assert.equal(file.url, basename(file.url));
+            const artifact = join(dirname(path), file.url);
+            assert.equal(statSync(artifact).size, file.size, file.url);
+            const sha = createHash("sha512");
+            for await (const chunk of createReadStream(artifact)) sha.update(chunk);
+            assert.equal(sha.digest("base64"), file.sha512, file.url);
+            assert(statSync(artifact + ".blockmap").size > 0, file.url + " blockmap");
+            console.log("Verified update metadata for " + file.url);
+          }
+          JS
       - name: Upload verified macOS assets
         run: |
           gh release upload v1.1.0 \
@@ -77,6 +104,7 @@ jobs:
             release/latest-mac.yml --repo "$GITHUB_REPOSITORY" --clobber
 
   windows:
+    if: github.run_attempt == 1 && github.event_name == 'workflow_dispatch' || github.event.before == '0000000000000000000000000000000000000000'
     runs-on: windows-latest
     timeout-minutes: 60
     env:
