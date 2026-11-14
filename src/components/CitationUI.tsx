@@ -12,6 +12,7 @@ import { captureCitationSelection, citationShortcutHint, citationTabShortcut, is
 import { isMacPlatform } from "@/lib/keyboard-shortcuts";
 import { sendsMessage, useSendKey } from "@/lib/send-key";
 import { intlLocale, t } from "@/lib/i18n";
+import { sliceGraphemesByUnits } from "../../shared/grapheme";
 
 type Point = { left: number; top: number };
 
@@ -268,7 +269,7 @@ export function CitationBadge({
         type="button"
         onClick={() => { setUnavailable(false); setOpen((value) => !value); }}
         aria-expanded={open}
-        aria-label={t("chat.citation.open", { quote: citation.quote.slice(0, 80) })}
+        aria-label={t("chat.citation.open", { quote: sliceGraphemesByUnits(citation.quote, 80) })}
         className="inline-flex max-w-64 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] text-accent-text hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/60"
       >
         <Quote size={11} className="shrink-0" aria-hidden="true" />

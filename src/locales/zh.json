@@ -6868,6 +6868,8 @@
   "botLearnings.empty": "没有等待审核的内容。",
   "botLearnings.accept": "批准",
   "botLearnings.reject": "拒绝",
+  "botLearnings.approved": "已批准的学习",
+  "botLearnings.revoke": "撤销批准",
   "botLearnings.propose": "提交团队学习",
   "botLearnings.submit": "提交审核",
   "botLearnings.submitted": "已提交审核。",

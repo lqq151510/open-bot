@@ -76,6 +76,7 @@ export function BotLearningsCard({ botId, active = true }: { botId: string; acti
   if (!active || (!capabilities && !error)) return null;
   if (capabilities && !capabilities.canPropose && !capabilities.canReview) return null;
   const proposed = (entries ?? []).filter((entry) => entry.state === "proposed");
+  const accepted = (entries ?? []).filter((entry) => entry.state === "accepted");
   return (
     <section className="rounded-xl bg-card p-4" aria-label={t("botLearnings.title")}>
       <h3 className="text-[15px] font-medium text-ink">{t("botLearnings.title")}</h3>
@@ -89,6 +90,13 @@ export function BotLearningsCard({ botId, active = true }: { botId: string; acti
             <p className="font-medium text-ink">{entry.name}</p><p className="mt-1 whitespace-pre-wrap break-words text-ink-secondary">{entry.detail}</p>
             <div className="mt-2 flex gap-2"><button type="button" disabled={busy} className="rounded-md bg-accent px-2.5 py-1 text-white disabled:opacity-50" onClick={() => void decide(entry, "accept")}>{t("botLearnings.accept")}</button><button type="button" disabled={busy} className="rounded-md px-2.5 py-1 text-ink-secondary hover:bg-control disabled:opacity-50" onClick={() => void decide(entry, "reject")}>{t("botLearnings.reject")}</button></div>
           </li>)}</ul>}
+      </div>}
+      {capabilities?.canReview && accepted.length > 0 && <div className="mt-3">
+        <h4 className="text-[13px] font-medium text-ink">{t("botLearnings.approved")}</h4>
+        <ul className="mt-2 space-y-2">{accepted.map((entry) => <li key={entry.id} className="rounded-lg bg-inset p-3 text-[13px]">
+          <p className="font-medium text-ink">{entry.name}</p><p className="mt-1 whitespace-pre-wrap break-words text-ink-secondary">{entry.detail}</p>
+          <button type="button" disabled={busy} className="mt-2 rounded-md px-2.5 py-1 text-ink-secondary hover:bg-control disabled:opacity-50" onClick={() => void decide(entry, "reject")}>{t("botLearnings.revoke")}</button>
+        </li>)}</ul>
       </div>}
       {capabilities?.canPropose && <form className="mt-3 space-y-2" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <h4 className="text-[13px] font-medium text-ink">{t("botLearnings.propose")}</h4>

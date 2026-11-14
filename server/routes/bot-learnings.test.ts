@@ -28,6 +28,24 @@ function fixture() {
   };
   return { learnings, reviewers, call };
 }
+
+it("revokes an approved learning only for a current reviewer and revision", async () => {
+  const f = fixture();
+  try {
+    const created = await f.call("member", "POST", "", { explicitlyShared: true, learning: item });
+    const entry = created.body.entry;
+    const approved = await f.call("manager", "PATCH", `/${entry.id}`, { revision: entry.revision, action: "accept" });
+    expect(approved.status).toBe(200);
+    expect(f.learnings.prompt("a")).toContain(item.detail);
+    expect((await f.call("member", "PATCH", `/${entry.id}`, { revision: approved.body.entry.revision, action: "reject" })).status).toBe(404);
+    expect((await f.call("manager", "PATCH", `/${entry.id}`, { revision: entry.revision, action: "reject" })).status).toBe(409);
+    expect(f.learnings.prompt("a")).toContain(item.detail);
+    const revoked = await f.call("manager", "PATCH", `/${entry.id}`, { revision: approved.body.entry.revision, action: "reject" });
+    expect(revoked.status).toBe(200);
+    expect(f.learnings.prompt("a")).not.toContain(item.detail);
+    expect(f.learnings.history("a", "manager", entry.id).events.map((event) => event.action)).toEqual(["proposed", "accepted", "rejected"]);
+  } finally { f.learnings.close(); }
+});
 const item = { kind: "term", name: "Roadmap", detail: "Review Fridays" };
 
 it("requires explicit sharing and manager review before the bot can read a proposed fact", async () => {

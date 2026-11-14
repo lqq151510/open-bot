@@ -62,6 +62,11 @@ it("routes proposals to authorized reviewers and injects only accepted notes int
     expect((await team.signed("POST", "/api/cloud/team/member-left", { email: "manager@example.test" })).status).toBe(200);
     const returned = (await team.pair({ email: "manager@example.test", role: "member" })).token!;
     expect((await team.as(returned, "GET", capability)).body).toEqual({ canPropose: true, canReview: false });
+    expect((await team.as(returned, "PATCH", `${path}/${entry.id}`, { revision: entry.revision + 1, action: "reject" })).status).toBe(404);
+    expect(await preview(bot.id)).toContain("Tuesdays are launch day");
+    expect((await team.as(owner, "PATCH", `${path}/${entry.id}`, { revision: entry.revision + 1, action: "reject" })).status).toBe(200);
+    expect(await preview(bot.id)).not.toContain("Tuesdays are launch day");
+    expect(await turn(bot.mainThreadId ?? bot.threadId)).not.toContain("Tuesdays are launch day");
   } finally {
     await fixture.close();
   }

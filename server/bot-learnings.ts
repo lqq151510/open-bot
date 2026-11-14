@@ -93,7 +93,7 @@ export function createBotLearnings(file: string, access: Access, now: () => numb
           .get(id, botId, generation) as unknown as LearningRow | undefined;
         if (!row) throw new BotLearningError("No such learning.", 404);
         if (action !== "accept" && action !== "reject") throw new BotLearningError("Invalid review.", 400);
-        if (row.state !== "proposed" || row.revision !== expectedRevision) throw new BotLearningError("Learning changed. Reload and try again.", 409);
+        if (row.revision !== expectedRevision || (row.state !== "proposed" && !(row.state === "accepted" && action === "reject"))) throw new BotLearningError("Learning changed. Reload and try again.", 409);
         const item = edit ? TeamMemory.normalize(edit) : { kind: row.kind, name: row.name, detail: row.detail, aliases: JSON.parse(row.aliases) as string[], key: row.fact_key };
         if (action === "accept" && !access.allowContent(item)) throw new BotLearningError("This content cannot be shared as a learning.", 400);
         if (action === "accept" && entries(botId, generation, "accepted").some((entry) => entry.fact_key === item.key)) {

@@ -7055,6 +7055,8 @@
   "botLearnings.empty": "No learnings waiting for review.",
   "botLearnings.accept": "Approve",
   "botLearnings.reject": "Reject",
+  "botLearnings.approved": "Approved learnings",
+  "botLearnings.revoke": "Revoke",
   "botLearnings.propose": "Propose a team learning",
   "botLearnings.submit": "Submit for review",
   "botLearnings.submitted": "Submitted for review.",

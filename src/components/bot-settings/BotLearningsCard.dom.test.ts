@@ -45,6 +45,13 @@ describe("team learnings card", () => {
     const request = fetch.mock.calls.find(([path, init]) => path.endsWith("/l1") && init?.method === "PATCH");
     expect(JSON.parse(String(request?.[1]?.body))).toEqual({ revision: 3, action: "accept" });
     expect(host.textContent).toContain("No learnings waiting for review.");
+    expect(host.textContent).toContain("Approved learnings");
+    const revoke = [...host.querySelectorAll("button")].find((button) => button.textContent === "Revoke");
+    expect(revoke).toBeDefined();
+    flushSync(() => revoke!.click());
+    await settle();
+    const requests = fetch.mock.calls.filter(([path, init]) => path.endsWith("/l1") && init?.method === "PATCH");
+    expect(JSON.parse(String(requests[1]?.[1]?.body))).toEqual({ revision: 3, action: "reject" });
   });
 
   it("refreshes stale decisions and keeps the conflict message visible", async () => {
