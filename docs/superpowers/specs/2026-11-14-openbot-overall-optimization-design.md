@@ -113,3 +113,58 @@
 ## 验证
 
 遵循 `docs/verification/README.md`：一律在隔离 fixture 上验证，绝不对用户正在使用的应用或数据做变更验证；单测通过不等同于真实会话可用，端到端须另有证据。
+
+---
+
+## 实施记录（2026-11-14）
+
+### P1 已落地
+
+提交 `d249ea2`（7 文件，+281）：
+
+- `electron/port-utils.mjs`：`probePort` 双探 `0.0.0.0` 与 `127.0.0.1`，`EADDRINUSE` 与其他错误码分开返回；`killPort` 按端口取 PID 后直接 `process.kill`（Windows 走 `taskkill /PID /F`），不经 shell；非法端口抛 `RangeError`。`ensureServerPort` 承担对话框决策：只有确认端口被占时才提供「结束占用进程并重启」，其余错误码只给「退出」。
+- `electron/main.mjs` 只加 3 行（import、空行、一次调用），文件停在 3224 行 —— 正好是 `scripts/testing/file-size-ratchet.test.ts:21` 登记的上限；初版把 19 行内联逻辑写进 `main.mjs` 时该门禁报 `grew to 3243 (listed at 3224)`，改为抽到 `port-utils.mjs` 后通过。
+- `electron/port-utils.node-test.mjs`：9 个用例，其中一个真的 `spawn` 子进程占住端口，再断言「结束并重启」路径杀掉它并调用 `relaunch`/`exit(0)`。
+- 四个 locale 各加 5 个键（`native.dialog.portOccupied.*`、`native.dialog.portUnavailable.*`）。
+
+两个空壳组件（`QuickActionBar.tsx`、`DevToolsDashboard.tsx`）在本次之前从未进入 git（一直处于未跟踪状态），删除后不留 diff，全仓 grep 无残留引用。
+
+门禁：`pnpm typecheck` 退出 0；`pnpm lint` 0 warning / 0 error；`pnpm i18n:check` 16 语言 / 10094 条合法；`node --test electron/port-utils.node-test.mjs` 9/9。
+
+未完成的 P1 验收项：端口冲突对话框的隔离 fixture 截图。应用端口固定为 8799，被用户正在运行的应用占用；另起一个实例弹出的对话框默认按钮是「退出」，但 `cancelId` 指向「结束占用进程并重启」，任何误触都会杀掉用户当前实例，因此这一步没有在用户在场时执行。
+
+### 全量测试基线（macOS 本机，host 模式）
+
+`OMB_VITEST_E2E=host pnpm vitest run`：2164 个测试文件，2106 通过、47 失败、11 跳过；30520 个用例中 30346 通过、82 失败，耗时 877s。
+
+把 P1 的改动 stash 掉、只跑那 42 个失败文件做对照：80 个失败。说明这 80 个失败是本 checkout 既有状态，与本阶段改动无关，例如：
+
+- `scripts/testing/analytics-docs.test.ts`：`docs/analytics.md` 在仓库里既不存在也未被 git 跟踪。
+- `scripts/testing/duration-sequencer.test.ts`：`vitest-shard-weights.json` 里登记了本 checkout 没有的文件。
+- `shared/package-format.test.ts`：`legacy-team.v1.json` 与 `legacy-botmrr.v1.md` 的 sha256 与 manifest 不符。
+- `server/phone-secret.test.ts`：CryptoKit HPKE 信封被拒。
+
+差异只有两个：`file-size-ratchet`（上面已修）与 `server/drivers/codex-device-auth.test.ts` 的一条（单独重跑通过，属抖动）。
+
+### P2 不实施：实测数据
+
+用 `vite build --sourcemap` 输出到临时目录后按 `sourcesContent` 归因：
+
+| chunk | 体积 | 构成（源码字节） |
+| --- | --- | --- |
+| `App-*.js` | 2249 KB | `src/components` 2544K、`src/lib` 815K、`src/state` 232K、`lib/index.js` 225K、`src/data` 137K；第三方只有 tldts 144K、lucide-react 124K、micromark/mdast/unified 合计约 350K |
+| `elk-*.js` | 1442 KB | elkjs |
+| `DataPanel-*.js` | 1119 KB | ag-grid-community 2374K、codemirror 约 1000K |
+| `cpp-*.js` | 778 KB | shiki 语言包 |
+| `embed-*.js` | 757 KB | vega-lite 全家桶 |
+| `zh-*.js` / `pt-br-*.js` | 670 / 706 KB | 单语言包 |
+
+`index.html` 实际同步加载的只有 2 个文件、合计 0.92 MB（`styles-*.js` 中 react-dom 533K、tailwind-merge 103K，加 38K 的入口）。
+
+结论：
+
+1. ag-grid、elk、shiki、vega、语言包早已各自成 chunk，「把 ag-grid 改成动态 import」已无收益。
+2. `manualChunks` 只能把 `App` 里约 0.6 MB 的第三方挪出去，把主 chunk 压到 1.2 MB 意味着压缩应用自身代码；而首屏同步 JS 只有 0.92 MB 且由 react-dom 主导，再降 40% 在当前分层下不可能。
+3. 要真正减少首屏主线程字节，只能把 `src/components` 按路由/面板懒加载，这需要真实浏览器逐屏回归，属于独立一轮工作，不能顺手做。
+
+建议 P2 另立规格，范围改为「按路由/面板拆 `src/components` 并逐个懒加载」，验收用 Lighthouse/Performance 面板的真实首屏指标，而不是主 chunk 体积。
