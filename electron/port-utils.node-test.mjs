@@ -130,7 +130,23 @@ test("refuses to start when the port is held and the person closes the dialog", 
   assert.equal(await ensureServerPort({ port, app, dialog, t: translate }), false);
   assert.deepEqual(dialog.shown[0].buttons, ["native.dialog.portOccupied.restart", "native.role.quit"]);
   assert.equal(dialog.shown[0].defaultId, 1);
+  assert.equal(dialog.shown[0].cancelId, 1);
   assert.deepEqual(app.calls, ["quit"]);
+});
+
+test("dismissing the occupied-port dialog leaves the listener running", async (t) => {
+  const port = await freePort();
+  const child = spawnHolder(port);
+  t.after(() => child.kill("SIGKILL"));
+  await waitForReady(child);
+  const app = fakeApp();
+  const dialog = fakeDialog(1);
+
+  assert.equal(await ensureServerPort({ port, app, dialog, t: translate }), false);
+  assert.equal(dialog.shown[0].cancelId, 1);
+  assert.deepEqual(app.calls, ["quit"]);
+  assert.equal(child.exitCode, null);
+  assert.equal(child.signalCode, null);
 });
 
 test("stops the program holding the port and relaunches", async (t) => {
@@ -142,6 +158,7 @@ test("stops the program holding the port and relaunches", async (t) => {
   const dialog = fakeDialog(0);
 
   assert.equal(await ensureServerPort({ port, app, dialog, t: translate }), false);
+  assert.equal(dialog.shown[0].cancelId, 1);
   assert.deepEqual(app.calls, ["relaunch", "exit:0"]);
   await waitForExit(child);
 });

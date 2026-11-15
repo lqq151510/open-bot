@@ -97,7 +97,8 @@ export async function ensureServerPort({ port, app, dialog, t }) {
     type: "error",
     buttons: taken ? [t("native.dialog.portOccupied.restart"), t("native.role.quit")] : [t("native.role.quit")],
     defaultId: taken ? 1 : 0,
-    cancelId: 0,
+    // Esc returns cancelId. That must be Quit, not the button that kills the listener.
+    cancelId: taken ? 1 : 0,
     title: t(taken ? "native.dialog.portOccupied.title" : "native.dialog.portUnavailable.title", { port }),
     message: t(taken ? "native.dialog.portOccupied.message" : "native.dialog.portUnavailable.message", { port, code: probe.code }),
   });
