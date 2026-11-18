@@ -9813,5 +9813,14 @@
   "composer.photos.skipped": "Algumas fotos não foram anexadas ({count}). Elas podem estar baixando ou ultrapassar o limite de anexos.",
   "composer.photos.full": "Remova uma imagem para adicionar mais fotos.",
   "native.photos.title": "Escolher fotos para o OpenBot",
-  "native.photos.loading": "Preparando as fotos selecionadas…"
+  "native.photos.loading": "Preparando as fotos selecionadas…",
+  "native.tray.quickAsk": "Pergunta rápida…",
+  "native.tray.localWorking": "Trabalhando neste computador",
+  "native.tray.interruptLocal": "Pausar ações neste computador",
+  "native.spotlight.placeholder": "Pergunte qualquer coisa ao OpenBot…",
+  "native.spotlight.send": "Enviar",
+  "native.spotlight.stop": "Parar",
+  "native.spotlight.openChat": "Abrir no OpenBot",
+  "native.spotlight.thinking": "Pensando…",
+  "native.spotlight.emptyHint": "Pressione Enter para perguntar · Esc para fechar"
 }

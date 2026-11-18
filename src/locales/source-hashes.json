@@ -54331,7 +54331,16 @@
       "composer.photos.skipped": "18987c4c3c6e57623b4f95624fb3fe891152131b3cb86d831334f4a74c716094",
       "composer.photos.full": "0551d488260e68d1f5348f489b3fd04eacbbae77da89b8ff3ebd7e3a5c6e6d56",
       "native.photos.title": "76791f238c54d447ae120432691e6d473e14f1ba80bc7401d52ef59acc229f89",
-      "native.photos.loading": "24e450d7b5563db840b0b210866e985b514c3c431bde1e0a6c464031e51b4e0a"
+      "native.photos.loading": "24e450d7b5563db840b0b210866e985b514c3c431bde1e0a6c464031e51b4e0a",
+      "native.tray.quickAsk": "4ffc2ecd7e5975623cc8cdd5a93bd8a34bab5fb7098b852a23a39367c987a739",
+      "native.tray.localWorking": "cb4da4c662c603e7a8b879a8723a1f787ef10a9c8c9e314babe6a4df20c890b5",
+      "native.tray.interruptLocal": "13a5c09cf4b9ff17fb01397491449d20e3df75a352d5b95df77771c238019da7",
+      "native.spotlight.placeholder": "8575232970cb48500007486aa48c464d7159c92b458dcd74ca3aab803cecceed",
+      "native.spotlight.send": "f6f4688ff23d50c67053963c251fa0ce64a925cf283537cf066b1f362cb9b778",
+      "native.spotlight.stop": "cae7d57bc067a514b8e34c9589631a95c7dc051638ddd2a190773269279a99df",
+      "native.spotlight.openChat": "fa061ef3c276f49748dec26e2e16c5730a0e5aff142f2d017822800897e7f507",
+      "native.spotlight.thinking": "a02f1cea3c1d6c6edc0bdf52b8807f09eb5b33ca35a5e938e49d9ff646f80969",
+      "native.spotlight.emptyHint": "c497d9f29abba8e3eb82a9d3041a3d2f8a615cc9a694fe7d3c10d44d7fe71c1d"
     },
     "ru": {
       "whop.description": "1a07cf04ef17029448d3781415cbac16d54e66b821907a40d94e0e6349710e70",
