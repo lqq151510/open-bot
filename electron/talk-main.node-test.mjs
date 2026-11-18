@@ -143,12 +143,13 @@ test("the shortcut is offered only with Apple speech, on a desktop that is not a
     const h = harness(options);
     h.start();
     assert.equal(h.handle("talk-shortcut:state", {}).available, false);
-    assert.deepEqual([...h.registered.keys()], []);
+    assert.equal(h.registered.has("Control+Alt+Space"), false);
+    assert.deepEqual([...h.registered.keys()], options.appleSpeech === false ? ["Alt+Space"] : []);
   }
   const h = harness();
   h.start();
   assert.equal(h.handle("talk-shortcut:state", {}).available, true);
-  assert.deepEqual([...h.registered.keys()], ["Control+Alt+Space"]);
+  assert.deepEqual([...h.registered.keys()], ["Control+Alt+Space", "Alt+Space"]);
 });
 
 test("before the shortcut is set up its setting says unavailable; afterwards a change passes on only what it understands", () => {
@@ -159,9 +160,9 @@ test("before the shortcut is set up its setting says unavailable; afterwards a c
   const shown = state => ({ enabled: state.enabled, key: state.key, taken: state.taken });
   assert.deepEqual(shown(h.handle("talk-shortcut:set", {}, { enabled: "no", key: 7, extra: 1 })), { enabled: true, key: "ctrl-opt-space", taken: false });
   assert.deepEqual(shown(h.handle("talk-shortcut:set", {}, { enabled: false })), { enabled: false, key: "ctrl-opt-space", taken: false });
-  assert.deepEqual([...h.registered.keys()], []);
+  assert.deepEqual([...h.registered.keys()], ["Alt+Space"]);
   h.handle("talk-shortcut:set", {}, { enabled: true, key: "ctrl-shift-space" });
-  assert.deepEqual([...h.registered.keys()], ["Control+Shift+Space"]);
+  assert.deepEqual([...h.registered.keys()], ["Alt+Space", "Control+Shift+Space"]);
   h.talk.close();
   assert.deepEqual([...h.registered.keys()], [], "quitting lets the key go");
 });
@@ -259,7 +260,7 @@ test("while home is My Cloud or this computer's copy is frozen the shortcut is u
   h.away = false;
   h.talk.homeChanged();
   assert.equal(h.handle("talk-shortcut:state", {}).available, true);
-  assert.deepEqual([...h.registered.keys()], ["Control+Alt+Space"]);
+  assert.deepEqual([...h.registered.keys()], ["Control+Alt+Space", "Alt+Space"]);
   h.away = true;
   h.talk.homeChanged();
   assert.deepEqual([...h.registered.keys()], []);

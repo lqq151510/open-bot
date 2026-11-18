@@ -2858,22 +2858,18 @@ setCuaStateListener((connection) => {
 app.whenReady().then(async () => {
   if (!(await ensureServerPort({ port: SERVER_PORT, app, dialog, t: nativeT }))) return;
 
-  await evictStartupCacheOnce({
-    userData: app.getPath("userData"),
-    currentVersion: app.getVersion(),
-    clearCache: () => session.defaultSession.clearCache(),
-    log: slog,
-  });
-  if (process.platform === "win32") {
+  await evictStartupCacheOnce({ userData: app.getPath("userData"), currentVersion: app.getVersion(), clearCache: () => session.defaultSession.clearCache(), log: slog });
+  if (process.platform === "win32" || process.platform === "darwin") {
     try {
       desktopTray = createSystemTray({
         Tray, Menu, nativeImage, iconPath: APP_ICON, t: nativeT,
         getWindow: () => startupScreen?.window ?? mainWindow ?? (openWindowForLink?.(), mainWindow),
         onQuit: () => app.quit(),
+        onQuickAsk: () => talk.toggleSpotlight?.(),
+        getAccelerator: () => talk.spotlightAccelerator?.(),
+        onInterruptLocal: () => void localServerRequest("/api/local-computer/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => {}),
       });
-    } catch (error) {
-      slog(`system tray unavailable: ${error?.message ?? error}`);
-    }
+    } catch (error) { slog(`system tray unavailable: ${error?.message ?? error}`); }
   }
   hiddenStart = loginItem.startedHidden() || reopenedOutOfSight();
   startupScreen = hiddenStart ? null : createStartupScreen({
@@ -3009,6 +3005,7 @@ app.whenReady().then(async () => {
     onLanguage: language => { if (nativeText.set(language)) { applyNativeLanguage(); talk.relabel(); } }, onShown: (language, sender) => { if (sender === mainWindow?.webContents && nativeText.follow(language)) { applyNativeLanguage(); talk.relabel(); } },
     page: event => senderIsLocal(event) ? "local" : cloudPageAsking(event) ?? (workspaceSenderAllowed(event, mainWindow?.webContents, environmentsState, rendererOrigin()) ? "server" : null) });
   talk.start({ globalShortcut, screen, prefs: desktopPrefs, remote: () => Boolean(desktopRemoteAccess), away: () => homeWindow.current().kind !== "computer", starting: () => !serverReady, localRequest: localServerRequest, dataDir: () => runningDataDir });
+  desktopTray?.relabel();
   // Before the window, so the harness has the CUA descriptor on first render.
   cuaReady =
     !desktopRemoteAccess && (process.platform === "darwin" || process.platform === "linux" || process.platform === "win32")

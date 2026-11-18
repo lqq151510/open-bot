@@ -40,7 +40,7 @@ function fixture(options = {}) {
   let active;
   const tray = createSystemTray({ Tray, Menu: { buildFromTemplate: value => value },
     nativeImage: { createFromPath: () => ({ resize: () => ({}) }) }, iconPath,
-    getWindow: () => active, onQuit: () => calls.push("quit") });
+    getWindow: () => active, onQuit: () => calls.push("quit"), platform: "win32" });
   const splash = createStartupScreen({ BrowserWindow: Window, iconPath, platform: "win32",
     isQuitting: () => false, onQuit: () => calls.push("quit"), onHide: win => tray.hide(win),
     isHidden: () => tray.isHidden(), onShow: win => tray.windowShown(win),
@@ -153,7 +153,7 @@ test("the tray's menu and the startup screen speak the app's language, and the t
   text.set("pt-br");
   tray.relabel();
   assert.deepEqual(trayInstance.menu.map(item => item.label), ["Abrir o OpenMaus Bot", undefined, "Sair do OpenMaus Bot"]);
-  assert.equal(trayInstance.tooltip, "OpenMaus Bot");
+  assert.equal(trayInstance.tooltip, "OpenBot");
   const html = startupScreenHtml(iconPath, { t: text.t, lang: text.intlTag() });
   assert.match(html, /<html lang="pt-BR">/);
   assert.match(html, /<button aria-label="Fechar"/);

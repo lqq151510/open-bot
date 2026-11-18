@@ -1,20 +1,21 @@
 import nativeText from "./native-text.cjs";
 import skins from "./skin-overlay.cjs";
-import { createTalkPanel } from "./talk-panel.mjs";
+import { createSpotlight, createSpotlightShortcut, isSpotlightPanel } from "./spotlight.mjs";
+import { createTalkPanel, isTalkPanel as isVoiceTalkPanel } from "./talk-panel.mjs";
 import { createTalkServer } from "./talk-server.mjs";
 import { createTalkSession } from "./talk-session.mjs";
 import { createCallPresence, createTalkShortcut, TALK_SHORTCUT_UNAVAILABLE } from "./talk-shortcut.mjs";
 
-export { isTalkPanel } from "./talk-panel.mjs";
+export const isTalkPanel = win => isVoiceTalkPanel(win) || isSpotlightPanel(win);
 
 /**
- * The microphone's IPC for this app's pages (dictation, calls, the talk setting), then the talk shortcut once the app
- * is ready. `speech`: speech.mjs's start/stop/finish/busy. `packaged`: asks go to `localRequest`, this computer's own
- * server; in development to `devUrl`, whose Vite /api proxy reaches `pnpm dev:server`.
+ * The microphone's IPC for this app's pages (dictation, calls, the talk setting), then the talk and Spotlight shortcuts
+ * once the app is ready. `speech`: speech.mjs's start/stop/finish/busy. `packaged`: asks go to `localRequest`, this
+ * computer's own server; in development to `devUrl`, whose Vite /api proxy reaches `pnpm dev:server`.
  */
 export function installTalk({ ipcMain, localOnly, localOrHome, BrowserWindow, appleSpeech, speech, packaged, devUrl, nativeImage, iconPath, openLink, reveal, log, fetch = globalThis.fetch, t = nativeText.englishText.t }) {
   const callPresence = createCallPresence();
-  let shortcut = null, session = null, panel = null, theme = null;
+  let shortcut = null, session = null, panel = null, spotlight = null, spotlightShortcut = null, theme = null;
 
   ipcMain.handle("speech:start", localOnly("speech:start", (event, options) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -51,36 +52,61 @@ export function installTalk({ ipcMain, localOnly, localOrHome, BrowserWindow, ap
      * this process runs. */
     start({ globalShortcut, screen, prefs, remote, away, starting, localRequest, dataDir }) {
       const request = (route, init) => (packaged ? localRequest(route, init) : fetch(new URL(route, devUrl), init));
+      const server = createTalkServer({ request, prefs, starting, serverKey: () => (packaged ? dataDir() : devUrl) ?? "local" });
+      const openChat = chat => (chat ? openLink(`openbot://thread/${encodeURIComponent(chat.threadId)}?bot=${encodeURIComponent(chat.botId)}`) : reveal());
       try {
         panel = createTalkPanel({ t, BrowserWindow, screen, nativeImage, iconPath, theme, onOpen: logged("open", () => session.open()), onDismiss: logged("dismiss", () => session.dismiss()) });
         session = createTalkSession({
           speech,
-          server: createTalkServer({ request, prefs, starting, serverKey: () => (packaged ? dataDir() : devUrl) ?? "local" }),
+          server,
           panel,
           voiceInUse: () => speech.busy() || callPresence.active(),
           release: () => shortcut.releaseModifiers(),
-          openChat: chat => (chat ? openLink(`openbot://thread/${encodeURIComponent(chat.threadId)}?bot=${encodeURIComponent(chat.botId)}`) : reveal()),
+          openChat,
         });
         shortcut = createTalkShortcut({ globalShortcut, prefs, available: () => appleSpeech && !remote() && !away(), onPress: logged("press", () => session.press()) });
       } catch (error) {
         session = null;
         log(`talk shortcut unavailable: ${error?.message ?? error}`);
       }
+      if (session) {
+        try {
+          spotlight = createSpotlight({ BrowserWindow, screen, nativeImage, iconPath, server, openChat, theme, t, log });
+          spotlightShortcut = createSpotlightShortcut({ globalShortcut, available: () => !remote() && !away(), onToggle: logged("spotlight", () => spotlight?.toggle()) });
+        } catch (error) {
+          spotlight = null;
+          spotlightShortcut = null;
+          log(`spotlight shortcut unavailable: ${error?.message ?? error}`);
+        }
+      }
     },
     /** Home changed (My Cloud, or this computer again): the key is let go or taken again to match. */
-    homeChanged: logged("home change", () => shortcut?.refresh()),
+    homeChanged: logged("home change", () => {
+      shortcut?.refresh();
+      spotlightShortcut?.refresh();
+    }),
     /** A page painted the app's skin (its id, resolved from the Theme setting): the box takes its light or dark. */
     skin(id) {
       if (!skins.isKnownSkin(id)) return;
       theme = skins.skinIsLight(id) ? "light" : "dark";
-      logged("skin", () => panel?.setTheme(theme))();
+      logged("skin", () => {
+        panel?.setTheme(theme);
+        spotlight?.setTheme(theme);
+      })();
     },
     /** Listening, or an ask on its way that has not been answered yet. */
-    busy: () => session?.busy() ?? false,
-    relabel: () => panel?.relabel(),
+    busy: () => Boolean(session?.busy() || spotlight?.busy()),
+    toggleSpotlight: logged("spotlight", () => spotlight?.toggle()),
+    spotlightAccelerator: () => spotlightShortcut?.accelerator() ?? null,
+    relabel() {
+      panel?.relabel();
+      spotlight?.relabel();
+    },
     close() {
       logged("close", () => session?.close())();
+      logged("close", () => spotlight?.close())();
       logged("close", () => shortcut?.close())();
+      logged("close", () => spotlightShortcut?.close())();
     },
   };
 }
