@@ -5,9 +5,7 @@ import type { LocaleKey } from "@/locales";
 import {
   AlertTriangle,
   Check,
-  Circle,
   Cloud,
-  ExternalLink,
   Loader2,
   Moon,
   RefreshCw,
@@ -19,50 +17,20 @@ import { Card, CommandLine } from "./SettingsPrimitives";
 import { MacLocalControl } from "./MacLocalControl";
 import { Select } from "./Select";
 import { cn } from "@/lib/cn";
-import { localizeComputerProblem } from "@/lib/computer-messages";
+import { localizeComputerProblem, runtimeDisplayName } from "@/lib/computer-messages";
 import { computerInventoryRequest, jsonPostRequest, type ComputerApiRequest } from "@/lib/computer-requests";
 import { useStore } from "@/state/store";
 import { VpsComputersCard } from "./VpsComputersCard"; import { KeysLink } from "./keys/KeysLink";
+import {
+  LocalCloudComputerCard,
+  OtherRemoteDesktopsDisclosure,
+  localVmNeedsRecreate,
+  type LocalVmAction,
+  type LocalVmStatus,
+  type PrepareStartStage,
+} from "./LocalCloudComputerCard";
 
-type Action = "pull" | "run" | "start" | "stop" | "remove" | "recreate";
-
-interface Status {
-  platform: string;
-  runtime: string | null;
-  available: string[];
-  daemonUp: boolean;
-  image: boolean;
-  imageMatches: boolean;
-  managed: boolean;
-  container: "running" | "stopped" | "missing";
-  network: "loopback" | "unsafe" | "unknown";
-  security: "hardened" | "unsafe" | "unknown";
-  persistence: "durable" | "unsafe" | "unknown";
-  desktopReady: boolean;
-  ready: boolean;
-  problem: string | null;
-  image_ref: string;
-  base_image_ref: string;
-  driver_version: string;
-  container_name: string;
-  workspace_path: string;
-  workspace_guest_path: string;
-  viewer_url: string;
-  idle_timeout_ms: number;
-  stop_reason?: "idle" | null;
-  mode: "shared" | "per-bot" | "pool";
-  max_instances: number;
-  commands: {
-    install: string | null;
-    runtimeStart: string | null;
-    pull: string | null;
-    run: string | null;
-    start: string | null;
-    stop: string | null;
-    remove: string | null;
-    view: string;
-  };
-}
+type RawAction = Exclude<LocalVmAction, "recreate" | "prepare-start">;
 
 export interface LocalVmInventoryInstance {
   botId: string;
@@ -637,8 +605,8 @@ function ActionButton({
   onClick,
   danger = false,
 }: {
-  action: Action;
-  pending: Action | null;
+  action: LocalVmAction;
+  pending: LocalVmAction | null;
   children: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
@@ -758,9 +726,10 @@ export function LocalVmIdleTimeoutSetting({
 
 export function LocalComputerSection() {
   const cloudHome = useStore().state.config?.cloudHome === true;
-  const [status, setStatus] = useState<Status | null>(null);
+  const [status, setStatus] = useState<LocalVmStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<Action | null>(null);
+  const [pending, setPending] = useState<LocalVmAction | null>(null);
+  const [prepareStage, setPrepareStage] = useState<PrepareStartStage>(null);
   const actionController = useRef<AbortController | null>(null);
   useEffect(() => () => actionController.current?.abort(), []);
   const [error, setError] = useState<string | null>(null);
@@ -797,9 +766,9 @@ export function LocalComputerSection() {
     const body = await response.json().catch(() => ({}));
     if (signal?.aborted) return;
     if (!response.ok) throw new Error(body.error ?? t("vm.err.status", { code: response.status }));
-    setStatus(body as Status);
+    setStatus(body as LocalVmStatus);
     setError(null);
-    return body as Status;
+    return body as LocalVmStatus;
   }, []);
 
   const refreshInventory = useCallback(async (signal?: AbortSignal) => {
@@ -932,7 +901,7 @@ export function LocalComputerSection() {
     return () => controller.abort();
   }, [refreshVpsInventory, vpsRefreshKey]);
 
-  const post = async (action: Exclude<Action, "recreate">, signal: AbortSignal) => {
+  const post = async (action: RawAction, signal: AbortSignal) => {
     const response = await fetch(`/api/local-computer/${action}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -940,7 +909,7 @@ export function LocalComputerSection() {
       signal,
     });
     const body = await response.json().catch(() => ({}));
-    const errorKeys: Record<Exclude<Action, "recreate">, LocaleKey> = {
+    const errorKeys: Record<RawAction, LocaleKey> = {
       pull: "vm.err.prepare",
       run: "vm.err.create",
       start: "vm.err.start",
@@ -949,13 +918,13 @@ export function LocalComputerSection() {
     };
     if (!response.ok) throw new Error(body.error ?? t(errorKeys[action]));
     signal.throwIfAborted();
-    setStatus(body as Status);
-    return body as Status;
+    setStatus(body as LocalVmStatus);
+    return body as LocalVmStatus;
   };
 
   const confirmAction = (message: string) => window.ogb?.confirm ? window.ogb.confirm(message) : window.confirm(message);
 
-  const act = async (action: Action) => {
+  const act = async (action: LocalVmAction) => {
     if (pending !== null || actionController.current) return;
     const controller = new AbortController();
     actionController.current = controller;
@@ -964,11 +933,26 @@ export function LocalComputerSection() {
     try {
       if (action === "remove" && !(await confirmAction(t("vm.confirm.deleteShared")))) return;
       if (action === "recreate" && !(await confirmAction(t("vm.confirm.recreate")))) return;
-      let result: Status;
-      if (action === "recreate") {
+      let result: LocalVmStatus;
+      if (action === "prepare-start") {
+        setPrepareStage("pulling");
+        result = await post("pull", controller.signal);
+        if (result.mode === "shared") {
+          setPrepareStage("starting");
+          result = await post("run", controller.signal);
+          result = await waitForLocalVmReady(
+            result,
+            async () => (await refresh(controller.signal)) ?? result,
+            controller.signal,
+          );
+          if (!result.ready) throw new Error(result.problem ?? t("vm.err.start"));
+        }
+      } else if (action === "recreate") {
+        setPrepareStage("starting");
         await post("remove", controller.signal);
         result = await post("run", controller.signal);
       } else {
+        if (action === "run" || action === "start") setPrepareStage("starting");
         result = await post(action, controller.signal);
       }
       if (action === "run" || action === "start" || action === "recreate") {
@@ -992,11 +976,14 @@ export function LocalComputerSection() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       actionController.current = null;
-      if (!controller.signal.aborted) setPending(null);
+      if (!controller.signal.aborted) {
+        setPending(null);
+        setPrepareStage(null);
+      }
     }
   };
 
-  const savePolicy = async (mode: Status["mode"], maxInstances: number) => {
+  const savePolicy = async (mode: LocalVmStatus["mode"], maxInstances: number) => {
     setPolicyPending(true);
     setError(null);
     try {
@@ -1167,120 +1154,30 @@ export function LocalComputerSection() {
   const c = status?.commands;
   const ready = status?.ready === true;
   const existing = status?.container !== "missing";
-  const needsRecreate = Boolean(
-    existing &&
-      (!status?.imageMatches ||
-        !status?.managed ||
-        status?.network === "unsafe" ||
-        status?.security === "unsafe" ||
-        status?.persistence === "unsafe"),
-  );
+  const needsRecreate = localVmNeedsRecreate(status);
   const unavailable = !loading && !status;
-  const host = status?.platform === "darwin" ? t("vm.host.mac") : t("vm.host.computer");
   const perBot = status?.mode === "per-bot";
   const perBotRuntimeUnsupported = perBot && status?.runtime === "container";
-  const headerReady = perBot ? Boolean(status?.daemonUp && status?.image && !perBotRuntimeUnsupported) : ready;
+  const runtimeLabel = runtimeDisplayName(status?.runtime);
 
   return (
     <>
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
-      <CloudComputersCard
-        instances={cloudInventory}
-        configured={cloudConfigured}
-        loading={cloudLoading}
-        pending={cloudPending}
-        error={cloudError}
-        unavailableReason={cloudUnavailableReason}
-        onRefresh={() => setCloudRefreshKey((key) => key + 1)}
-        onSleep={(instance) => void actOnCloudComputer("sleep", instance)}
-        onDelete={(instance) => void actOnCloudComputer("delete", instance)}
-      />
-
-      <VpsComputersCard
-        instances={vpsInventory}
-        configured={vpsConfigured}
-        aliases={vpsAliases}
-        loading={vpsLoading}
-        removingName={vpsRemovingName}
-        error={vpsError}
-        unavailableReason={vpsUnavailableReason}
-        onRefresh={() => setVpsRefreshKey((key) => key + 1)}
-        onRemove={(instance) => void removeVpsComputer(instance)}
-      />
-
-      <MacLocalControl />
 
       {!cloudHome && <>
-      <Card
-        title={t("vm.main.title")}
-        subtitle={perBot
-          ? t("vm.main.perBotSubtitle", { host })
-          : t("vm.main.sharedSubtitle", { host })}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            aria-live="polite"
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px]",
-              headerReady ? "bg-success/15 text-success" : "bg-control text-ink-secondary",
-            )}
-          >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : headerReady ? <Check size={12} /> : <Circle size={9} />}
-            {loading
-              ? t("common.checking")
-              : unavailable
-                ? t("vm.main.statusUnavailable")
-                : perBot && headerReady
-                  ? t("vm.main.readyPerBot")
-                  : perBotRuntimeUnsupported
-                    ? t("vm.main.perBotUnsupported")
-                  : ready
-                    ? t("vm.main.ready")
-                    : (status?.problem ?? t("vm.main.notReady"))}
-          </span>
-          <button
-            onClick={() => {
-              setLoading(true);
-              setRefreshKey((key) => key + 1);
-              setInventoryRefreshKey((key) => key + 1);
-            }}
-            disabled={loading || pending !== null}
-            className="flex items-center gap-1.5 rounded-lg border border-hairline/40 px-2.5 py-1 text-[13px] text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-40"
-          >
-            <RefreshCw size={12} /> {t("vm.main.recheck")}
-          </button>
-          {ready && !perBot && (
-            <a
-              href={status?.viewer_url ?? c?.view}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-hairline/40 px-2.5 py-1 text-[13px] text-ink hover:bg-control"
-            >
-              <ExternalLink size={12} /> {t("vm.main.watch")}
-            </a>
-          )}
-        </div>
-        {!headerReady && !loading && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-ink/[0.04] p-3 text-[12px] text-ink-secondary">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-500" />
-            <div>
-              <p className="font-medium text-ink">
-                {status?.platform === "win32"
-                  ? t("vm.main.runtimeNoticeWindows")
-                  : status?.platform === "darwin"
-                    ? t("vm.main.runtimeNoticeMac")
-                    : t("vm.main.runtimeNotice")}
-              </p>
-              <p className="mt-0.5">
-                {!status?.runtime
-                  ? (status?.platform === "win32" ? t("vm.main.noRuntimeHintWindows") : t("vm.main.noRuntimeHintMac"))
-                  : t("vm.main.daemonDownHint", { runtime: status.runtime })}
-              </p>
-            </div>
-          </div>
-        )}
-        {error && <div role="alert" className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-[12px] text-danger">{error}</div>}
-      </Card>
+      <LocalCloudComputerCard
+        status={status}
+        loading={loading}
+        pending={pending}
+        prepareStage={prepareStage}
+        error={error}
+        onRecheck={() => {
+          setLoading(true);
+          setRefreshKey((key) => key + 1);
+          setInventoryRefreshKey((key) => key + 1);
+        }}
+        onAction={(action) => void act(action)}
+      />
 
       <Card
         title={t("vm.isolation.title")}
@@ -1355,7 +1252,7 @@ export function LocalComputerSection() {
             n={2}
             title={
               status?.runtime && !status.daemonUp
-                ? t("vm.setup.step2Open", { runtime: status.runtime })
+                ? t("vm.setup.step2Open", { runtime: runtimeLabel ?? status.runtime })
                 : t("vm.setup.step2")
             }
             done={Boolean(status?.daemonUp)}
@@ -1481,6 +1378,39 @@ export function LocalComputerSection() {
         </div>
       </Card>
       </>}
+
+      <MacLocalControl />
+
+      <OtherRemoteDesktopsDisclosure
+        cloudConfigured={cloudConfigured}
+        cloudCount={cloudInventory.length}
+        vpsConfigured={vpsConfigured}
+        vpsCount={vpsInventory.length}
+      >
+        <CloudComputersCard
+          instances={cloudInventory}
+          configured={cloudConfigured}
+          loading={cloudLoading}
+          pending={cloudPending}
+          error={cloudError}
+          unavailableReason={cloudUnavailableReason}
+          onRefresh={() => setCloudRefreshKey((key) => key + 1)}
+          onSleep={(instance) => void actOnCloudComputer("sleep", instance)}
+          onDelete={(instance) => void actOnCloudComputer("delete", instance)}
+        />
+
+        <VpsComputersCard
+          instances={vpsInventory}
+          configured={vpsConfigured}
+          aliases={vpsAliases}
+          loading={vpsLoading}
+          removingName={vpsRemovingName}
+          error={vpsError}
+          unavailableReason={vpsUnavailableReason}
+          onRefresh={() => setVpsRefreshKey((key) => key + 1)}
+          onRemove={(instance) => void removeVpsComputer(instance)}
+        />
+      </OtherRemoteDesktopsDisclosure>
     </>
   );
 }

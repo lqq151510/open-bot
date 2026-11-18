@@ -1,6 +1,18 @@
 import { t } from "./i18n";
 import type { LocaleKey } from "@/locales";
 
+const RUNTIME_LABELS: Record<string, string> = {
+  docker: "Docker",
+  "wsl-docker": "WSL2 Docker",
+  podman: "Podman",
+  container: "Apple Container",
+};
+
+export function runtimeDisplayName(runtime: string | null | undefined): string | null {
+  if (!runtime) return null;
+  return RUNTIME_LABELS[runtime] ?? runtime;
+}
+
 /**
  * Computer status responses come from the server so they can also be useful
  * in logs and API clients. Translate the known user-facing status messages at
@@ -23,7 +35,10 @@ export function localizeComputerProblem(problem: string | null | undefined): str
   const key = exact[problem];
   if (key) return t(key);
   const stopped = /^Start (\S+) first$/.exec(problem);
-  if (stopped) return t("computer.problem.startRuntime", { runtime: stopped[1]! });
+  if (stopped) {
+    const runtime = stopped[1] === "wsl-docker" ? "WSL2 Docker" : stopped[1]!;
+    return t("computer.problem.startRuntime", { runtime });
+  }
   const desktopFailure = /^The Local VM desktop failed to start: (.+)$/.exec(problem);
   if (desktopFailure) return t("computer.problem.desktopFailed", { detail: desktopFailure[1]! });
   return problem;

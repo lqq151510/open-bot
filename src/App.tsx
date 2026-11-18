@@ -38,6 +38,7 @@ import { CloudAsleepStrip } from "@/components/CloudAsleepStrip";
 import { LiveConnectionStrip } from "@/components/LiveConnectionStrip";
 import { CloudSendStrip } from "@/components/CloudSendStrip";
 import { HomeLine } from "@/components/HomeLine";
+import { LocalAssistantBar } from "@/components/LocalAssistantBar";
 import { useTeamChats } from "@/state/team-chats";
 import { needsYouVersion, useTeamPeopleLoader } from "@/state/team-people";
 import { inboxVersion, useInboxLoader, useInboxPanel, useInboxReady } from "@/state/inbox";
@@ -329,6 +330,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
     <LiveConnectionStrip connected={state.connected} hydrated={state.hydrated === true} />
     <CloudSendStrip cloudHome={state.config?.cloudHome === true} />
     <HomeLine />
+    <LocalAssistantBar />
     <AppNotices quiet={paletteOpen || drawerOpen || Boolean(localVmWorkspaceBotId)} viewer={viewer} />
   </>;
   return (

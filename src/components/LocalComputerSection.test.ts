@@ -1,4 +1,6 @@
-import { createElement } from "react";
+// @vitest-environment happy-dom
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +12,13 @@ vi.mock("@/state/store", async (importOriginal) => {
   return { ...original, useStore: () => ({ state: { ...original.initialState, config: storeFixture.config }, dispatch: vi.fn() }) };
 });
 
+import {
+  LocalCloudComputerCard,
+  OtherRemoteDesktopsDisclosure,
+  resolveHeroStateKind,
+  shouldExpandRemoteDesktops,
+  type LocalVmStatus,
+} from "./LocalCloudComputerCard";
 import {
   CloudComputersCard,
   LocalComputerSection,
@@ -566,15 +575,206 @@ describe("Settings → Computers on an OMB Cloud home", () => {
   const cards = () => [...renderToStaticMarkup(createElement(LocalComputerSection)).matchAll(/<div class="text-\[16px\] font-semibold text-ink[^"]*">([^<]+)<\/div>/g)].map((match) => match[1]);
 
   it("sets up a Local VM on a desktop or self-hosted server", () => {
-    expect(cards()).toEqual(expect.arrayContaining(["Cloud desktops", "Private desktops", "Setup"]));
+    expect(cards()).toEqual(expect.arrayContaining(["Cloud desktops", "Local cloud computer", "Setup"]));
   });
 
   it("shows no Local VM, and no steps to install one, where it cannot exist", () => {
     storeFixture.config = { cloudHome: true };
     const titles = cards();
     expect(titles).toContain("Cloud desktops");
-    expect(titles).not.toContain("Private desktops");
+    expect(titles).not.toContain("Local cloud computer");
     expect(titles).not.toContain("Setup");
+  });
+});
+
+describe("Local cloud computer hero card & remote disclosure", () => {
+  const baseStatus: LocalVmStatus = {
+    platform: "darwin",
+    runtime: "docker",
+    available: ["docker"],
+    daemonUp: true,
+    image: false,
+    imageMatches: true,
+    managed: true,
+    container: "missing",
+    network: "loopback",
+    security: "hardened",
+    persistence: "durable",
+    desktopReady: false,
+    ready: false,
+    problem: null,
+    image_ref: "openbot-cua:latest",
+    base_image_ref: "trycua/cua-ubuntu:latest",
+    driver_version: "0.41.3",
+    container_name: "openbot-vm",
+    workspace_path: "/tmp/vm",
+    workspace_guest_path: "/home/cua/workspace",
+    viewer_url: "http://127.0.0.1:6901",
+    idle_timeout_ms: 28_800_000,
+    stop_reason: null,
+    mode: "shared",
+    max_instances: 2,
+    commands: {
+      install: "brew install --cask docker",
+      runtimeStart: "open -a Docker || colima start",
+      pull: "docker pull trycua/cua-ubuntu:latest",
+      run: "docker run ...",
+      start: "docker start openbot-vm",
+      stop: "docker stop openbot-vm",
+      remove: "docker rm -f openbot-vm",
+      view: "http://127.0.0.1:6901",
+    },
+  };
+
+  it("formats platform subtitles, runtime badges, and one-click actions by state", () => {
+    const needsPrepare = renderToStaticMarkup(createElement(LocalCloudComputerCard, {
+      status: baseStatus,
+      loading: false,
+      pending: null,
+      prepareStage: null,
+      error: null,
+      onRecheck: vi.fn(),
+      onAction: vi.fn(),
+    }));
+    expect(needsPrepare).toContain("Local cloud computer");
+    expect(needsPrepare).toContain("macOS · Docker container sandbox");
+    expect(needsPrepare).toContain(">Docker<");
+    expect(needsPrepare).toContain("Prepare &amp; start local cloud computer");
+
+    const wslStopped = renderToStaticMarkup(createElement(LocalCloudComputerCard, {
+      status: {
+        ...baseStatus,
+        platform: "win32",
+        runtime: "wsl-docker",
+        daemonUp: false,
+        problem: "Start wsl-docker first",
+      },
+      loading: false,
+      pending: null,
+      prepareStage: null,
+      error: null,
+      onRecheck: vi.fn(),
+      onAction: vi.fn(),
+    }));
+    expect(wslStopped).toContain("Windows · WSL2 container sandbox");
+    expect(wslStopped).toContain(">WSL2 Docker<");
+    expect(wslStopped).toContain("Start WSL2 Docker first");
+
+    const ready = renderToStaticMarkup(createElement(LocalCloudComputerCard, {
+      status: { ...baseStatus, image: true, container: "running", desktopReady: true, ready: true },
+      loading: false,
+      pending: null,
+      prepareStage: null,
+      error: null,
+      onRecheck: vi.fn(),
+      onAction: vi.fn(),
+    }));
+    expect(ready).toContain("Watch screen");
+    expect(ready).toContain("Stop / Sleep");
+    expect(resolveHeroStateKind({ ...baseStatus, image: true, container: "stopped" }, false)).toBe("stopped");
+  });
+
+  it("collapses third-party Cloud/VPS disclosure when unconfigured and expands when configured", () => {
+    expect(shouldExpandRemoteDesktops({ cloudConfigured: false, cloudCount: 0, vpsConfigured: false, vpsCount: 0 })).toBe(false);
+    expect(shouldExpandRemoteDesktops({ cloudConfigured: null, cloudCount: 0, vpsConfigured: null, vpsCount: 0 })).toBe(false);
+    expect(shouldExpandRemoteDesktops({ cloudConfigured: true, cloudCount: 0, vpsConfigured: false, vpsCount: 0 })).toBe(true);
+    expect(shouldExpandRemoteDesktops({ cloudConfigured: false, cloudCount: 0, vpsConfigured: false, vpsCount: 1 })).toBe(true);
+
+    const closed = renderToStaticMarkup(createElement(OtherRemoteDesktopsDisclosure, {
+      cloudConfigured: false,
+      cloudCount: 0,
+      vpsConfigured: false,
+      vpsCount: 0,
+      children: createElement("div", null, "inner"),
+    }));
+    expect(closed).toContain("Other remote desktops (VPS / Cloud)");
+    expect(closed).not.toContain("<details open");
+
+    const opened = renderToStaticMarkup(createElement(OtherRemoteDesktopsDisclosure, {
+      cloudConfigured: true,
+      cloudCount: 0,
+      vpsConfigured: false,
+      vpsCount: 0,
+      children: createElement("div", null, "inner"),
+    }));
+    expect(opened).toContain("<details open");
+  });
+
+  it("chains pull and run on Prepare & start in shared mode, and pull only in per-bot mode", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const originalFetch = globalThis.fetch;
+    const calls: string[] = [];
+    let current: LocalVmStatus = { ...baseStatus, mode: "shared", image: false, ready: false };
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url === "/api/local-computer" && (!init?.method || init.method === "GET")) {
+        return new Response(JSON.stringify(current), { status: 200 });
+      }
+      if (url === "/api/local-computer/pull") {
+        current = { ...current, image: true };
+        return new Response(JSON.stringify(current), { status: 200 });
+      }
+      if (url === "/api/local-computer/run") {
+        current = { ...current, container: "running", desktopReady: true, ready: true };
+        return new Response(JSON.stringify(current), { status: 200 });
+      }
+      if (url === "/api/local-computer/instances") {
+        return new Response(JSON.stringify({ instances: [], maxInstances: 2, available: true, problem: null }), { status: 200 });
+      }
+      if (url === "/api/computers/boxes") {
+        return new Response(JSON.stringify({ configured: false, available: true, problem: null, instances: [] }), { status: 200 });
+      }
+      if (url === "/api/computers/vps") {
+        return new Response(JSON.stringify({ configured: false, available: true, vpsAliases: [], problem: null, instances: [] }), { status: 200 });
+      }
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root: Root = createRoot(host);
+    try {
+      await act(async () => { root.render(createElement(LocalComputerSection)); });
+      await act(async () => { await Promise.resolve(); });
+
+      const prepareBtn = [...host.querySelectorAll("button")].find((btn) =>
+        btn.textContent?.includes("Prepare & start local cloud computer"),
+      );
+      expect(prepareBtn).toBeDefined();
+
+      await act(async () => { prepareBtn!.click(); });
+      await act(async () => { await Promise.resolve(); });
+
+      expect(calls).toContain("POST /api/local-computer/pull");
+      expect(calls).toContain("POST /api/local-computer/run");
+      expect(calls.indexOf("POST /api/local-computer/pull")).toBeLessThan(calls.indexOf("POST /api/local-computer/run"));
+      expect(host.textContent).toContain("Watch screen");
+
+      calls.length = 0;
+      current = { ...baseStatus, mode: "per-bot", image: false, ready: false };
+      await act(async () => { root.unmount(); });
+      const root2: Root = createRoot(host);
+      try {
+        await act(async () => { root2.render(createElement(LocalComputerSection)); });
+        await act(async () => { await Promise.resolve(); });
+        const perBotBtn = [...host.querySelectorAll("button")].find((btn) =>
+          btn.textContent?.includes("Prepare & start local cloud computer"),
+        );
+        expect(perBotBtn).toBeDefined();
+        await act(async () => { perBotBtn!.click(); });
+        await act(async () => { await Promise.resolve(); });
+
+        expect(calls).toContain("POST /api/local-computer/pull");
+        expect(calls).not.toContain("POST /api/local-computer/run");
+      } finally {
+        await act(async () => { root2.unmount(); });
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      host.remove();
+    }
   });
 });
 
