@@ -30,16 +30,16 @@ export function createBotLifecycleRoutes(deps: BotLifecycleRouteDeps): RouteHand
       }
       await Promise.allSettled(
         store.bots
-          .filter((bot) => bot.computer === "local")
+          .filter((bot) => bot.computer === "local" || (bot.tasks ?? []).some((task) => task.surface === "local"))
           .map(async (bot) => {
             await interruptAllDirectThreads(bot.id);
-            const routineRun = routines!.activeBotRunForBot(bot.id);
+            const routineRun = routines?.activeBotRunForBot(bot.id);
             if (routineRun) {
               cancelDirectTurnDispatch(bot.id, routineRun.threadId);
               if (routineRun.threadId) {
                 revokeInternalCapabilitiesForThread(routineRun.threadId);
               }
-              await routines!.cancelRun(routineRun.id);
+              await routines?.cancelRun(routineRun.id);
             }
             const groupTurn = activeGroupTurnForBot(bot.id);
             if (groupTurn) {

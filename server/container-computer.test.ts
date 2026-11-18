@@ -338,19 +338,22 @@ function perBotReadyInspect(botId: string, viewerPort: number, targetLabel?: str
 }
 
 describe("containerComputerStatus", () => {
-  it("prefers the supported Podman image store when Docker is also healthy on Windows", async () => {
+  it("prefers Docker Desktop, then WSL2 Docker, then Podman on Windows", async () => {
     const fake = runner({
-      "where.exe podman": "C:\\Program Files\\RedHat\\Podman\\podman.exe\n",
       "where.exe docker": "C:\\Program Files\\Docker\\docker.exe\n",
-      "podman info --format json": '{"host":{"arch":"amd64"}}\n',
+      "where.exe wsl.exe": "C:\\Windows\\System32\\wsl.exe\n",
+      "wsl.exe -- sh -lc command -v docker": "/usr/bin/docker\n",
+      "where.exe podman": "C:\\Program Files\\RedHat\\Podman\\podman.exe\n",
       "docker info --format {{.ServerVersion}}": "29.0.0\n",
+      "wsl.exe -- docker info --format {{.ServerVersion}}": "29.0.0\n",
+      "podman info --format json": '{"host":{"arch":"amd64"}}\n',
     });
 
     const status = await containerRuntimeStatus(fake.run, "win32");
 
     expect(status).toEqual({
-      runtime: "podman",
-      available: ["podman", "docker"],
+      runtime: "docker",
+      available: ["docker", "wsl-docker", "podman"],
       daemonUp: true,
     });
   });
@@ -1114,8 +1117,7 @@ describe("setupCommands", () => {
     expect(commands.pull).toBeNull();
     expect(commands.run).toBeNull();
     expect(commands.start).toBeNull();
-    expect(commands.install).toContain("podman");
-    expect(commands.install).not.toContain("Docker");
+    expect(commands.install).toBe("brew install --cask docker");
   });
 
   it("publishes only the password-protected viewer and only on loopback", () => {
@@ -1191,8 +1193,17 @@ describe("setupCommands", () => {
     expect(commands.run).not.toContain("--memory-swap");
   });
 
-  it("offers the supported Podman Desktop installer on Windows", () => {
-    expect(setupCommands(null, "win32").install).toBe("winget install -e --id RedHat.Podman-Desktop");
+  it("offers the WSL2 and Docker Desktop installer on Windows and platform runtimeStart commands", () => {
+    expect(setupCommands(null, "win32").install).toBe("wsl --install && winget install -e --id Docker.DockerDesktop");
+    expect(setupCommands("docker", "darwin").runtimeStart).toBe("open -a Docker || colima start");
+    expect(setupCommands("docker", "win32").runtimeStart).toBe(
+      "powershell -NoProfile -Command \"Start-Process 'C:\\Program Files\\Docker\\Docker Desktop.exe'\"",
+    );
+    expect(setupCommands("wsl-docker", "win32").runtimeStart).toBe(
+      "wsl.exe -u root -- sh -lc \"service docker start || systemctl start docker\"",
+    );
+    expect(setupCommands("podman", "darwin").runtimeStart).toBe("podman machine start");
+    expect(setupCommands("docker", "linux").runtimeStart).toBe("sudo systemctl start docker");
   });
 });
 

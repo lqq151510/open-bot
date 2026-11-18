@@ -11,46 +11,23 @@ import { augmentedPath, resolveCliSpawn } from "./env-path.ts";
 import { workspacePreparationDockerfile } from "./container-workspace.ts";
 import { DATA_DIR } from "./config.ts";
 import {
-  BASE_IMAGE,
-  BASE_IMAGE_DIGEST,
-  BASE_IMAGE_LABEL,
-  CUA_DRIVER_VERSION,
-  DRIVER_LABEL,
-  IMAGE,
-  IMAGE_LAYER_LABEL,
-  IMAGE_LAYER_VERSION,
-  MANAGED_LABEL,
-  imageLabelsMatch,
-  imagePinDiffers,
-  inspectedImage,
-  normalizeImageId,
+  BASE_IMAGE, BASE_IMAGE_DIGEST, BASE_IMAGE_LABEL, CUA_DRIVER_VERSION, DRIVER_LABEL, IMAGE,
+  IMAGE_LAYER_LABEL, IMAGE_LAYER_VERSION, MANAGED_LABEL,
+  imageLabelsMatch, imagePinDiffers, inspectedImage, normalizeImageId,
 } from "./container-image-identity.ts";
 import { PIDS_LIMIT, raisePidsLimit } from "./container-limits.ts";
+import {
+  buildSetupCommands, isRuntimeInstalled, matchesWindowsWslMountSource, runRuntimeCommand,
+  runtimeCandidates, spawnRuntimeCommand, windowsPathToWslMount, type CommandRunner, type Runtime,
+} from "./container-runtime-wsl.ts";
 import { SPAWNED_PROXIES } from "./proxy-paths.ts";
 
 const run = promisify(execFile);
 const SCREENSHOT_STATUS_TTL_MS = 10_000;
 
-export type CommandRunner = (
-  command: string,
-  args: string[],
-  timeout?: number,
-) => Promise<{ stdout: string }>;
-
 export {
-  BASE_IMAGE,
-  BASE_IMAGE_DIGEST,
-  BASE_IMAGE_LABEL,
-  BASE_IMAGE_REPOSITORY,
-  CUA_DRIVER_VERSION,
-  DRIVER_LABEL,
-  IMAGE,
-  IMAGE_LAYER_LABEL,
-  IMAGE_LAYER_VERSION,
-  IMAGE_REPOSITORY,
-  MANAGED_LABEL,
-  imageLabelsMatch,
-  imagePinDiffers,
+  BASE_IMAGE, BASE_IMAGE_DIGEST, BASE_IMAGE_LABEL, BASE_IMAGE_REPOSITORY, CUA_DRIVER_VERSION, DRIVER_LABEL,
+  IMAGE, IMAGE_LAYER_LABEL, IMAGE_LAYER_VERSION, IMAGE_REPOSITORY, MANAGED_LABEL, imageLabelsMatch, imagePinDiffers,
 } from "./container-image-identity.ts";
 
 export const CONTAINER = "openbot-computer";
@@ -62,8 +39,10 @@ export const DISPLAY = ":1";
 export const CUA_SOCKET = "/run/user/1000/openbot-cua.sock";
 export const CUA_EXECUTABLE = "/usr/local/libexec/openbot/cua-driver";
 
-const RUNTIMES = ["docker", "podman", "container"] as const;
-export type Runtime = (typeof RUNTIMES)[number];
+export {
+  RUNTIMES, matchesWindowsWslMountSource, runtimeCandidates, spawnRuntimeCommand, windowsPathToWslMount,
+  type CommandRunner, type Runtime,
+} from "./container-runtime-wsl.ts";
 export type LifecycleAction = "pull" | "run" | "start" | "stop" | "remove";
 
 const INTERNAL_VIEWER_PORT = 6901;
@@ -212,17 +191,13 @@ export async function sh(cmd: string, args: string[], timeout = 8000): Promise<{
   return { stdout };
 }
 
-async function installed(
-  cmd: string,
-  runner: CommandRunner,
-  platform: NodeJS.Platform,
-): Promise<boolean> {
-  try {
-    await runner(platform === "win32" ? "where.exe" : "/usr/bin/which", [cmd], 4000);
-    return true;
-  } catch {
-    return false;
-  }
+export function runRuntime(
+  runtime: Runtime,
+  args: string[],
+  runner: CommandRunner = sh,
+  timeout?: number,
+): Promise<{ stdout: string }> {
+  return runRuntimeCommand(runtime, args, runner, timeout);
 }
 
 export interface ContainerRuntimeStatus {
@@ -236,11 +211,8 @@ export async function containerRuntimeStatus(
   runner: CommandRunner = sh,
   platform: NodeJS.Platform = process.platform,
 ): Promise<ContainerRuntimeStatus> {
-  // Podman is the supported Windows VM lane and owns the pinned image; Docker-first would pick an unrelated image store.
-  const candidates: Runtime[] = platform === "win32"
-    ? ["podman", "docker"]
-    : RUNTIMES.filter((runtime) => runtime !== "container" || platform === "darwin");
-  const present = await Promise.all(candidates.map((runtime) => installed(runtime, runner, platform)));
+  const candidates = runtimeCandidates(platform);
+  const present = await Promise.all(candidates.map((runtime) => isRuntimeInstalled(runtime, runner, platform)));
   const available = candidates.filter((_, index) => present[index]);
   const healthy = await Promise.all(
     available.map(async (candidate) => {
@@ -250,11 +222,7 @@ export async function containerRuntimeStatus(
           : candidate === "podman"
             ? ["info", "--format", "json"]
             : ["info", "--format", "{{.ServerVersion}}"];
-        await runner(
-          candidate,
-          infoArgs,
-          10_000,
-        );
+        await runRuntime(candidate, infoArgs, runner, 10_000);
         return true;
       } catch {
         return false;
@@ -425,21 +393,11 @@ export function cuaExecArgs(
   options: { container?: string; interactive?: boolean } = {},
 ): string[] {
   return [
-    "exec",
-    ...(options.interactive ? ["-i"] : []),
-    "-u",
-    "cua",
-    "-e",
-    "HOME=/home/cua",
-    "-e",
-    `DISPLAY=${DISPLAY}`,
-    "-e",
-    "CUA_DRIVER_INSTALL_CHANNEL=python_package",
-    "-e",
-    "CUA_DRIVER_RS_TELEMETRY_ENABLED=0",
-    options.container ?? CONTAINER,
-    CUA_EXECUTABLE,
-    ...args,
+    "exec", ...(options.interactive ? ["-i"] : []),
+    "-u", "cua", "-e", "HOME=/home/cua", "-e", `DISPLAY=${DISPLAY}`,
+    "-e", "CUA_DRIVER_INSTALL_CHANNEL=python_package",
+    "-e", "CUA_DRIVER_RS_TELEMETRY_ENABLED=0",
+    options.container ?? CONTAINER, CUA_EXECUTABLE, ...args,
   ];
 }
 
@@ -461,14 +419,14 @@ export async function containerComputerStatus(
   }
 
   try {
-    const { stdout } = await runner(status.runtime, ["image", "inspect", IMAGE]);
-    const image = inspectedImage(stdout, status.runtime);
+    const { stdout } = await runRuntime(status.runtime, ["image", "inspect", IMAGE], runner);
+    const image = inspectedImage(stdout, status.runtime === "wsl-docker" ? "docker" : status.runtime);
     status.image = imageLabelsMatch(image.labels);
     status.image_id = image.id;
   } catch {}
 
   try {
-    const { stdout } = await runner(status.runtime, ["inspect", target.containerName]);
+    const { stdout } = await runRuntime(status.runtime, ["inspect", target.containerName], runner);
     if (status.runtime === "container") {
       const inspected = JSON.parse(stdout) as Array<{
         configuration?: {
@@ -546,7 +504,12 @@ export async function containerComputerStatus(
         status.image_pin_differs = imagePinDiffers(detail?.Config?.Image, detail?.Config?.Labels);
         if (status.image && status.image_id && detail?.Config?.Image && dockerImageId) status.image_identity_matches = status.imageMatches;
       }
-      if (status.managed && !options.inspectOnly) raisePidsLimit(target.containerName, detail?.HostConfig?.PidsLimit, runner.bind(null, status.runtime));
+      const activeRuntime = status.runtime;
+      if (status.managed && !options.inspectOnly) {
+        raisePidsLimit(target.containerName, detail?.HostConfig?.PidsLimit, (args, timeoutMs) =>
+          runRuntime(activeRuntime, args, runner, timeoutMs),
+        );
+      }
       status.persistence = dockerWorkspaceMountIsSafe(
         detail?.Mounts,
         platform,
@@ -576,12 +539,13 @@ export async function containerComputerStatus(
   if (canProbe) {
     try {
       const expected = `cua-driver ${CUA_DRIVER_VERSION}`;
-      const version = await runner(status.runtime, cuaExecArgs(["--version"], { container: target.containerName }), 8000);
+      const version = await runRuntime(status.runtime, cuaExecArgs(["--version"], { container: target.containerName }), runner, 8000);
       if (version.stdout.trim() !== expected) throw new Error(`expected ${expected}`);
-      await runner(status.runtime, cuaExecArgs(["status", "--socket", CUA_SOCKET], { container: target.containerName }), 8000);
-      const health = await runner(
+      await runRuntime(status.runtime, cuaExecArgs(["status", "--socket", CUA_SOCKET], { container: target.containerName }), runner, 8000);
+      const health = await runRuntime(
         status.runtime,
         cuaExecArgs(["call", "health_report", "{}", "--socket", CUA_SOCKET], { container: target.containerName }),
+        runner,
         15_000,
       );
       const report = JSON.parse(health.stdout) as { schema_version?: string; overall?: string; checks?: unknown[] };
@@ -593,7 +557,7 @@ export async function containerComputerStatus(
         throw new Error(`Cua health report is ${report.overall ?? "invalid"}`);
       }
       const readinessShot = "/tmp/openbot-readiness.png";
-      await runner(
+      await runRuntime(
         status.runtime,
         cuaExecArgs([
           "call",
@@ -604,11 +568,13 @@ export async function containerComputerStatus(
           "--screenshot-out-file",
           readinessShot,
         ], { container: target.containerName }),
+        runner,
         20_000,
       );
-      const captured = await runner(
+      const captured = await runRuntime(
         status.runtime,
         ["exec", target.containerName, "base64", "-w0", readinessShot],
+        runner,
         20_000,
       );
       if (!wholeScreenshot(Buffer.from(captured.stdout.trim(), "base64")).ok) {
@@ -618,9 +584,10 @@ export async function containerComputerStatus(
     } catch (error) {
       status.desktop_error = error instanceof Error ? error.message.slice(0, 320) : null;
       try {
-        const errorLog = await runner(
+        const errorLog = await runRuntime(
           status.runtime,
           ["exec", target.containerName, "tail", "-n", "4", "/var/log/supervisor/cua-driver.error.log"],
+          runner,
           4000,
         );
         status.desktop_error =
@@ -689,16 +656,6 @@ function sameWorkspaceSource(
   return platform === "win32" ? actual.toLowerCase() === expected.toLowerCase() : actual === expected;
 }
 
-/** Podman Machine exposes a Windows bind source through its WSL mount path; accept only the exact translation. */
-function samePodmanWindowsWorkspaceSource(source: string | undefined, expectedWorkspace: string): boolean {
-  if (!source) return false;
-  const match = expectedWorkspace.match(/^([A-Za-z]):[\\/](.+)$/);
-  if (!match) return false;
-  const expected = `/mnt/${match[1].toLowerCase()}/${match[2].replaceAll("\\", "/")}`;
-  const actual = source.replaceAll("\\", "/");
-  return actual.toLowerCase() === expected.toLowerCase();
-}
-
 function dockerWorkspaceMountIsSafe(
   mounts:
     | Array<{ Type?: string; Source?: string; Destination?: string; RW?: boolean }>
@@ -707,10 +664,10 @@ function dockerWorkspaceMountIsSafe(
   expectedWorkspace: string,
   runtime: Runtime = "docker",
 ): boolean {
+  const wslMountAllowed = platform === "win32" &&
+    (runtime === "docker" || runtime === "wsl-docker" || runtime === "podman");
   const sourceMatches = sameWorkspaceSource(mounts?.[0]?.Source, platform, expectedWorkspace) ||
-    (runtime === "podman" &&
-      platform === "win32" &&
-      samePodmanWindowsWorkspaceSource(mounts?.[0]?.Source, expectedWorkspace));
+    (wslMountAllowed && matchesWindowsWslMountSource(mounts?.[0]?.Source, expectedWorkspace));
   return Boolean(
     mounts?.length === 1 &&
       mounts[0]?.Type === "bind" &&
@@ -819,6 +776,7 @@ export function containerRunArgs(
   runtime: Runtime,
   password = "CHANGE_ME",
   target: LocalVmTarget = SHARED_LOCAL_VM_TARGET,
+  platform: NodeJS.Platform = process.platform,
 ): string[] {
   if (runtime === "container" && target.key !== SHARED_LOCAL_VM_TARGET.key) {
     throw new Error("Per-bot Local VMs require Docker or Podman because Apple container requires a fixed host port");
@@ -829,74 +787,34 @@ export function containerRunArgs(
     common.push("--userns", "keep-id:uid=1000,gid=1000", "--user", "0:0");
   }
   common.push(
-    "--label",
-    `${MANAGED_LABEL}=1`,
-    "--label",
-    `${DRIVER_LABEL}=${CUA_DRIVER_VERSION}`,
-    "--label",
-    `${BASE_IMAGE_LABEL}=${BASE_IMAGE_DIGEST}`,
-    "--label",
-    `${IMAGE_LAYER_LABEL}=${IMAGE_LAYER_VERSION}`,
-    "--label",
-    `${WORKSPACE_LABEL}=1`,
-    "--label",
-    `${TARGET_LABEL}=${target.label}`,
+    "--label", `${MANAGED_LABEL}=1`, "--label", `${DRIVER_LABEL}=${CUA_DRIVER_VERSION}`,
+    "--label", `${BASE_IMAGE_LABEL}=${BASE_IMAGE_DIGEST}`, "--label", `${IMAGE_LAYER_LABEL}=${IMAGE_LAYER_VERSION}`,
+    "--label", `${WORKSPACE_LABEL}=1`, "--label", `${TARGET_LABEL}=${target.label}`,
   );
   if (runtime === "container") {
     // Apple container already places each Linux container in a lightweight VM.
-    common.push(
-      "--memory",
-      "4g",
-      "--cpus",
-      "2",
-      "--cap-drop",
-      "ALL",
-      "--cap-add",
-      "SETUID",
-      "--cap-add",
-      "SETGID",
-      "--shm-size",
-      "512m",
-    );
+    common.push("--memory", "4g", "--cpus", "2", "--cap-drop", "ALL", "--cap-add", "SETUID", "--cap-add", "SETGID", "--shm-size", "512m");
   } else {
     common.push(
-      "--hostname",
-      target.containerName,
-      "--memory",
-      "4g",
-      "--memory-swap",
-      "4g",
-      "--cpus",
-      "2",
-      "--pids-limit", String(PIDS_LIMIT),
+      "--hostname", target.containerName, "--memory", "4g", "--memory-swap", "4g",
+      "--cpus", "2", "--pids-limit", String(PIDS_LIMIT),
       // Pinned: a daemon with host-mode IPC/cgroup defaults would create a container the hardening check then rejects.
-      "--ipc",
-      "private",
-      "--cgroupns",
-      "private",
-      "--cap-drop",
-      "ALL",
-      "--cap-add",
-      "SETUID",
-      "--cap-add",
-      "SETGID",
-      "--shm-size",
-      "512m",
+      "--ipc", "private", "--cgroupns", "private", "--cap-drop", "ALL",
+      "--cap-add", "SETUID", "--cap-add", "SETGID", "--shm-size", "512m",
     );
   }
   // Podman's default seccomp profile gates chroot on this capability, and Firefox chroots to build its sandbox.
   if (runtime === "podman") common.push("--cap-add", "SYS_CHROOT");
+  const mountSource = runtime === "wsl-docker" && platform === "win32"
+    ? windowsPathToWslMount(target.workspaceDir)
+    : target.workspaceDir;
   common.push(
     "--mount",
     runtime === "podman"
-      ? `type=bind,source=${target.workspaceDir},target=${VM_WORKSPACE_GUEST},relabel=private`
-      : `type=bind,source=${target.workspaceDir},target=${VM_WORKSPACE_GUEST}`,
-    "-e",
-    `VNC_PW=${password}`,
-    "-p",
-    target.viewerPort
-      ? `127.0.0.1:${target.viewerPort}:${INTERNAL_VIEWER_PORT}`
-      : `127.0.0.1::${INTERNAL_VIEWER_PORT}`,
+      ? `type=bind,source=${mountSource},target=${VM_WORKSPACE_GUEST},relabel=private`
+      : `type=bind,source=${mountSource},target=${VM_WORKSPACE_GUEST}`,
+    "-e", `VNC_PW=${password}`,
+    "-p", target.viewerPort ? `127.0.0.1:${target.viewerPort}:${INTERNAL_VIEWER_PORT}` : `127.0.0.1::${INTERNAL_VIEWER_PORT}`,
     IMAGE,
   );
   return common;
@@ -911,12 +829,24 @@ function baseImagePullArgs(runtime: Runtime): string[] {
   return runtime === "container" ? ["image", "pull", BASE_IMAGE] : ["pull", BASE_IMAGE];
 }
 
-async function prepareManagedImage(runtime: Runtime, runner: CommandRunner): Promise<void> {
-  await runner(runtime, baseImagePullArgs(runtime), 10 * 60_000);
+async function prepareManagedImage(
+  runtime: Runtime,
+  runner: CommandRunner,
+  platform: NodeJS.Platform = process.platform,
+): Promise<void> {
+  await runRuntime(runtime, baseImagePullArgs(runtime), runner, 10 * 60_000);
   const context = await mkdtemp(join(tmpdir(), "openbot-cua-image-"));
   try {
     await writeFile(join(context, "Dockerfile"), managedImageDockerfile(), { mode: 0o600 });
-    await runner(runtime, ["build", ...(runtime === "container" ? [] : ["--force-rm"]), "-t", IMAGE, context], 10 * 60_000); // the legacy builder keeps a failed step's container without --force-rm
+    const buildContext = runtime === "wsl-docker" && platform === "win32"
+      ? windowsPathToWslMount(context)
+      : context;
+    await runRuntime(
+      runtime,
+      ["build", ...(runtime === "container" ? [] : ["--force-rm"]), "-t", IMAGE, buildContext],
+      runner,
+      10 * 60_000,
+    ); // the legacy builder keeps a failed step's container without --force-rm
   } finally {
     await rm(context, { recursive: true, force: true });
   }
@@ -960,16 +890,16 @@ export async function containerComputerAction(
   }
 
   if (action === "pull") {
-    await prepareManagedImage(runtime, runner);
+    await prepareManagedImage(runtime, runner, platform);
   } else {
     if (action === "run") await ensureVmWorkspace(platform, target);
     const args =
       action === "run"
-        ? containerRunArgs(runtime, randomBytes(6).toString("base64url"), target)
+        ? containerRunArgs(runtime, randomBytes(6).toString("base64url"), target, platform)
         : action === "remove"
           ? ["rm", runtime === "container" ? "--force" : "-f", target.containerName]
           : [action, target.containerName];
-    await runner(runtime, args, 2 * 60_000);
+    await runRuntime(runtime, args, runner, 2 * 60_000);
   }
   return containerComputerStatus(runner, platform, target);
 }
@@ -980,7 +910,7 @@ export async function containerComputerExists(
   runner: CommandRunner = sh,
 ): Promise<boolean> {
   try {
-    await runner(runtime, ["inspect", target.containerName], 8_000);
+    await runRuntime(runtime, ["inspect", target.containerName], runner, 8_000);
     return true;
   } catch {
     return false;
@@ -1025,7 +955,7 @@ export async function containerComputerFrame(
   if (cacheable) screenshotStatusCache.set(target.key, { status, expiresAt: now + SCREENSHOT_STATUS_TTL_MS });
   try {
     const screenshot = "/tmp/openbot-preview.png";
-    await runner(
+    await runRuntime(
       status.runtime,
       cuaExecArgs([
         "call",
@@ -1036,11 +966,13 @@ export async function containerComputerFrame(
         "--screenshot-out-file",
         screenshot,
       ], { container: target.containerName }),
+      runner,
       30_000,
     );
-    const { stdout } = await runner(
+    const { stdout } = await runRuntime(
       status.runtime,
       ["exec", target.containerName, "base64", "-w0", screenshot],
+      runner,
       30_000,
     );
     const data = stdout.trim();
@@ -1127,18 +1059,19 @@ export async function containerExec(
   const runtime = options.runtime ?? (await containerRuntimeStatus()).runtime;
   if (!runtime) throw Object.assign(new Error("No container runtime is available for the Local VM"), { status: 409 });
   const seconds = Math.min(Math.max(Math.floor(options.timeoutSeconds ?? EXEC_DEFAULT_SECONDS), 1), EXEC_MAX_SECONDS);
+  const resolved = spawnRuntimeCommand(runtime, [
+    "exec",
+    "-u", "cua",
+    "-w", VM_WORKSPACE_GUEST,
+    "-e", "HOME=/home/cua",
+    "-e", `DISPLAY=${DISPLAY}`,
+    target.containerName,
+    "timeout", "-k", "5", String(seconds),
+    "sh", "-lc", command,
+  ]);
   const result = await (options.exec ?? defaultExecRunner)(
-    runtime,
-    [
-      "exec",
-      "-u", "cua",
-      "-w", VM_WORKSPACE_GUEST,
-      "-e", "HOME=/home/cua",
-      "-e", `DISPLAY=${DISPLAY}`,
-      target.containerName,
-      "timeout", "-k", "5", String(seconds),
-      "sh", "-lc", command,
-    ],
+    resolved.command,
+    resolved.args,
     { timeout: (seconds + 20) * 1000 },
   );
   const timedOut = result.code === 124 || result.code === 137;
@@ -1172,47 +1105,14 @@ export function setupCommands(
   platform: NodeJS.Platform = process.platform,
   target: LocalVmTarget = SHARED_LOCAL_VM_TARGET,
 ) {
-  const install =
-    platform === "darwin"
-      ? "brew install podman; podman machine init; podman machine start"
-      : platform === "win32"
-        ? "winget install -e --id RedHat.Podman-Desktop"
-        : null;
-  const runtimeStart =
-    runtime === "container"
-      ? "container system start"
-      : runtime === "podman" && platform !== "linux"
-        ? "podman machine init; podman machine start"
-        : runtime === "docker" && platform === "darwin"
-          ? "colima start || open -a Docker"
-          : runtime === "docker" && platform === "linux"
-            ? "sudo systemctl start docker"
-            : null;
-
-  if (!runtime) {
-    return {
-      install,
-      runtimeStart: null,
-      pull: null,
-      run: null,
-      start: null,
-      stop: null,
-      remove: null,
-      view: target.viewerPort ? `http://127.0.0.1:${target.viewerPort}/vnc.html` : "",
-    };
-  }
-  const command = (args: string[]) => [runtime, ...args].join(" ");
-  return {
-    install,
-    runtimeStart,
-    pull: command(baseImagePullArgs(runtime)),
-    run:
-      runtime === "container" && target.key !== SHARED_LOCAL_VM_TARGET.key
-        ? null
-        : command(containerRunArgs(runtime, "CHANGE_ME", target)),
-    start: command(["start", target.containerName]),
-    stop: command(["stop", target.containerName]),
-    remove: command(["rm", runtime === "container" ? "--force" : "-f", target.containerName]),
-    view: target.viewerPort ? `http://127.0.0.1:${target.viewerPort}/vnc.html` : "",
-  };
+  return buildSetupCommands({
+    runtime,
+    platform,
+    containerName: target.containerName,
+    viewerPort: target.viewerPort,
+    pullArgs: runtime ? baseImagePullArgs(runtime) : null,
+    runArgs: runtime && !(runtime === "container" && target.key !== SHARED_LOCAL_VM_TARGET.key)
+      ? containerRunArgs(runtime, "CHANGE_ME", target, platform)
+      : null,
+  });
 }
