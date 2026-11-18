@@ -28,14 +28,16 @@ More specific `AGENTS.md` files override this note within their directories.
 
 ## Learned User Preferences
 
-- Imitate Grok Bot by copying product behavior, and keep each engine on its own subscription (Claude, Codex, Grok CLI, xAI API, or a custom CLI). Do not bind memory injection or engine choice to one model.
+- Imitate Grok Bot by copying product behavior, and keep each engine on its own subscription (Claude, Codex, Grok CLI, xAI API, or a custom CLI) or a user-configured third-party API. Do not bind memory injection or engine choice to one model.
 - Vault imitation is saved logins only. Do not add payments.
 - Zero paywalls: never add any paid/charge/buy credits/auto-top-up buttons or payment flows anywhere in the application.
 - Personal cloud computer (Local VM): on macOS use Docker containerization; on Windows use WSL2 / Docker Desktop with WSL2 backend (with optional native Windows CUA fallback).
+- Think uses the active engine's own reasoning control and is not written into each user message. Fun stays a style instruction. Show only reasoning the engine actually returned.
 
 
 ## Learned Workspace Facts
 
 - Per-bot memory is injected before the engine, not inside a driver. A name, a time zone the user states, and how every bot should speak go only in About me; the profile email is not injected. Passwords, card numbers, phone numbers, email addresses, keys, prices, balances, unread counts, limits, and screen observations (screenshots, window text, click coordinates) are not long-term memory. A confirmed outcome may be kept without the screen.
 - Grok Bot defaults: a bot with no computer of its own uses the one shared account computer; an approved skill applies to the whole account; memory and routines belong to exactly one bot.
+- On that shared account computer, only the holding bot is in control and can release. Other bots see that someone else is using it and may take over; releasing from their side does not drop the holder's control.
 - A bot is told which sites have a saved login, not the username or password. The server types those into the page. When one site has several saved logins, the bot asks which account, then calls fill_login with the username the person gives.
