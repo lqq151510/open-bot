@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getDraft, getDraftAttachments, getDraftChannelMode, restoreComposerDraft } from "@/lib/drafts";
+import type { Attachment } from "@/lib/composer-attachments";
 import { BotEditorStore, type Message, type useStore } from "@/state/store";
 import { ROOM_VIEW_ONLY, type AppDocument, type AppPayload } from "../../../shared/app";
 import { APP_SAMPLES, MCP_APP_SAMPLES } from "../../../shared/app-samples";
@@ -296,6 +298,37 @@ describe("a bot's page", () => {
 });
 
 describe("an MCP app", () => {
+  it("puts a clicked message in its own chat's draft without sending it", async () => {
+    const draftId = "bot:pepper:t1";
+    const otherThread = "bot:pepper:t2";
+    const attachment: Attachment = { kind: "paste", id: "draft-paste", text: "Notes", size: 5, lines: 1 };
+    restoreComposerDraft(draftId, { text: "My note", attachments: [attachment], channelMode: "goal" });
+    restoreComposerDraft(otherThread, { text: "Different topic", attachments: [] });
+    fetchMock.mockImplementation(async () => json(200, mcpDoc()));
+    try {
+      await mount(row(mcpPayload()));
+      await handshake();
+      const request = { jsonrpc: "2.0", id: "m1", method: "ui/message", params: { role: "user", content: [{ type: "text", text: "Review this drawing." }] } };
+
+      await fromView(request);
+      expect(toView.find((message) => message.id === "m1")).toMatchObject({ error: { code: -32000 } });
+      expect(getDraft(localStorage, draftId)).toBe("My note");
+
+      await engage();
+      await fromView({ ...request, id: "m2" });
+      expect(toView.find((message) => message.id === "m2")).toEqual({ jsonrpc: "2.0", id: "m2", result: {} });
+      expect(getDraft(localStorage, draftId)).toBe("My note\n\nReview this drawing.");
+      expect(getDraftAttachments(localStorage, draftId)).toEqual([attachment]);
+      expect(getDraftChannelMode(localStorage, draftId)).toBe("goal");
+      expect(getDraft(localStorage, otherThread)).toBe("Different topic");
+      expect(posts("/messages")).toEqual([]);
+      expect(flushBotPatches).not.toHaveBeenCalled();
+    } finally {
+      restoreComposerDraft(draftId, { text: "", attachments: [] });
+      restoreComposerDraft(otherThread, { text: "", attachments: [] });
+    }
+  });
+
   it("hands a write the bot's level declines straight back to the View, with no card of its own", async () => {
     fetchMock.mockImplementation(async (path) => /\/app(\?|$)/.test(path) ? json(200, mcpDoc())
       : json(403, { error: { code: -32000, message: "This bot asks before it changes anything, so its apps can only look." } }));

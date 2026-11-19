@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type MutableRefObject } from "react";
 import { appVersion, openExternalLink } from "@/lib/app-links";
+import { appendComposerDraft } from "@/lib/drafts";
 import { useStore } from "@/state/store";
 import type { AppBlockedReason, AppDocument } from "../../../shared/app";
 import { RPC_HOST_REFUSED, type JsonRpcError } from "../../../shared/app-frame/bridge";
@@ -48,6 +49,7 @@ export function AppFrame(props: AppFrameProps) {
   useLayoutEffect(() => {
     const container = box.current;
     if (!container) return;
+    let active = true;
     const messageId = doc.messageId;
     const cap = () => Math.min(appMaxHeight(), latest.current.maxHeight ?? Infinity);
     let maxHeight = cap();
@@ -73,6 +75,11 @@ export function AppFrame(props: AppFrameProps) {
           throw outcome.error;
         },
         async sendMessage(text) {
+          if (doc.tool) {
+            if (!active) throw refusal("This app is no longer open.");
+            appendComposerDraft(`bot:${botId}:${threadId}`, text);
+            return;
+          }
           // A bot setting just changed is saved before the message starts a turn.
           await latest.current.flushBotPatches(botId);
           await sendAppMessage({ botId, threadId, messageId, text, sendId: newAppSendId() });
@@ -104,6 +111,7 @@ export function AppFrame(props: AppFrameProps) {
     window.addEventListener("resize", later);
 
     return () => {
+      active = false;
       skin?.disconnect();
       sized?.disconnect();
       window.removeEventListener("resize", later);

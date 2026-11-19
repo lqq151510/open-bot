@@ -208,14 +208,14 @@ describe("engagement", () => {
     // focus moves into the frame with the pointer elsewhere: not engaged
     iframe.focus();
     window.dispatchEvent(new Event("blur"));
+    expect(engagement.engaged()).toBe(false);
     await tick();
     expect(document.activeElement).toBe(iframe);
     expect(engagement.engaged()).toBe(false);
-    // the pointer over it, focus entering again: engaged
+    // The View can respond to a click before the queued focus check runs.
     window.dispatchEvent(new Event("focus"));
     iframe.dispatchEvent(new Event("pointerenter"));
     window.dispatchEvent(new Event("blur"));
-    await tick();
     expect(engagement.engaged()).toBe(true);
     // focus back in the app: not any more
     window.dispatchEvent(new Event("focus"));

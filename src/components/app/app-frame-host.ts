@@ -69,8 +69,15 @@ export function trackAppEngagement(iframe: HTMLIFrameElement): AppEngagement {
   win?.addEventListener("focus", onLeft);
   return {
     engaged: () => {
-      if (doc.activeElement !== iframe) entered = false;
-      return entered && doc.activeElement === iframe && doc.hasFocus();
+      if (doc.activeElement !== iframe) {
+        entered = false;
+        return false;
+      }
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        check();
+      }
+      return entered && doc.hasFocus();
     },
     dispose() {
       if (timer !== undefined) clearTimeout(timer);
