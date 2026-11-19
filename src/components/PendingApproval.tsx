@@ -12,6 +12,7 @@ import { reviewedSkillSha256 } from "../../shared/skill-request";
 import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { useInboxOrigin } from "./InboxLine";
 import { yourComputerAsk } from "@/lib/your-computer";
+import { useLocalMacComputerName } from "@/lib/local-mac-computer-name";
 import { computerAskWords } from "@/lib/computer-ask";
 import { DESKTOP_DOWNLOAD_URL } from "../../shared/computer-ask";
 
@@ -154,6 +155,7 @@ export const PendingApprovalPanel = memo(function PendingApprovalPanel({
   asker,
   actions,
   more,
+  showLocalComputerName = false,
 }: {
   pending: Pending;
   count: number;
@@ -163,6 +165,8 @@ export const PendingApprovalPanel = memo(function PendingApprovalPanel({
   asker?: Asker;
   actions?: ReactNode;
   more?: ReactNode;
+  /** The original conversation can name its local Mac. Inbox copies use the generic prompt. */
+  showLocalComputerName?: boolean;
   locale?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -171,6 +175,8 @@ export const PendingApprovalPanel = memo(function PendingApprovalPanel({
     ? t("approval.opaqueCode")
     : tFromServer(pending.heldCode, pending.held);
   const { line, summary, inline, note, detail } = approvalWords(pending, botName ?? asker?.name);
+  const computerName = useLocalMacComputerName(showLocalComputerName && Boolean(pending.message.card?.yourComputer && !pending.message.inbox));
+  const visibleSummary = summary ?? computerName;
   const detailsId = `approval-details-${pending.requestId}`;
   const hidden = detail && detail !== inline ? detail : "";
   const skill = pending.message.card?.skillRequest;
@@ -216,7 +222,7 @@ export const PendingApprovalPanel = memo(function PendingApprovalPanel({
           </button>
         )}
       </div>
-      {summary && <p dir="auto" className="mt-1.5 break-words text-[15px] font-medium leading-[22px] text-ink">{summary}</p>}
+      {visibleSummary && <p dir="auto" className="mt-1.5 break-words text-[15px] font-medium leading-[22px] text-ink">{visibleSummary}</p>}
       {inline && <AskDetail text={inline} mono label={t("approval.aria.reviewDetails")} />}
       {note && <p dir="auto" data-computer-ask-reason className="mt-1 break-words text-[13px] leading-[18px] text-ink-secondary">{note}</p>}
       {heldNote && (outbound ? (

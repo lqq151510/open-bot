@@ -751,6 +751,7 @@ export function Composer({
               count={approvals.length}
               index={0}
               locale={activeLocale()}
+              showLocalComputerName
               actions={<PendingApprovalActions part="primary" pending={approval} threadId={threadId} bot={approvalBot} onCancelTurn={interruptTurn} />}
               more={approval.message.inbox ? undefined : <PendingApprovalActions part="more" pending={approval} threadId={threadId} bot={approvalBot} onCancelTurn={interruptTurn} />}
             />

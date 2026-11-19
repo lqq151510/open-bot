@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { phonePlatformLabel, usePhones } from "@/lib/phones";
 import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import { appVersion } from "@/lib/app-links";
+import { useLocalMacComputerName } from "@/lib/local-mac-computer-name";
 import type { LocaleKey } from "@/locales";
 import { productName } from "../lib/brand";
 import { AnalyticsRow } from "./AnalyticsRow";
@@ -163,11 +164,13 @@ function formatLastOpened(seen: number, now = Date.now()): string {
 }
 
 function ManagedDevicesList() {
-  const [name, setName] = useState<string | null>(null);
+  const macName = useLocalMacComputerName();
+  const [environmentName, setEnvironmentName] = useState<string | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "empty">("loading");
   const { phones } = usePhones();
 
   useEffect(() => {
+    if (macName !== null) return;
     const controller = new AbortController();
     void api("/.well-known/openbot/environment", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]) })
       .then((body: unknown) => {
@@ -177,7 +180,7 @@ function ManagedDevicesList() {
           setPhase("empty");
           return;
         }
-        setName(label);
+        setEnvironmentName(label);
         setPhase("ready");
       })
       .catch((error: unknown) => {
@@ -185,12 +188,13 @@ function ManagedDevicesList() {
         setPhase("empty");
       });
     return () => controller.abort();
-  }, []);
+  }, [macName]);
 
-  if (phase === "loading") {
+  const name = macName ?? environmentName;
+  if (!name && (macName === undefined || phase === "loading")) {
     return <p role="status" data-managed-devices="loading" className="text-[13px] text-ink-secondary">{t("settings.computer.devicesLoading")}</p>;
   }
-  if (phase !== "ready" || !name) {
+  if (!name) {
     return <p data-managed-devices="empty" className="text-[13px] text-ink-secondary">{t("settings.computer.devicesEmpty")}</p>;
   }
   return (

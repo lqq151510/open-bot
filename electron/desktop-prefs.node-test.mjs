@@ -313,12 +313,14 @@ test("the preload gives every page of the window the notices and the switch's st
 
 test("device controls are exposed to this computer's renderer and hidden from remote pages", async () => {
   for (const origin of [CLOUD, VPS]) assert.equal(preload(origin, { activation: true }).bridge.deviceAccess, undefined);
+  assert.equal(preload(LOCAL, { remoteClient: true }).bridge.deviceAccess?.computerName, undefined);
   const local = preload(LOCAL);
   await local.bridge.deviceAccess.state();
+  await local.bridge.deviceAccess.computerName();
   await local.bridge.deviceAccess.set({ execution: "ask" });
-  assert.deepEqual(local.invoked, [["device-access:state"], ["device-access:set", { execution: "ask" }]]);
+  assert.deepEqual(local.invoked, [["device-access:state"], ["device-access:computer-name"], ["device-access:set", { execution: "ask" }]]);
   const main = readFileSync(new URL("./main.mjs", import.meta.url), "utf8");
-  for (const channel of ["state", "set"]) {
+  for (const channel of ["state", "computer-name", "set"]) {
     assert.ok(main.includes(`ipcMain.handle("device-access:${channel}", localWorkspaceOnly("device-access:${channel}"`));
   }
 });

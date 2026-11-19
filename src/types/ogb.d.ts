@@ -271,6 +271,8 @@ const __APP_VERSION__: string;
       deviceAccess?: {
         state(): Promise<import("../../shared/device-access.ts").DeviceAccessState>;
         set(patch: import("../../shared/device-access.ts").DeviceAccessPatch): Promise<import("../../shared/device-access.ts").DeviceAccessState>;
+        /** The local Mac's name from System Settings, when available. */
+        computerName?(): Promise<string | null>;
       };
       /** Local main-window only. Hosted renderers cannot grant themselves access. */
       computerSharing?: {

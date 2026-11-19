@@ -41,6 +41,7 @@ import { createStartupScreen } from "./startup-screen.mjs";
 import { createSystemTray } from "./system-tray.mjs";
 import { createLendingIndicator } from "./lending-indicator.mjs";
 import { createLendingDialogs } from "./lending-dialogs.mjs";
+import { createMacComputerNameReader } from "./mac-computer-name.mjs";
 import { createActivityWindow } from "./lending-activity-window.mjs";
 import { missingPermissions } from "./lent-screen-failures.mjs";
 import { createScreenControl } from "./screen-control.mjs"; import { createAskPrompt } from "./ask-prompt.mjs";
@@ -2503,7 +2504,9 @@ const workspaceOnly = (handler) => (event, ...args) => {
   return handler(event, ...args);
 };
 const localWorkspaceOnly = (channel, handler) => localOnly(channel, workspaceOnly(handler));
+const readMacComputerName = createMacComputerNameReader();
 ipcMain.handle("device-access:state", localWorkspaceOnly("device-access:state", () => nativeText.prefs.deviceAccess()));
+ipcMain.handle("device-access:computer-name", localWorkspaceOnly("device-access:computer-name", () => desktopRemoteAccess ? null : readMacComputerName()));
 ipcMain.handle("device-access:set", localWorkspaceOnly("device-access:set", (_event, patch) => {
   const before = nativeText.prefs.deviceAccess(), after = nativeText.prefs.setDeviceAccess(patch);
   if (before.execution !== after.execution) refreshLocalComputerGrant();

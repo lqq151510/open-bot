@@ -84,6 +84,26 @@ describe("managed devices", () => {
     expect(host.textContent).not.toContain("MacBook-Pro-3728.local");
   });
 
+  it.each([
+    { name: "工作室 Mac 🧪", remote: false, expected: "工作室 Mac 🧪" },
+    { name: null, remote: false, expected: "Fixture-Host.local" },
+    { name: "工作室 Mac 🧪", remote: true, expected: "Fixture-Host.local" },
+  ])("shows $expected with native name $name and remote connection $remote", async ({ name, remote, expected }) => {
+    const computerName = vi.fn(async () => name);
+    vi.stubGlobal("ogb", {
+      platform: "darwin",
+      app: { ownPage: true },
+      remoteClient: { active: remote },
+      deviceAccess: { computerName, state: async () => ({ execution: "ask", forwardTraffic: false }) },
+    });
+    await act(async () => { root.render(page()); });
+    await vi.waitFor(() => {
+      expect(host.querySelector("[data-managed-devices='this-computer']")?.textContent).toContain(expected);
+    });
+    expect(computerName).toHaveBeenCalledTimes(remote ? 0 : 1);
+    if (name && !remote) expect(host.textContent).not.toContain("Fixture-Host.local");
+  });
+
   it("shows verified image status and refreshes without reusing a stale result", async () => {
     fixture.images = {
       status: "busy", unverified: true,

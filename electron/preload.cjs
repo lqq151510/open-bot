@@ -458,6 +458,7 @@ const bridge = {
 
   deviceAccess: {
     state: () => ipcRenderer.invoke("device-access:state"),
+    ...(!desktopRemoteClient ? { computerName: () => ipcRenderer.invoke("device-access:computer-name") } : {}),
     set: (patch) => ipcRenderer.invoke("device-access:set", patch),
   },
 
