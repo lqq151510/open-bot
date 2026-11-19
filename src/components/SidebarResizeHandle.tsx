@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from "react";
 
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import {
+  SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_WIDTH_KEY,
+  SIMPLE_SIDEBAR_MAX_WIDTH,
   SIMPLE_SIDEBAR_WIDTH_KEY,
   clampSidebarWidth,
   loadSidebarWidth,
@@ -29,6 +31,13 @@ export function nextEdgeDrag(drag: EdgeDrag, wanted: number, from: number): Edge
   return { avatars: false, following: drag.following || wanted >= from };
 }
 
+const viewportWidthSnapshot = () => typeof window === "undefined" ? 1280 : window.innerWidth;
+
+function subscribeViewportWidth(onChange: () => void) {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
+}
+
 export type SidebarSizing = ReturnType<typeof useSidebarWidth>;
 
 export function useSidebarWidth({ simple, sidePanelOpen, sidebarRef }: {
@@ -37,9 +46,11 @@ export function useSidebarWidth({ simple, sidePanelOpen, sidebarRef }: {
   sidebarRef: RefObject<HTMLElement | null>;
 }) {
   const key = simple ? SIMPLE_SIDEBAR_WIDTH_KEY : SIDEBAR_WIDTH_KEY;
-  const defaultWidth = sidebarDefaultWidth(simple, window.innerWidth);
-  const cap = simple ? window.innerWidth >= 1536 ? 560 : 400 : 480;
-  const maxWidth = sidePanelOpen ? defaultWidth : Math.min(cap, window.innerWidth - 320);
+  const viewportWidth = useSyncExternalStore(subscribeViewportWidth, viewportWidthSnapshot, viewportWidthSnapshot);
+  const defaultWidth = sidebarDefaultWidth(simple, viewportWidth);
+  const cap = simple ? (viewportWidth >= 1536 ? SIMPLE_SIDEBAR_MAX_WIDTH : 400) : SIDEBAR_MAX_WIDTH;
+  const resizeViewport = sidePanelOpen ? defaultWidth + 320 : viewportWidth;
+  const maxWidth = clampSidebarWidth(cap, resizeViewport, cap);
   const [savedWidth, setSavedWidth] = useState<number | null>(() => loadSidebarWidth(undefined, key));
   const widthRef = useRef(savedWidth);
   const [resizing, setResizing] = useState(false);
@@ -53,7 +64,7 @@ export function useSidebarWidth({ simple, sidePanelOpen, sidebarRef }: {
   useEffect(() => () => { if (snapTimer.current) clearTimeout(snapTimer.current); }, []);
   const current = () => Math.min(widthRef.current ?? defaultWidth, maxWidth);
   const resizeTo = (width: number) => {
-    const next = clampSidebarWidth(width, sidePanelOpen ? defaultWidth + 320 : window.innerWidth, cap);
+    const next = clampSidebarWidth(width, resizeViewport, cap);
     if (next === Math.round(sidebarRef.current?.getBoundingClientRect().width ?? defaultWidth)) return null;
     widthRef.current = next;
     sidebarRef.current?.style.setProperty("--sidebar-width", `${next}px`);
@@ -63,8 +74,12 @@ export function useSidebarWidth({ simple, sidePanelOpen, sidebarRef }: {
     setSavedWidth(width);
     saveSidebarWidth(width, undefined, key);
   };
+  const resizeAndSave = (width: number) => {
+    const next = resizeTo(width);
+    if (next !== null) save(next);
+  };
   return {
-    width: Math.min(widthRef.current ?? defaultWidth, cap),
+    width: Math.min(widthRef.current ?? defaultWidth, sidePanelOpen ? maxWidth : cap),
     defaultWidth,
     maxWidth,
     resizing,
@@ -90,10 +105,8 @@ export function useSidebarWidth({ simple, sidePanelOpen, sidebarRef }: {
       setResizing(false);
       if (widthRef.current !== null) save(widthRef.current);
     },
-    stepResize: (step: number) => {
-      const next = resizeTo(current() + step);
-      if (next !== null) save(next);
-    },
+    stepResize: (step: number) => resizeAndSave(current() + step),
+    maximize: () => { if (current() < maxWidth) resizeAndSave(maxWidth); },
   };
 }
 
@@ -161,12 +174,27 @@ export function SidebarResizeHandle({ sizing, sidebarRef, avatars, avatarsWidth,
       onPointerUp={end}
       onPointerCancel={end}
       onKeyDown={(event) => {
-        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        switch (event.key) {
+          case "Home":
+            if (!avatars) onAvatars(true);
+            break;
+          case "End":
+            sizing.maximize();
+            if (avatars) onAvatars(false);
+            break;
+          case "ArrowLeft":
+            if (avatars) break;
+            if (sizing.atMinimum()) onAvatars(true);
+            else sizing.stepResize(-16);
+            break;
+          case "ArrowRight":
+            if (avatars) onAvatars(false);
+            else sizing.stepResize(16);
+            break;
+          default:
+            return;
+        }
         event.preventDefault();
-        const wider = event.key === "ArrowRight";
-        if (avatars) { if (wider) onAvatars(false); return; }
-        if (!wider && sizing.atMinimum()) onAvatars(true);
-        else sizing.stepResize(wider ? 16 : -16);
       }}
     />
   );

@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "@/lib/i18n";
-import { SIDEBAR_WIDTH_KEY } from "@/lib/sidebar-preferences";
+import { SIDEBAR_WIDTH_KEY, SIMPLE_SIDEBAR_WIDTH_KEY } from "@/lib/sidebar-preferences";
 import { AVATARS_BELOW, nextEdgeDrag, SidebarResizeHandle, useSidebarWidth } from "./SidebarResizeHandle";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,17 +14,19 @@ const LEFT = 36;
 let host: HTMLDivElement, root: Root | null = null;
 let seen: boolean[];
 
-function Harness({ avatars: startAvatars }: { avatars: boolean }) {
+type HarnessProps = { avatars: boolean; simple?: boolean; sidePanelOpen?: boolean };
+
+function Harness({ avatars: startAvatars, simple = false, sidePanelOpen = false }: HarnessProps) {
   const sidebarRef = useRef<HTMLElement>(null);
   const [avatars, setAvatars] = useState(startAvatars);
-  const sizing = useSidebarWidth({ simple: false, sidePanelOpen: false, sidebarRef });
+  const sizing = useSidebarWidth({ simple, sidePanelOpen, sidebarRef });
   return createElement("aside", { ref: sidebarRef, "data-sidebar": "", style: { "--sidebar-width": `${sizing.width}px` } },
     createElement(SidebarResizeHandle, { sizing, sidebarRef, avatars, avatarsWidth: 80, onAvatars: (next: boolean) => { seen.push(next); setAvatars(next); } }));
 }
 
-async function mount(avatars = false) {
+async function mount(avatars = false, options: Omit<HarnessProps, "avatars"> = {}) {
   root = createRoot(host);
-  await act(async () => root!.render(createElement(Harness, { avatars })));
+  await act(async () => root!.render(createElement(Harness, { avatars, ...options })));
 }
 const sidebar = () => host.querySelector<HTMLElement>("[data-sidebar]")!;
 const edge = () => host.querySelector<HTMLElement>("[data-sidebar-resize]")!;
@@ -32,7 +34,11 @@ const width = () => sidebar().style.getPropertyValue("--sidebar-width");
 const pointer = (type: string, at: number) => act(async () => {
   edge().dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, pointerId: 1, clientX: LEFT + at }));
 });
-const key = (name: string) => act(async () => { edge().dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true })); });
+const key = async (name: string) => {
+  const event = new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true });
+  await act(async () => { edge().dispatchEvent(event); });
+  return event;
+};
 
 beforeEach(() => {
   setLocale("en");
@@ -137,5 +143,67 @@ describe("the sidebar's edge from the keyboard", () => {
     await key("ArrowRight");
     expect(seen).toEqual([true, false]);
     expect(width()).toBe("240px");
+  });
+
+  it("collapses immediately with Home and keeps the expanded width", async () => {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, "360");
+    await mount();
+    edge().focus();
+    expect(document.activeElement).toBe(edge());
+    expect((await key("Home")).defaultPrevented).toBe(true);
+    await key("Home");
+    expect(seen).toEqual([true]);
+    expect(edge().getAttribute("aria-valuenow")).toBe("80");
+    expect(localStorage.getItem(SIDEBAR_WIDTH_KEY)).toBe("360");
+    await key("ArrowRight");
+    expect(edge().getAttribute("aria-valuenow")).toBe("360");
+  });
+
+  it.each([false, true])("expands to the available maximum with End (avatars: %s)", async (avatars) => {
+    vi.stubGlobal("innerWidth", 768);
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, "300");
+    await mount(avatars);
+    expect((await key("End")).defaultPrevented).toBe(true);
+    expect(seen).toEqual(avatars ? [false] : []);
+    expect(edge().getAttribute("aria-valuenow")).toBe("448");
+    expect(edge().getAttribute("aria-valuemax")).toBe("448");
+    expect(localStorage.getItem(SIDEBAR_WIDTH_KEY)).toBe("448");
+    expect((await key("Tab")).defaultPrevented).toBe(false);
+  });
+
+  it("keeps the wide Simple preference when the viewport narrows and restores it on reload", async () => {
+    vi.stubGlobal("innerWidth", 1800);
+    await mount(false, { simple: true });
+    await key("End");
+    expect(edge().getAttribute("aria-valuenow")).toBe("560");
+    expect(localStorage.getItem(SIMPLE_SIDEBAR_WIDTH_KEY)).toBe("560");
+
+    await act(async () => {
+      vi.stubGlobal("innerWidth", 1280);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(edge().getAttribute("aria-valuemax")).toBe("400");
+    expect(width()).toBe("400px");
+    await key("End");
+    expect(localStorage.getItem(SIMPLE_SIDEBAR_WIDTH_KEY)).toBe("560");
+
+    await act(async () => root!.unmount());
+    vi.stubGlobal("innerWidth", 1800);
+    await mount(false, { simple: true });
+    expect(width()).toBe("560px");
+  });
+
+  it("keeps the larger saved width when a details panel caps End", async () => {
+    vi.stubGlobal("innerWidth", 1280);
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, "460");
+    await mount(true, { sidePanelOpen: true });
+    await key("End");
+    expect(seen).toEqual([false]);
+    expect(edge().getAttribute("aria-valuenow")).toBe("320");
+    expect(width()).toBe("320px");
+    expect(localStorage.getItem(SIDEBAR_WIDTH_KEY)).toBe("460");
+    await act(async () => root!.render(createElement(Harness, { avatars: false })));
+    expect(edge().getAttribute("aria-valuenow")).toBe("460");
+    expect(width()).toBe("460px");
   });
 });

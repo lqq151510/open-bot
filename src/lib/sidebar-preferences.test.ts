@@ -86,12 +86,14 @@ describe("sidebar width preference", () => {
 
   it("keeps Simple mode's width under its own key, so resizing one mode leaves the other alone", () => {
     const setItem = vi.fn();
-    saveSidebarWidth(300, { setItem }, SIMPLE_SIDEBAR_WIDTH_KEY);
-    expect(setItem).toHaveBeenCalledExactlyOnceWith(SIMPLE_SIDEBAR_WIDTH_KEY, "300");
-    const saved: Record<string, string> = { [SIDEBAR_WIDTH_KEY]: "360", [SIMPLE_SIDEBAR_WIDTH_KEY]: "300" };
+    saveSidebarWidth(560, { setItem }, SIMPLE_SIDEBAR_WIDTH_KEY);
+    expect(setItem).toHaveBeenCalledExactlyOnceWith(SIMPLE_SIDEBAR_WIDTH_KEY, "560");
+    const saved: Record<string, string> = { [SIDEBAR_WIDTH_KEY]: "360", [SIMPLE_SIDEBAR_WIDTH_KEY]: "560" };
     const storage = { getItem: (key: string) => saved[key] ?? null };
     expect(loadSidebarWidth(storage)).toBe(360);
-    expect(loadSidebarWidth(storage, SIMPLE_SIDEBAR_WIDTH_KEY)).toBe(300);
+    expect(loadSidebarWidth(storage, SIMPLE_SIDEBAR_WIDTH_KEY)).toBe(560);
+    expect(loadSidebarWidth({ getItem: () => "560" })).toBeNull();
+    expect(loadSidebarWidth({ getItem: () => "561" }, SIMPLE_SIDEBAR_WIDTH_KEY)).toBeNull();
     expect(loadSidebarWidth({ getItem: (key) => key === SIDEBAR_WIDTH_KEY ? "360" : null }, SIMPLE_SIDEBAR_WIDTH_KEY)).toBeNull();
   });
 });
