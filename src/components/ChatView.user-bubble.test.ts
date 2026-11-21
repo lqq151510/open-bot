@@ -47,6 +47,7 @@ describe("bot-colored user bubbles", () => {
     expect(html).toContain("bg-bubble-user");
     expect(html).not.toContain("user-bubble-colored");
     expect(html).toContain("hello from me");
+    expect(html.match(/aria-label="Reply to message"/g)).toHaveLength(2);
   });
 
   it("paints the person's bubble in one flat tone of the bot, with readable text", () => {

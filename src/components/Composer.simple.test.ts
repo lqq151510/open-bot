@@ -9,7 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Bot, Group } from "@/state/store";
 import { restoreComposerDraft } from "@/lib/drafts";
 import { setCallMode } from "@/lib/call-mode";
-import { userBubbleTone } from "@/lib/user-bubble-tone";
 import { BOT_BUTTON, botButtonTone } from "@/lib/bot-button";
 
 const fixture = vi.hoisted(() => ({
@@ -112,7 +111,7 @@ afterEach(() => {
 });
 
 describe("the Simple composer in a bot chat", () => {
-  it("is one pill: a round + with three rows, the field, and one round button in the bot's tone", () => {
+  it("is one pill: a round +, the field, and a black waveform until Send takes the bot's tone", () => {
     render({ bot });
     expect(plus()?.getAttribute("aria-label")).toBe("Add");
     const pill = container.querySelector('[data-tour="composer"]')!.className.split(" ");
@@ -127,8 +126,9 @@ describe("the Simple composer in a bot chat", () => {
     expect(container.querySelector('button[aria-label="Start dictation"]')).toMatchObject({ disabled: true });
     expect(container.querySelector("[data-goal-chip]")).toBeNull();
     expect(container.querySelector("[data-approval-chip]")).toBeNull();
-    const tone = userBubbleTone("purple");
-    expect(fixture.call).toMatchObject({ bot: { id: "atlas" }, placement: "composer", fill: tone.background, ink: tone.ink });
+    expect(fixture.call).toMatchObject({ bot: { id: "atlas" }, placement: "composer" });
+    expect(fixture.call?.fill).toBeUndefined();
+    expect(fixture.call?.ink).toBeUndefined();
     openPlus();
     expect([...menu()!.querySelectorAll("[data-menu-key]")].map((row) => row.getAttribute("data-menu-key"))).toEqual(["attach", "goal", "teach"]);
     expect([...menu()!.querySelectorAll("[data-menu-key]")].map((row) => row.textContent)).toEqual(["Attach files", "Work until done", "Teach a task"]);

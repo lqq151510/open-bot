@@ -71,10 +71,10 @@ export function WhatICanDo({ bot, engineName, teamName }: {
         onClick={() => setOpen((value) => !value)}
         aria-label={t("chat.canDo.label")}
         title={t("chat.canDo.label")}
-        className="flex items-center justify-center rounded-full bg-ink px-3 py-1.5 text-[13px] font-medium text-app @max-[32rem]/chathead:size-9 @max-[32rem]/chathead:p-0"
+        className="flex h-9 min-w-9 items-center justify-center rounded-full bg-ink px-3.5 text-[13px] font-medium text-app max-md:size-9 max-md:px-0 [:root[data-skin=daylight]_&]:bg-[linear-gradient(180deg,#6c6c6c_0%,#3a3a3a_46%,#1e1e1e_100%)] [:root[data-skin=daylight]_&]:text-white"
       >
-        <CircleHelp size={16} aria-hidden="true" className="hidden @max-[32rem]/chathead:block" />
-        <span className="@max-[32rem]/chathead:hidden">{t("chat.canDo.label")}</span>
+        <CircleHelp size={16} aria-hidden="true" className="hidden max-md:block" />
+        <span className="max-md:hidden">{t("chat.canDo.label")}</span>
       </button>
       {open && (
         <div
