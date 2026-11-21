@@ -195,6 +195,31 @@ describe("the Simple header", () => {
     fixture.showThreads = true;
   });
 
+  it("centres the name, with share and then What I can do as the right-hand pair", () => {
+    fixture.advanced = false;
+    try {
+      const markup = renderToStaticMarkup(createElement(ChatView, { bot }));
+      const row = /data-chathead-row="[^"]*" class="([^"]*)"/.exec(markup)![1]!;
+      expect(row.split(" ")).toContain("md:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)]");
+      expect(row).not.toContain("@min-[32rem]/chathead");
+      const identity = /data-chathead-identity="[^"]*" class="([^"]*)"/.exec(markup)![1]!;
+      expect(identity.split(" ")).toEqual(expect.arrayContaining(["md:col-start-2", "md:justify-self-center"]));
+      const controls = markup.slice(markup.indexOf("data-chathead-controls"), markup.indexOf("role=\"log\""));
+      const modelAt = controls.indexOf("data-test-model-control");
+      const shareAt = controls.indexOf("data-panel-share");
+      const canDoAt = controls.indexOf("data-what-i-can-do");
+      expect(modelAt).toBeGreaterThan(-1);
+      expect(shareAt).toBeGreaterThan(modelAt);
+      expect(canDoAt).toBeGreaterThan(shareAt);
+      expect(controls.slice(canDoAt, controls.indexOf("</button>", canDoAt))).toContain(en["chat.canDo.label"]);
+      expect(controls.slice(canDoAt, controls.indexOf("</button>", canDoAt))).not.toContain("@max-[36rem]/chathead:md:hidden");
+      expect(controls).not.toContain("@max-[32rem]/chathead:hidden");
+      expect(controls).toContain("@max-[36rem]/chathead:md:hidden");
+    } finally {
+      fixture.advanced = true;
+    }
+  });
+
   it("opens the bot panel from the pill", () => {
     fixture.advanced = false;
     fixture.dispatch.mockClear();
