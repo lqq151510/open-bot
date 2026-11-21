@@ -6,6 +6,7 @@ import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 const INPUT_CLASS = "w-full min-w-0 rounded-lg border border-hairline/40 bg-inset px-3 py-2 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none disabled:opacity-50";
+const COMPACT_GENERATE = "bg-[#767676] text-white";
 const PROVIDER_LABEL = { openai: "OpenAI", xai: "Grok (xAI)", gemini: "Gemini", openrouter: "OpenRouter", custom: "Custom" } as const;
 
 export function AvatarImageGenerator({
@@ -35,7 +36,7 @@ export function AvatarImageGenerator({
       {!compact && <div className="flex items-center gap-2 text-[13px] font-medium text-ink">
         <Sparkles size={14} className="text-accent" /> {t("botIdentity.ai.generateWith")}
       </div>}
-      <p className={cn("text-[11px] leading-relaxed text-ink-secondary", compact ? "mb-2" : "mt-1.5")}>
+      {(!compact || !ready) && <p className={cn("text-[11px] leading-relaxed text-ink-secondary", compact ? "mb-2" : "mt-1.5")}>
         {ready && inUse ? t("botIdentity.ai.usingProvider", { provider: PROVIDER_LABEL[inUse] }) : t("botIdentity.ai.noProvider")}{" "}
         <button
           type="button"
@@ -44,7 +45,7 @@ export function AvatarImageGenerator({
         >
           {t("botIdentity.ai.openImageSettings")}
         </button>
-      </p>
+      </p>}
 
       <textarea
         value={direction}
@@ -53,17 +54,21 @@ export function AvatarImageGenerator({
         maxLength={400}
         placeholder={compact ? t("botPanel.avatar.describe") : t("botIdentity.ai.directionPlaceholder", { name: botLabel })}
         aria-label={t("botIdentity.ai.directionLabel")}
-        className={cn(INPUT_CLASS, compact ? "min-h-[160px] resize-y" : "mt-3 min-h-[72px] resize-none")}
+        className={cn(compact ? "min-h-[11rem] w-full resize-none rounded-xl border border-ink/15 bg-menu px-3 py-2.5 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none disabled:opacity-50" : cn(INPUT_CLASS, "mt-3 min-h-[72px] resize-none"))}
       />
-      <div className={cn("mt-2 flex items-center gap-3", !compact && "justify-between")}>
+      <div className={cn("flex items-center gap-3", compact ? "mt-3" : "mt-2 justify-between")}>
         <span className={compact ? "sr-only" : "text-[11px] tabular-nums text-ink-secondary"}>{direction.length}/400</span>
         <button
           type="button"
+          data-avatar-generate={compact ? "" : undefined}
           onClick={() => {
             if (canGenerate) void onGenerate(direction.trim());
           }}
           disabled={!canGenerate}
-          className={cn("flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium hover:brightness-110 disabled:opacity-50", compact ? "w-full bg-ink text-app" : "bg-accent text-white")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 font-medium hover:brightness-110 disabled:cursor-not-allowed",
+            compact ? cn("h-[30px] w-full rounded-[10px] text-[14px]", COMPACT_GENERATE) : "rounded-lg bg-accent px-3 py-1.5 text-[13px] text-white disabled:opacity-50",
+          )}
         >
           {generating ? <Loader2 size={13} className="animate-spin" /> : !compact && <Sparkles size={13} />}
           {generating ? t("botIdentity.ai.generating") : compact ? t("botPanel.avatar.generate") : t("botIdentity.ai.generate")}
