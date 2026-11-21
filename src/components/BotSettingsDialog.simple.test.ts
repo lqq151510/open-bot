@@ -644,10 +644,10 @@ describe("the Details tab", () => {
     expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleComputer", open: true });
   });
 
-  it("holds computer, voice chat, suggestions, conversations and this conversation's rows, in that order, with no switch or Thinking row", () => {
+  it("holds suggestions, the computer, voice chat, conversations and this conversation's rows, in that order, with no switch or Thinking row", () => {
     const rendered = botTab(makeBot());
     expect(ofType(rendered, BotConversations)!.props.bot).toMatchObject({ id: "scout" });
-    const order = ['data-panel-card="computer"', 'data-panel-card="voice-chat"', 'data-panel-card="suggestions"', 'data-panel-card="conversations"', 'data-panel-item="find"', 'data-panel-item="activity"']
+    const order = ['data-panel-card="suggestions"', 'data-panel-card="computer"', 'data-panel-card="voice-chat"', 'data-panel-card="conversations"', 'data-panel-item="find"', 'data-panel-item="activity"']
       .map((marker) => rendered.html.indexOf(marker));
     expect(order.every((index) => index > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -677,6 +677,15 @@ describe("the Details tab", () => {
     const some = botTab(makeBot());
     expect(some.html).not.toContain('data-panel-empty="routines"');
     expect(some.html.indexOf('data-panel-card="routines"')).toBeLessThan(some.html.indexOf('data-panel-card="conversations"'));
+  });
+
+  it("lists upcoming, then suggestions, then the computer and voice chat", () => {
+    fixture.derived.botRoutines = [routine()];
+    const rendered = botTab(makeBot());
+    const order = ['data-panel-card="routines"', 'data-panel-card="suggestions"', 'data-panel-card="computer"', 'data-panel-card="voice-chat"']
+      .map((marker) => rendered.html.indexOf(marker));
+    expect(order.every((index) => index > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   it("only offers Slack management when a validated management address is available", () => {

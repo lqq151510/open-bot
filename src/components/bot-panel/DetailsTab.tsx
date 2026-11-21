@@ -110,6 +110,24 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl, linkedRoutineId }: 
         </Card>
       ) : null}
 
+      {!hiddenSuggestions.includes(bot.id) && (
+        <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
+          {slackUrl ? <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botPanel.suggestions.slack")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </a> : <button type="button" data-panel-action="suggest-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
+            <RowIcon icon={Slack} />
+            <RowText title={t("botPanel.suggestions.slack")} />
+            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
+          </button>}
+          {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
+            appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
+            requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
+          }} />}
+        </Card>
+      )}
+
       <Card label={t("botPanel.tab.computer")} anchor="computer">
         <NavRow
           data-panel-action="open-computer"
@@ -128,24 +146,6 @@ export function DetailsTab({ bot, derived, onOpen, slackUrl, linkedRoutineId }: 
       </Card>
 
       <VoiceChatSummary />
-
-      {!hiddenSuggestions.includes(bot.id) && (
-        <Card label={t("botPanel.suggestions")} anchor="suggestions" action={<LabelAction data-panel-action="hide-suggestions" onClick={() => setHiddenSuggestions((hidden) => [...hidden, bot.id])}>{t("botPanel.suggestions.hide")}</LabelAction>}>
-          {slackUrl ? <a href={slackUrl} target="_blank" rel="noopener noreferrer" data-panel-action="manage-slack" className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
-            <RowIcon icon={Slack} />
-            <RowText title={t("botPanel.suggestions.slack")} />
-            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </a> : <button type="button" data-panel-action="suggest-slack" onClick={() => onOpen("apps")} className={cn(rowCls, "w-full text-left hover:bg-ink/[0.03]")}>
-            <RowIcon icon={Slack} />
-            <RowText title={t("botPanel.suggestions.slack")} />
-            <ChevronRight size={15} className="shrink-0 text-ink-tertiary" aria-hidden="true" />
-          </button>}
-          {derived.botRoutines.length === 0 && <NavRow data-panel-action="suggest-routine" icon={Calendar} title={t("botPanel.routines.create")} onClick={() => {
-            appendComposerDraft(`bot:${bot.id}:${bot.threadId}`, t("botPanel.routines.suggestionPrompt"));
-            requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('[data-tour="composer"] textarea')?.focus());
-          }} />}
-        </Card>
-      )}
 
       <TryAsking bot={bot} />
 
